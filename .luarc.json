@@ -1,0 +1,14 @@
+{
+  "diagnostics.globals": [
+    "game",
+    "defines",
+    "script",
+    "settings",
+    "storage",
+    "remote",
+    "log",
+    "data",
+    "mods",
+    "commands"
+  ]
+}

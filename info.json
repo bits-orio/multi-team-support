@@ -1,0 +1,11 @@
+{
+  "name": "solo-teams",
+  "version": "0.1.0",
+  "title": "Solo Teams",
+  "author": "bits-orio",
+  "description": "Gives each player their own force/team with independent research, production statistics, and a platforms GUI. Includes cross-force chat, a /platforms command, and per-player friend toggles.",
+  "factorio_version": "2.0",
+  "dependencies": [
+    "base >= 2.0"
+  ]
+}
