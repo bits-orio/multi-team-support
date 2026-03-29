@@ -49,10 +49,10 @@ function M.register()
             player.vehicle.set_driver(nil)
         end
 
-        if player.character and player.character.valid and player.surface then
-            local safe_pos = player.surface.find_non_colliding_position("character", player.position, 20, 0.5)
+        if player.character and player.character.valid and player.physical_surface then
+            local safe_pos = player.physical_surface.find_non_colliding_position("character", player.physical_position, 20, 0.5)
             if safe_pos then
-                player.teleport(safe_pos, player.surface)
+                player.teleport(safe_pos, player.physical_surface)
                 player.print("Unstuck! Teleported to a safe position.")
             else
                 player.print("Could not find a safe position nearby.")
