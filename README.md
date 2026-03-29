@@ -16,12 +16,11 @@ This mod was primarily built for the [Space Block](https://mods.factorio.com/mod
 - **Friend toggle** — A checkbox next to each player's name in the GUI lets you control friendship independently. Friending another player lets them access your entities.
 - **Cross-force chat** — Normal chat messages are broadcast to all forces, so players don't need `/shout` to communicate.
 - **/platforms command** — Lists all players and their platforms with colored names and clickable GPS pings.
-- **/unstuck command** — Ejects the player from a vehicle (e.g. platform hub) and teleports to a safe position. Useful when accidentally entering the hub entity.
-- **Spawn collision fix** — Automatically detects when a player is teleported onto a platform hub and repositions them to a non-colliding spot.
+- **/unstuck command** — Ejects the player from a vehicle (e.g. platform hub) and teleports to a safe position. Use this if you get stuck after entering a hub or following a GPS ping to another player's platform.
 
 ## Installation
 
-1. Download or clone this repository into your Factorio mods folder as `solo-teams_0.1.0/`
+1. Download or clone this repository into your Factorio mods folder as `solo-teams_<version>/` (must match the version in `info.json`)
 2. Enable the mod in the Factorio mod manager
 3. Start or load a game — solo forces are created automatically for each new player
 

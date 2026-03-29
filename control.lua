@@ -3,7 +3,8 @@
 -- License: MIT
 --
 -- Main control script. Creates per-player forces, syncs tech/quality,
--- handles cross-force chat, and fixes platform spawn collisions.
+-- and handles cross-force chat. Hub spawn collision is not auto-fixed:
+-- use /unstuck (see commands.lua) if stuck in another player's platform hub.
 
 local platforms_gui = require("platforms_gui")
 local commands_mod = require("commands")
@@ -77,9 +78,8 @@ end
 
 -- First-time map creation: initialize persistent storage tables
 script.on_init(function()
-    storage.gui_collapsed = {}         -- per-player GUI collapsed state
-    storage.gui_location = {}          -- per-player GUI window position
-    storage.pending_collision_fix = {} -- players needing spawn collision fix
+    storage.gui_collapsed = {} -- per-player GUI collapsed state
+    storage.gui_location = {}  -- per-player GUI window position
     commands_mod.register()
     init_events()
 end)
@@ -88,7 +88,6 @@ end)
 script.on_load(function()
     storage.gui_collapsed = storage.gui_collapsed or {}
     storage.gui_location = storage.gui_location or {}
-    storage.pending_collision_fix = storage.pending_collision_fix or {}
     commands_mod.register()
     init_events()
 end)
@@ -129,35 +128,6 @@ script.on_event(defines.events.on_console_chat, function(event)
     end
 end)
 
--- Spawn collision fix (two-part):
--- Part 1: When a player arrives on a platform surface (typically because
--- another mod like space-block teleported them onto the hub entity), flag
--- them for a position correction on the next tick.
-script.on_event(defines.events.on_player_changed_surface, function(event)
-    local player = game.get_player(event.player_index)
-    if player and player.valid and player.surface and player.surface.platform then
-        storage.pending_collision_fix[event.player_index] = true
-    end
-end)
-
--- Part 2: On the next tick, find a non-colliding position near the player
--- and re-teleport them there. This prevents players from getting stuck
--- inside the 10x10 platform hub entity.
-script.on_event(defines.events.on_tick, function()
-    for player_index, _ in pairs(storage.pending_collision_fix) do
-        local player = game.get_player(player_index)
-        if player and player.valid and player.character and player.character.valid then
-            local surface = player.surface
-            if surface and surface.platform then
-                local hub = surface.platform.hub
-                if hub and hub.valid then
-                    local safe_pos = surface.find_non_colliding_position("character", player.position, 20, 0.5)
-                    if safe_pos then
-                        player.teleport(safe_pos, surface)
-                    end
-                end
-            end
-        end
-        storage.pending_collision_fix[player_index] = nil
-    end
-end)
+-- Automatic hub collision fix was removed: on_player_changed_surface also fires
+-- when a player follows a GPS ping to another platform, and the follow-up
+-- teleport could strand them on someone else's hub. Use /unstuck instead.
