@@ -154,17 +154,6 @@ function M.build_platforms_gui(player)
         local owner_label = owner_flow.add{type = "label", caption = owner}
         owner_label.style.font = "default-bold"
         owner_label.style.font_color = owner_info[owner].color
-        local c = owner_info[owner].color
-        local color_str = string.format("%.2f,%.2f,%.2f", c.r or c[1] or 1, c.g or c[2] or 1, c.b or c[3] or 1)
-        if owner_info[owner].gps ~= "" then
-            owner_flow.add{
-                type = "sprite-button",
-                sprite = "utility/gps_map_icon",
-                tags = {sb_gps = owner_info[owner].gps, sb_gps_label = owner, sb_gps_color = color_str, sb_gps_type = "player"},
-                style = "mini_button",
-                tooltip = "Ping " .. owner .. "'s location"
-            }
-        end
 
         -- Player name row (col 2): friend checkbox (only for other players)
         local target_force_name = owner_info[owner].force_name
