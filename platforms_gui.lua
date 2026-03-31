@@ -41,7 +41,11 @@ function M.get_platforms_by_owner()
     local owner_info = {}
     local order = {}
     for _, force in pairs(game.forces) do
-        if force.name ~= "enemy" and force.name ~= "neutral" then
+        -- Skip built-in forces: enemy/neutral are not player forces, and
+        -- "player" is the default force used by Platformer for Base One —
+        -- which we leave intact so Platformer doesn't crash, but hide here
+        -- since solo players are always on their own "player-X" force.
+        if force.name ~= "enemy" and force.name ~= "neutral" and force.name ~= "player" then
             local has_platforms = false
             for _ in pairs(force.platforms) do has_platforms = true; break end
             if has_platforms then
@@ -204,6 +208,24 @@ function M.build_platforms_gui(player)
         tbl.add{type = "label", caption = "No platforms yet."}
         tbl.add{type = "label", caption = ""}
     end
+
+    -- Footer: return button, shown when the player has their own platform.
+    local own_platform
+    for _, p in pairs(player.force.platforms) do own_platform = p; break end
+    if own_platform and own_platform.surface and
+       player.surface.index ~= own_platform.surface.index then
+        local footer = frame.add{type = "flow", direction = "horizontal"}
+        footer.style.top_margin = 4
+        footer.style.horizontal_align = "center"
+        footer.style.horizontally_stretchable = true
+        footer.add{
+            type    = "button",
+            name    = "sb_return_to_base",
+            caption = "Return to my base",
+            style   = "button",
+            tooltip = "Teleport back to your space platform",
+        }
+    end
 end
 
 --- Rebuild the GUI for all connected players.
@@ -220,6 +242,19 @@ end
 function M.on_gui_click(event)
     local element = event.element
     if not element or not element.valid then return end
+
+    -- Return-to-base button: teleport player to their own platform surface.
+    if element.name == "sb_return_to_base" then
+        local player = game.get_player(event.player_index)
+        if player then
+            local own_platform
+            for _, p in pairs(player.force.platforms) do own_platform = p; break end
+            if own_platform and own_platform.surface then
+                player.teleport({ x = 0, y = 0 }, own_platform.surface)
+            end
+        end
+        return true
+    end
 
     -- Toggle collapse/expand
     if element.name == "sb_platforms_toggle" then

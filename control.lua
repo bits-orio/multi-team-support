@@ -5,8 +5,9 @@
 -- Main control script. Creates per-player forces, syncs tech/quality,
 -- and handles cross-force chat.
 
-local platforms_gui = require("platforms_gui")
-local commands_mod = require("commands")
+local platforms_gui     = require("platforms_gui")
+local commands_mod      = require("commands")
+local platformer_compat = require("platformer_compat")
 
 --- Copy all researched technologies, quality unlocks, and space platform
 --- unlock from one force to another. This is generic and works regardless
@@ -70,13 +71,18 @@ end
 --- Register periodic tick handlers:
 ---   every  30 ticks (~0.5s): sync quality unlocks across all forces
 ---   every 300 ticks (~5s):   refresh the platforms GUI for all players
+---   every tick:              flush deferred platform teleports (Platformer only)
 local function init_events()
     script.on_nth_tick(30, sync_quality_all_forces)
     script.on_nth_tick(300, platforms_gui.update_all)
+    if platformer_compat.is_active() then
+        script.on_event(defines.events.on_tick, platformer_compat.process_pending_teleports)
+    end
 end
 
 -- First-time map creation: initialize persistent storage tables
 script.on_init(function()
+    log("[solo-teams] on_init fired")
     storage.gui_collapsed = {}         -- per-player GUI collapsed state
     storage.gui_location = {}          -- per-player GUI window position
     commands_mod.register()
@@ -91,15 +97,20 @@ script.on_load(function()
     init_events()
 end)
 
--- Re-register tick handlers when mod configuration changes
+-- Re-register tick handlers when mod configuration changes.
 script.on_configuration_changed(function()
+    log("[solo-teams] on_configuration_changed fired")
     init_events()
 end)
 
--- When a new player joins, create their solo force and refresh the GUI
+-- When a new player joins, create their solo force, and if Platformer is
+-- active create a personal space platform overriding Base One.
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.get_player(event.player_index)
     create_player_force(player)
+    if platformer_compat.is_active() then
+        platformer_compat.on_player_created(player)
+    end
     platforms_gui.update_all()
 end)
 
@@ -111,6 +122,15 @@ end)
 -- Delegate friend checkbox toggle events
 script.on_event(defines.events.on_gui_checked_state_changed, function(event)
     platforms_gui.on_friend_toggle(event)
+end)
+
+-- Rebuild the GUI immediately when a player changes surface so the
+-- "Return to my base" button appears/disappears without delay.
+script.on_event(defines.events.on_player_changed_surface, function(event)
+    local player = game.get_player(event.player_index)
+    if player and player.connected then
+        platforms_gui.build_platforms_gui(player)
+    end
 end)
 
 -- Broadcast chat messages across all forces so players on separate teams
