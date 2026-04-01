@@ -122,13 +122,16 @@ function M.build_platforms_gui(player)
     spacer.style.height = 24
     spacer.drag_target = frame
 
-    title_bar.add{
+    local stats_btn = title_bar.add{
         type    = "button",
         name    = "sb_stats_open",
         caption = "Stats",
         style   = "button",
         tooltip = "Production stats",
     }
+    stats_btn.style.left_padding  = 1
+    stats_btn.style.right_padding = 1
+    stats_btn.style.minimal_width = 0
 
     title_bar.add{
         type = "sprite-button",
@@ -142,7 +145,7 @@ function M.build_platforms_gui(player)
     if collapsed then return end
 
     frame.style.maximal_height = 400
-    frame.style.minimal_width = 220
+    frame.style.minimal_width = 256
 
     local scroll = frame.add{
         type = "scroll-pane",

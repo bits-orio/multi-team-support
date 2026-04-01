@@ -1,6 +1,6 @@
 {
   "name": "solo-teams",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "title": "Solo Teams",
   "author": "bits-orio",
   "description": "Gives each player their own force/team with independent research, production statistics, and a platforms GUI. Includes cross-force chat, a /platforms command, and per-player friend toggles.",
