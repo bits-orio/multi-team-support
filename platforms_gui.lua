@@ -53,12 +53,13 @@ function M.get_platforms_by_owner()
                 local owner = force.name:match("^player%-(.+)$") or force.name
                 owners[owner] = {}
                 order[#order + 1] = owner
-                owner_info[owner] = {gps = "", color = {1, 1, 1}, force_name = force.name}
+                owner_info[owner] = {gps = "", color = {1, 1, 1}, force_name = force.name, online = false}
                 -- Find the connected player matching this owner for live GPS/color
                 for _, p in pairs(force.connected_players) do
                     if p.name == owner or force.name == "player" then
                         owner_info[owner].gps = get_player_gps(p)
                         owner_info[owner].color = p.chat_color
+                        owner_info[owner].online = true
                         break
                     end
                 end
@@ -122,6 +123,14 @@ function M.build_platforms_gui(player)
     spacer.drag_target = frame
 
     title_bar.add{
+        type    = "button",
+        name    = "sb_stats_open",
+        caption = "Stats",
+        style   = "button",
+        tooltip = "Production stats",
+    }
+
+    title_bar.add{
         type = "sprite-button",
         name = "sb_platforms_toggle",
         caption = collapsed and "+" or "-",
@@ -153,11 +162,18 @@ function M.build_platforms_gui(player)
 
     local owners, order, owner_info = M.get_platforms_by_owner()
     for _, owner in ipairs(order) do
-        -- Player name row (col 1): bold, colored by chat_color, with GPS ping button
+        -- Player name row (col 1): bold, colored by chat_color; grey + "(offline)" when disconnected
         local owner_flow = tbl.add{type = "flow", direction = "horizontal"}
         local owner_label = owner_flow.add{type = "label", caption = owner}
         owner_label.style.font = "default-bold"
-        owner_label.style.font_color = owner_info[owner].color
+        if owner_info[owner].online then
+            owner_label.style.font_color = owner_info[owner].color
+        else
+            owner_label.style.font_color = {0.65, 0.65, 0.65}
+            local off_lbl = owner_flow.add{type = "label", caption = " (offline)"}
+            off_lbl.style.font       = "default-small"
+            off_lbl.style.font_color = {0.45, 0.45, 0.45}
+        end
 
         -- Player name row (col 2): friend checkbox (only for other players)
         local target_force_name = owner_info[owner].force_name

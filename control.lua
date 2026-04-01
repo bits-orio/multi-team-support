@@ -6,6 +6,7 @@
 -- and handles cross-force chat.
 
 local platforms_gui     = require("platforms_gui")
+local stats_gui         = require("stats_gui")
 local commands_mod      = require("commands")
 local platformer_compat = require("platformer_compat")
 
@@ -83,23 +84,32 @@ end
 -- First-time map creation: initialize persistent storage tables
 script.on_init(function()
     log("[solo-teams] on_init fired")
-    storage.gui_collapsed = {}         -- per-player GUI collapsed state
-    storage.gui_location = {}          -- per-player GUI window position
+    storage.gui_collapsed         = {}   -- per-player GUI collapsed state
+    storage.gui_location          = {}   -- per-player GUI window position
+    storage.stats_gui_state       = {}   -- per-player stats window state
+    storage.stats_gui_location    = {}   -- per-player stats window position
+    storage.stats_category_items  = {}   -- global per-category item overrides
     commands_mod.register()
     init_events()
 end)
 
 -- Subsequent loads (savegame resume): ensure storage tables exist
 script.on_load(function()
-    storage.gui_collapsed = storage.gui_collapsed or {}
-    storage.gui_location = storage.gui_location or {}
+    storage.gui_collapsed        = storage.gui_collapsed        or {}
+    storage.gui_location         = storage.gui_location         or {}
+    storage.stats_gui_state      = storage.stats_gui_state      or {}
+    storage.stats_gui_location   = storage.stats_gui_location   or {}
+    storage.stats_category_items = storage.stats_category_items or {}
     commands_mod.register()
     init_events()
 end)
 
 -- Re-register tick handlers when mod configuration changes.
+-- Also discard the prototype category cache so it is rebuilt from the new
+-- prototype set the next time a player opens the stats window.
 script.on_configuration_changed(function()
     log("[solo-teams] on_configuration_changed fired")
+    stats_gui.invalidate_categories()
     init_events()
 end)
 
@@ -114,9 +124,42 @@ script.on_event(defines.events.on_player_created, function(event)
     platforms_gui.update_all()
 end)
 
--- Delegate GUI click events (toggle collapse, GPS ping buttons)
+-- Delegate GUI click events to the appropriate module.
+-- The sb_stats_open button (in the platforms title bar) opens/closes the
+-- stats window; all other sb_stats_* events are handled by stats_gui;
+-- everything else goes to platforms_gui.
 script.on_event(defines.events.on_gui_click, function(event)
+    local el = event.element
+    if el and el.valid and el.name == "sb_stats_open" then
+        local player = game.get_player(event.player_index)
+        if player then stats_gui.toggle(player) end
+        return
+    end
+    if stats_gui.on_gui_click(event) then return end
     platforms_gui.on_gui_click(event)
+end)
+
+-- Item chooser selections in the stats window
+script.on_event(defines.events.on_gui_elem_changed, function(event)
+    stats_gui.on_gui_elem_changed(event)
+end)
+
+-- Rebuild both GUIs instantly when any player connects or disconnects.
+-- leaving_index is passed to stats_gui so it can mark the leaving player as
+-- offline even if player.connected hasn't updated yet at event fire time.
+local function rebuild_for_connectivity(leaving_index)
+    platforms_gui.update_all()
+    for _, player in pairs(game.players) do
+        if player.connected and player.gui.screen.sb_stats_frame then
+            stats_gui.build_stats_gui(player, leaving_index)
+        end
+    end
+end
+script.on_event(defines.events.on_player_joined_game, function(event)
+    rebuild_for_connectivity(nil)
+end)
+script.on_event(defines.events.on_player_left_game, function(event)
+    rebuild_for_connectivity(event.player_index)
 end)
 
 -- Delegate friend checkbox toggle events
