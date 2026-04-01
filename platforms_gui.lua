@@ -247,11 +247,19 @@ function M.build_platforms_gui(player)
     end
 end
 
---- Rebuild the GUI for all connected players.
+--- Rebuild the GUI for all connected players who have left the landing pen.
+--- Players still in the pen have no platforms frame; destroy any stale one.
 function M.update_all()
     for _, player in pairs(game.players) do
         if player.connected then
-            M.build_platforms_gui(player)
+            if player.surface and player.surface.name == "landing-pen" then
+                -- Player is in the landing pen — remove any stale platforms frame
+                if player.gui.screen.sb_platforms_frame then
+                    player.gui.screen.sb_platforms_frame.destroy()
+                end
+            else
+                M.build_platforms_gui(player)
+            end
         end
     end
 end

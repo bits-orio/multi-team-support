@@ -7,6 +7,7 @@
 
 local platforms_gui     = require("platforms_gui")
 local stats_gui         = require("stats_gui")
+local landing_pen       = require("landing_pen")
 local commands_mod      = require("commands")
 local platformer_compat = require("platformer_compat")
 
@@ -72,13 +73,16 @@ end
 --- Register periodic tick handlers:
 ---   every  30 ticks (~0.5s): sync quality unlocks across all forces
 ---   every 300 ticks (~5s):   refresh the platforms GUI for all players
----   every tick:              flush deferred platform teleports (Platformer only)
+---   every tick:              flush deferred teleports (landing pen + Platformer)
 local function init_events()
     script.on_nth_tick(30, sync_quality_all_forces)
     script.on_nth_tick(300, platforms_gui.update_all)
-    if platformer_compat.is_active() then
-        script.on_event(defines.events.on_tick, platformer_compat.process_pending_teleports)
-    end
+    script.on_event(defines.events.on_tick, function()
+        landing_pen.process_pending_teleports()
+        if platformer_compat.is_active() then
+            platformer_compat.process_pending_teleports()
+        end
+    end)
 end
 
 -- First-time map creation: initialize persistent storage tables
@@ -89,6 +93,10 @@ script.on_init(function()
     storage.stats_gui_state       = {}   -- per-player stats window state
     storage.stats_gui_location    = {}   -- per-player stats window position
     storage.stats_category_items  = {}   -- global per-category item overrides
+    storage.spawned_players       = {}   -- players who have left the landing pen
+    storage.pen_slots             = {}   -- landing pen spawn slot per player
+    storage.pen_gui_location      = {}   -- landing pen GUI position per player
+    storage.pending_pen_tp        = {}   -- deferred landing pen teleports
     commands_mod.register()
     init_events()
 end)
@@ -100,6 +108,10 @@ script.on_load(function()
     storage.stats_gui_state      = storage.stats_gui_state      or {}
     storage.stats_gui_location   = storage.stats_gui_location   or {}
     storage.stats_category_items = storage.stats_category_items or {}
+    storage.spawned_players      = storage.spawned_players      or {}
+    storage.pen_slots            = storage.pen_slots            or {}
+    storage.pen_gui_location     = storage.pen_gui_location     or {}
+    storage.pending_pen_tp       = storage.pending_pen_tp       or {}
     commands_mod.register()
     init_events()
 end)
@@ -107,30 +119,57 @@ end)
 -- Re-register tick handlers when mod configuration changes.
 -- Also discard the prototype category cache so it is rebuilt from the new
 -- prototype set the next time a player opens the stats window.
+-- When upgrading from a pre-Landing-Pen version all existing players are
+-- pre-marked as spawned so they are not placed back in the pen.
 script.on_configuration_changed(function()
     log("[solo-teams] on_configuration_changed fired")
+    storage.spawned_players = storage.spawned_players or {}
+    for _, player in pairs(game.players) do
+        if not storage.spawned_players[player.index] then
+            storage.spawned_players[player.index] = true
+        end
+    end
     stats_gui.invalidate_categories()
     init_events()
 end)
 
--- When a new player joins, create their solo force, and if Platformer is
--- active create a personal space platform overriding Base One.
+-- When a new player first joins: create their solo force and place them in
+-- the Landing Pen to wait before spawning into the actual game.
+-- Platform creation (Platformer compat) is deferred until they click Spawn.
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.get_player(event.player_index)
     create_player_force(player)
-    if platformer_compat.is_active() then
-        platformer_compat.on_player_created(player)
-    end
+    landing_pen.place_player(player)
     platforms_gui.update_all()
 end)
 
 -- Delegate GUI click events to the appropriate module.
--- The sb_stats_open button (in the platforms title bar) opens/closes the
--- stats window; all other sb_stats_* events are handled by stats_gui;
--- everything else goes to platforms_gui.
+-- sb_spawn_btn: finish landing pen spawn, then set up platform/world entry.
+-- sb_stats_open: toggle the stats window.
+-- All other clicks go to stats_gui then platforms_gui.
 script.on_event(defines.events.on_gui_click, function(event)
     local el = event.element
-    if el and el.valid and el.name == "sb_stats_open" then
+    if not el or not el.valid then return end
+
+    if el.name == "sb_spawn_btn" then
+        local player = game.get_player(event.player_index)
+        if player then
+            landing_pen.finish_spawn(player)
+            if platformer_compat.is_active() then
+                platformer_compat.on_player_created(player)
+            else
+                -- Without Platformer, teleport to Nauvis spawn point
+                local nauvis = game.surfaces["nauvis"]
+                if nauvis then
+                    player.teleport({x = 0, y = 0}, nauvis)
+                end
+            end
+            platforms_gui.update_all()
+        end
+        return
+    end
+
+    if el.name == "sb_stats_open" then
         local player = game.get_player(event.player_index)
         if player then stats_gui.toggle(player) end
         return
@@ -144,11 +183,12 @@ script.on_event(defines.events.on_gui_elem_changed, function(event)
     stats_gui.on_gui_elem_changed(event)
 end)
 
--- Rebuild both GUIs instantly when any player connects or disconnects.
+-- Rebuild all GUIs instantly when any player connects or disconnects.
 -- leaving_index is passed to stats_gui so it can mark the leaving player as
 -- offline even if player.connected hasn't updated yet at event fire time.
 local function rebuild_for_connectivity(leaving_index)
     platforms_gui.update_all()
+    landing_pen.update_pen_gui_all()
     for _, player in pairs(game.players) do
         if player.connected and player.gui.screen.sb_stats_frame then
             stats_gui.build_stats_gui(player, leaving_index)
@@ -156,6 +196,14 @@ local function rebuild_for_connectivity(leaving_index)
     end
 end
 script.on_event(defines.events.on_player_joined_game, function(event)
+    -- If this player hasn't spawned yet, ensure they're shown the pen GUI.
+    -- For brand-new players on_player_created already queued the teleport;
+    -- for reconnecting unspawned players we just rebuild the GUI (they're
+    -- already on the landing-pen surface).
+    local player = game.get_player(event.player_index)
+    if player and landing_pen.is_in_pen(player) then
+        landing_pen.place_player(player)
+    end
     rebuild_for_connectivity(nil)
 end)
 script.on_event(defines.events.on_player_left_game, function(event)
@@ -167,12 +215,15 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
     platforms_gui.on_friend_toggle(event)
 end)
 
--- Rebuild the GUI immediately when a player changes surface so the
+-- Rebuild the platforms GUI immediately when a player changes surface so the
 -- "Return to my base" button appears/disappears without delay.
+-- Skip players still in the landing pen (they have no platforms frame).
 script.on_event(defines.events.on_player_changed_surface, function(event)
     local player = game.get_player(event.player_index)
     if player and player.connected then
-        platforms_gui.build_platforms_gui(player)
+        if player.surface and player.surface.name ~= "landing-pen" then
+            platforms_gui.build_platforms_gui(player)
+        end
     end
 end)
 
