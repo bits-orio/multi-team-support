@@ -1,83 +1,55 @@
-# Solo Teams
+# 🏭 Solo Teams
 
 ![Solo Teams](thumbnail.png)
 
 > **Compete solo. Share the world.**
 
-Ever wanted to play Factorio multiplayer but keep your own factory, your own research, and your own pace? Solo Teams gives every player their own independent team on the same shared map. Race your friends to rocket launch, compare research progress, or just build side by side without stepping on each other's toes.
+A Factorio 2.0 mod that gives each player their own independent force  - research your own tech tree, build your own factory, and progress at your own pace, all on the same shared map.
 
-**Discord:** https://discord.gg/tWz4FT74pH
+## 💬 Community
 
-## How it works
+Join the Discord: **https://discord.gg/tWz4FT74pH**
 
-When you join a game with Solo Teams, you automatically get your own **force** (Factorio's term for a team). That means:
+## 🚀 Origin
 
-- **Your own tech tree** - research is independent; unlocking red science doesn't unlock it for anyone else
-- **Your own buildings** - nobody can accidentally (or intentionally) mess with your factory
-- **Your own space platforms** - if you're playing Space Age or Space Block, each player gets their own platform
+Originally built for the [Space Block](https://mods.factorio.com/mod/yunrus-space-block) scenario, where each player gets their own space platform and races independently. Works with vanilla surfaces and other scenarios too.
 
-You still share the same map and can see each other. Chat works normally across all teams. If you want to cooperate with someone, tick the "friend" checkbox next to their name and they can interact with your buildings.
+## ✨ Features
 
-## The Landing Pen
+### Core
+- 🧑‍🚀 **Separate forces**  - Each player gets their own force (`player-<name>`) with independent research, quality unlocks, and space platform access copied from the default force.
+- 🤝 **Neutral diplomacy**  - Players start in cease-fire (no friendly fire, no shared buildings). Opt into friendship per-player via the GUI.
+- 💬 **Cross-force chat**  - Normal chat reaches all forces. No need for `/shout`.
 
-New players arrive in a shared waiting area called the **Landing Pen** - a small circular platform where everyone can hang out before the game starts. This lets your group wait for everyone to join before anyone clicks "Spawn into game" for a fair start.
+### GUI Panels *(top-left nav bar)*
+- 🗺️ **Players & Platforms**  - Live overview of all players, their surfaces, and GPS locations. Click to ping in chat.
+- 📊 **Production Stats**  - Per-player item production comparison.
+- 🔬 **Research**  - Tech icon grid ordered by research time. Click any player row for a 1-on-1 diff showing who has what and when they researched it.
+- ⚙️ **Admin Panel**  - Runtime feature flags (Landing Pen toggle, etc.). Visible to the host only.
+- ℹ️ **Welcome / Discord**  - Mod intro + Discord invite with scannable QR code.
 
-From the pen you can also use the **buddy system**: request to join another player's team so you start together on the same planet. The other player gets an Accept/Reject popup.
+### Landing Pen
+- 🛬 New players wait in a pre-game lobby until they're ready to spawn.
+- 👥 **Buddy system**  - Pair up with a friend to spawn on the same planet.
+- 🔧 Admins can disable the pen to spawn players directly.
 
-Admins can disable the Landing Pen from the admin panel if you prefer players to spawn directly.
+### Commands
+- `/platforms`  - Lists all players and platforms with GPS pings.
+- `/unstuck`  - Ejects from a vehicle and teleports to a safe position.
 
-## GUI panels
+## 🔧 Installation
 
-Solo Teams adds a row of buttons to the top of your screen:
+1. Download or clone into your Factorio mods folder as `solo-teams_0.2.7/`
+2. Enable in the Factorio mod manager
+3. Start or load a game  - solo forces are created automatically for each new player
 
-### Players & Platforms
-See every player in the game at a glance - who's online, what surface they're on, and where their platforms are. Click a GPS icon to ping a location in chat. Use the "friend" checkbox to allow another player to access your buildings. There's also a "Return to my base" button if you've wandered onto someone else's surface.
+## ⚙️ Compatibility
 
-### Production Stats
-Compare your factory output against other players. Five item categories (Ores, Plates, Intermediates, Science, Custom) are built from the game's prototypes so it works with overhaul mods. Pick any time range from 1 minute to all time, and swap out items in any column.
+- Requires Factorio 2.0 (`base >= 2.0`)
+- Works with [Space Block](https://mods.factorio.com/mod/yunrus-space-block) and vanilla surfaces
+- Optional integration with [Space Exploration Platformer](https://mods.factorio.com/mod/space-exploration-platformer)
+- Factorio supports up to 64 forces (~61 players after built-in forces)
 
-### Research
-A tech icon grid for every player, ordered by when each technology was researched. At a glance you can see who's ahead and what they've unlocked. Click any player's diff button to see a detailed comparison:
-
-- **You both have researched** - shared progress
-- **They have, you don't** - techs to catch up on
-- **You have, they don't** - your lead
-
-Click any tech icon to jump straight to it in the tech tree.
-
-### Admin Panel
-Visible to all admins. Currently has a Feature Flags tab where you can toggle the Landing Pen on or off at runtime. Disabling it mid-game immediately spawns any players still waiting.
-
-### Welcome / Discord
-A quick intro to the mod with a Discord invite and QR code. Auto-opens for new players, re-openable anytime from the nav bar.
-
-## Commands
-
-| Command | What it does |
-|---------|-------------|
-| `/platforms` | Lists all players and their platforms with clickable GPS pings |
-| `/unstuck` | Ejects you from a vehicle and teleports to a safe position nearby |
-
-## Installation
-
-**From the Mod Portal:**
-Search for "Solo Teams" in the Factorio mod manager and click Install.
-
-**Manual:**
-1. Download the latest release zip from [GitHub Releases](https://github.com/bits-orio/solo-teams/releases)
-2. Place the zip (don't extract it) in your Factorio mods folder
-3. Enable it in the mod manager
-
-The mod activates automatically - every player who joins gets their own team.
-
-## Compatibility
-
-- Requires **Factorio 2.0** (Space Age recommended but not required)
-- Works great with [Space Block](https://mods.factorio.com/mod/yunrus-space-block) - the scenario it was originally built for
-- Works with vanilla Nauvis surfaces - each player gets their own copy of the planet
-- Optional integration with [Platformer](https://mods.factorio.com/mod/platformer) for per-player space platforms
-- Factorio supports up to 64 forces, so roughly 61 players can have their own team (after the built-in enemy/neutral/player forces)
-
-## License
+## 📄 License
 
 [MIT](LICENSE)
