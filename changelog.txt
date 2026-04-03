@@ -1,0 +1,118 @@
+---------------------------------------------------------------------------------------------------
+Version: 0.2.8
+Date: 2026-04-02
+  Features:
+    - Research GUI: collapsible player rows (1 row default, expand to see all)
+    - Research GUI: "You both have researched" section in diff view
+    - Research GUI: click any tech icon to open it in the tech tree
+    - Research GUI: Escape navigates back from diff to overview before closing
+    - Welcome window: added close button and About tab selected by default
+    - Welcome window: Discord tab uses full logo image
+    - Admin panel now visible to all admins, not just the host
+    - Add GitHub Actions workflow to package mod zip on version tags
+  Changes:
+    - Remove all periodic GUI polling; all updates are now purely event-driven
+    - Platforms and admin frames use clear() instead of destroy+recreate (fixes drag jitter)
+    - Nav bar buttons doubled in size (56x56)
+    - Landing Pen window positioned below top bar, above Players panel
+    - Research play time now shows elapsed since spawn, not absolute game time
+    - Remove em-dashes from About page and README
+  Bugfixes:
+    - Fix Players panel reappearing after closing (5-second poll was recreating it)
+    - Fix admin and Players windows feeling jittery while dragging
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.7
+Date: 2026-04-01
+  Features:
+    - Add Landing Pen: new players wait in a shared pre-game lobby before spawning
+    - Add buddy system: pen players can request to join an active player's force
+    - Add vanilla surface support: each player gets their own nauvis surface
+    - Add admin panel with runtime feature flags (Landing Pen toggle)
+    - Add per-player clock tracking (time since spawn)
+    - Add research comparison panel with tech icon grid and 1-on-1 diff view
+    - Show Platforms GUI to players in the Landing Pen
+  Changes:
+    - Rename Platforms GUI to Players GUI
+    - Include vanilla surfaces in the player list as "<name>'s base on <Planet>"
+    - Disabling Landing Pen mid-session immediately spawns all waiting players
+  Bugfixes:
+    - Fix landing pen surface shape: out-of-map tiles outside the circle
+    - Fix spawn button double-fire and duplicate platform creation
+    - Fix cutscene skip: exit_cutscene() before teleport
+    - Fix solo force being reset by scenario after cutscene
+    - Fix teleport retry: keep pending entry until teleport succeeds
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.6
+Date: 2026-03-31
+  Bugfixes:
+    - Fix Stats button width in Platforms title bar
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.5
+Date: 2026-03-31
+  Features:
+    - Add per-player production stats GUI with five categories (Ores, Plates, Intermediates, Science, Custom)
+    - Categories built dynamically from game prototypes; works with overhaul mods
+    - 12 choose-elem-button columns per category; players can swap any item
+    - Time range selector: 1m / 10m / 1h / 10h / All time
+    - Per-player column overrides persisted across sessions
+  Changes:
+    - Online/offline status updates instantly via events (no tick delay)
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.4
+Date: 2026-03-30
+  Features:
+    - Add Platformer mod compatibility: per-player space platform creation and deferred teleport
+    - Add "Return to my base" button when visiting a foreign surface
+  Changes:
+    - Hide the default "player" force from the platforms GUI
+    - Declare optional dependency on Platformer for correct load ordering
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.3
+Date: 2026-03-29
+  Changes:
+    - Remove GPS ping button from player name rows; GPS buttons now only appear on platform rows
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.2
+Date: 2026-03-29
+  Changes:
+    - Remove all hub collision detection hacks (use /unstuck instead)
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.1
+Date: 2026-03-29
+  Bugfixes:
+    - Fix hub collision fix and /unstuck to use physical_surface/position
+    - Fix remote view (GPS clicks) incorrectly triggering the collision fix
+
+---------------------------------------------------------------------------------------------------
+Version: 0.2.0
+Date: 2026-03-29
+  Changes:
+    - Remove automatic hub collision repositioning (caused issues with GPS pings)
+    - Document /unstuck command as the manual alternative
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.1
+Date: 2026-03-28
+  Changes:
+    - Add thumbnail image for mod portal
+    - Add homepage URL to info.json
+
+---------------------------------------------------------------------------------------------------
+Version: 0.1.0
+Date: 2026-03-28
+  Features:
+    - Separate forces: each player gets their own force with independent research
+    - Quality unlocks and space platform access copied from default force
+    - Neutral diplomacy: players start in cease-fire with all others
+    - Per-player friend toggle via the Platforms GUI
+    - Cross-force chat: normal messages broadcast to all forces
+    - Draggable, collapsible Platforms GUI with live GPS locations
+    - /platforms command with colored names and clickable GPS pings
+    - /unstuck command to eject from vehicles and teleport to safety
