@@ -1,5 +1,5 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.10
+Version: 0.2.11
 Date: 2026-04-04
   Features:
     - Announce friend/unfriend actions to all players with mutual status indicator
