@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.10
+Date: 2026-04-04
+  Features:
+    - Announce friend/unfriend actions to all players with mutual status indicator
+  Bugfixes:
+    - Fix players being stranded on foreign surfaces after exiting GPS remote view
+    - Fix landing-pen players being moved to foreign surfaces via GPS tag clicks
+
+---------------------------------------------------------------------------------------------------
 Version: 0.2.9
 Date: 2026-04-03
   Features:

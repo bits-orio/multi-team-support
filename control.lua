@@ -74,6 +74,73 @@ local function start_player_clock(player)
     end
 end
 
+--- Check whether the player is on another player's private surface.
+--- Covers both vanilla solo surfaces ("player-<index>") and other forces'
+--- space platform surfaces.
+local function on_foreign_surface(player)
+    local surface = player.surface
+    if not surface then return false end
+    -- Vanilla solo surfaces are named "player-<player_index>"
+    local owner_idx = tonumber(surface.name:match("^player%-(%d+)$"))
+    if owner_idx and owner_idx ~= player.index then return true end
+    -- Space platform surfaces: check all other forces' platforms
+    for _, force in pairs(game.forces) do
+        if force ~= player.force and force.name ~= "enemy" and force.name ~= "neutral" then
+            for _, plat in pairs(force.platforms) do
+                if plat.surface and plat.surface.valid
+                   and plat.surface.index == surface.index then
+                    return true
+                end
+            end
+        end
+    end
+    return false
+end
+
+--- Find the player's home surface: first space platform, then vanilla surface.
+local function get_home_surface(player)
+    for _, plat in pairs(player.force.platforms) do
+        if plat.surface and plat.surface.valid then return plat.surface end
+    end
+    local ps = storage.player_surfaces and storage.player_surfaces[player.index]
+    if ps then
+        local s = game.surfaces[ps.name]
+        if s and s.valid then return s end
+    end
+    return nil
+end
+
+--- If a player is physically on someone else's surface (and not merely
+--- inspecting it via remote view), send them back where they belong:
+--- spawned players go to their home surface, landing-pen players go back
+--- to the pen.
+local function bounce_if_foreign(player)
+    if not player or not player.connected then return end
+    if player.controller_type == defines.controllers.remote then return end
+    if not on_foreign_surface(player) then return end
+    local spawned = storage.spawned_players and storage.spawned_players[player.index]
+    if spawned then
+        local home = get_home_surface(player)
+        if not home then
+            log("[solo-teams] " .. player.name .. " on foreign surface "
+                .. (player.surface and player.surface.name or "nil")
+                .. " but no home surface found")
+            return
+        end
+        log("[solo-teams] bouncing " .. player.name .. " from "
+            .. player.surface.name .. " → " .. home.name)
+        player.teleport({x = 0, y = 0}, home)
+    else
+        -- Player is still in the landing pen — send them back there.
+        local pen = game.surfaces["landing-pen"]
+        if pen and pen.valid and player.surface.name ~= "landing-pen" then
+            log("[solo-teams] bouncing " .. player.name .. " from "
+                .. player.surface.name .. " → landing-pen")
+            player.teleport({x = 0, y = 0}, pen)
+        end
+    end
+end
+
 --- Periodically unlock "uncommon" quality for all player forces.
 --- Some mods (e.g. space-block) only do this for game.forces.player;
 --- this ensures custom per-player forces stay in sync.
@@ -405,12 +472,24 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
 end)
 
 -- Log and rebuild the platforms GUI immediately when a player changes surface.
+-- Also bounce the player home if they ended up on a foreign surface (e.g. after
+-- Factorio exits remote view from a cross-surface GPS tag click).
 script.on_event(defines.events.on_player_changed_surface, function(event)
     local player = game.get_player(event.player_index)
     if player and player.connected then
         log("[solo-teams] surface_change: " .. player.name
             .. " → " .. (player.surface and player.surface.name or "nil"))
+        bounce_if_foreign(player)
         platforms_gui.build_platforms_gui(player)
+    end
+end)
+
+-- When a player exits remote view, ensure they land on their own surface
+-- rather than being stranded on the foreign surface they were inspecting.
+script.on_event(defines.events.on_player_controller_changed, function(event)
+    local player = game.get_player(event.player_index)
+    if player and player.connected then
+        bounce_if_foreign(player)
     end
 end)
 

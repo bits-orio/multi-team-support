@@ -361,6 +361,30 @@ function M.on_friend_toggle(event)
     local new_state = element.state
     player.force.set_friend(target_force, new_state)
 
+    -- Announce friendship change to all players, showing both sides.
+    local target_name = target_force.name:match("^player%-(.+)$") or target_force.name
+    local reverse = target_force.get_friend(player.force)
+    local action = new_state and "friended" or "unfriended"
+    local mutual
+    if new_state and reverse then
+        mutual = " [color=0,1,0](mutual)[/color]"
+    elseif not new_state and not reverse then
+        mutual = " (neither side)"
+    else
+        local one_way_name = reverse and target_name or player.name
+        mutual = " (one-way: only " .. one_way_name .. " → friend)"
+    end
+    local msg = "[color=" .. string.format("%.2f,%.2f,%.2f", player.chat_color.r, player.chat_color.g, player.chat_color.b)
+        .. "]" .. player.name .. "[/color] " .. action .. " "
+        .. "[color=" .. string.format("%.2f,%.2f,%.2f",
+            (target_force.connected_players[1] and target_force.connected_players[1].chat_color.r or 1),
+            (target_force.connected_players[1] and target_force.connected_players[1].chat_color.g or 1),
+            (target_force.connected_players[1] and target_force.connected_players[1].chat_color.b or 1))
+        .. "]" .. target_name .. "[/color]" .. mutual
+    for _, p in pairs(game.players) do
+        if p.connected then p.print(msg) end
+    end
+
     M.build_platforms_gui(player)
 end
 
