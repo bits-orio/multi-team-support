@@ -19,14 +19,17 @@ local welcome_gui   = require("gui.welcome")
 local research_gui  = require("gui.research")
 local platformer    = require("compat.platformer")
 local vanilla       = require("compat.vanilla")
+local voidblock     = require("compat.voidblock")
 local friendship    = require("gui.friendship")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
---- Spawn the player into the game world (Platformer or vanilla).
+--- Spawn the player into the game world (Platformer, VoidBlock, or vanilla).
 local function spawn_into_world(player)
     if platformer.is_active() then
         platformer.on_player_created(player)
+    elseif voidblock.is_active() then
+        voidblock.setup_player_surface(player)
     else
         vanilla.setup_player_surface(player)
     end
@@ -70,7 +73,12 @@ end
 -- ─── Tick Events ───────────────────────────────────────────────────────
 
 local function init_events()
-    script.on_event(defines.events.on_chunk_generated, landing_pen.on_chunk_generated)
+    script.on_event(defines.events.on_chunk_generated, function(event)
+        landing_pen.on_chunk_generated(event)
+        if voidblock.is_active() then
+            voidblock.on_chunk_generated(event)
+        end
+    end)
     script.on_event(defines.events.on_surface_created, function(event)
         local surface = game.surfaces[event.surface_index]
         if surface then surface_utils.on_surface_created(surface) end
@@ -80,6 +88,8 @@ local function init_events()
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
             platformer.process_pending_teleports()
+        elseif voidblock.is_active() then
+            voidblock.process_pending_teleports()
         else
             vanilla.process_pending_teleports()
         end
