@@ -140,6 +140,10 @@ local function get_player_forces()
                 for _, p in pairs(game.players) do
                     if p.name == owner then player_index = p.index; break end
                 end
+                -- Skip players who haven't spawned yet (still in landing pen)
+                local spawned = player_index
+                    and (storage.spawned_players or {})[player_index]
+                if not spawned then goto next_force end
                 result[#result + 1] = {
                     owner        = owner,
                     force        = force,
@@ -148,6 +152,7 @@ local function get_player_forces()
                     clock_start  = player_index and (storage.player_clock_start or {})[player_index] or nil,
                     player_index = player_index,
                 }
+                ::next_force::
             end
         end
     end
@@ -164,7 +169,7 @@ end
 -- Overview mode
 -- ---------------------------------------------------------------------------
 
-local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_index)
+local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_player)
     local forces = get_player_forces()
 
     if #forces == 0 then
@@ -172,9 +177,16 @@ local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_i
         return
     end
 
-    local own_owner = helpers.display_name(viewer_force.name)
+    local own_owner    = helpers.display_name(viewer_force.name)
+    local show_offline = helpers.show_offline(viewer_player)
+    local viewer_index = viewer_player.index
 
     for _, info in ipairs(forces) do
+        -- Skip offline players unless it's the viewer or show_offline is on
+        if not info.online and info.owner ~= own_owner and not show_offline then
+            goto continue
+        end
+
         local techs    = get_researched(info.force)
         local expanded = get_expanded(viewer_index, info.owner)
 
@@ -273,6 +285,7 @@ local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_i
 
             research_diff.add_tech_icons(grid, display_techs, info.clock_start)
         end
+        ::continue::
     end
 end
 
@@ -318,7 +331,7 @@ local function build_frame(player, diff_target)
     if diff_target then
         research_diff.draw(scroll, viewer_force, viewer_clock, diff_target, COLLAPSED_COLS)
     else
-        draw_overview(scroll, viewer_force, viewer_clock, player.index)
+        draw_overview(scroll, viewer_force, viewer_clock, player)
     end
 
     -- Allow Esc to navigate back from diff or close

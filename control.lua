@@ -41,6 +41,22 @@ local function register_nav_buttons(player)
     admin_gui.on_player_created(player)
 end
 
+--- Rebuild stats GUI for all connected players who have it open.
+local function refresh_stats(leaving_index)
+    for _, player in pairs(game.players) do
+        if player.connected and player.gui.screen.sb_stats_frame then
+            stats_gui.build_stats_gui(player, leaving_index)
+        end
+    end
+end
+
+--- Rebuild all gameplay GUIs (platforms, research, stats).
+local function refresh_all_gameplay_guis()
+    platforms_gui.update_all()
+    research_gui.update_all()
+    refresh_stats()
+end
+
 --- Rebuild all GUIs for connectivity changes.
 local function rebuild_for_connectivity(leaving_index)
     platforms_gui.update_all()
@@ -48,11 +64,7 @@ local function rebuild_for_connectivity(leaving_index)
     landing_pen.update_pen_gui_all()
     landing_pen.rebuild_buddy_request_guis()
     admin_gui.update_all()
-    for _, player in pairs(game.players) do
-        if player.connected and player.gui.screen.sb_stats_frame then
-            stats_gui.build_stats_gui(player, leaving_index)
-        end
-    end
+    refresh_stats(leaving_index)
 end
 
 -- ─── Tick Events ───────────────────────────────────────────────────────
@@ -114,6 +126,7 @@ script.on_init(function()
     storage.research_gui_location    = {}
     storage.research_gui_expanded    = {}
     storage.research_gui_diff_target = {}
+    storage.show_offline_players     = {}
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
@@ -143,6 +156,7 @@ script.on_load(function()
     storage.research_gui_location    = storage.research_gui_location    or {}
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
+    storage.show_offline_players     = storage.show_offline_players     or {}
     spectator.init_storage()
     commands_mod.register()
     init_events()
@@ -156,6 +170,7 @@ script.on_configuration_changed(function()
     storage.research_gui_location    = storage.research_gui_location    or {}
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
+    storage.show_offline_players     = storage.show_offline_players     or {}
     for _, player in pairs(game.players) do
         if not storage.spawned_players[player.index] then
             storage.spawned_players[player.index] = true
@@ -265,8 +280,7 @@ script.on_event(defines.events.on_gui_click, function(event)
             landing_pen.finish_spawn(player)
             spawn_into_world(player)
             force_utils.start_player_clock(player)
-            platforms_gui.update_all()
-            research_gui.update_all()
+            refresh_all_gameplay_guis()
         end
         return
     end
@@ -286,8 +300,7 @@ script.on_event(defines.events.on_gui_click, function(event)
         local player = game.get_player(event.player_index)
         if player and el.tags and el.tags.sb_requester_index then
             landing_pen.accept_buddy_request(player, el.tags.sb_requester_index)
-            platforms_gui.update_all()
-            research_gui.update_all()
+            refresh_all_gameplay_guis()
         end
         return
     end
@@ -316,6 +329,23 @@ script.on_event(defines.events.on_gui_closed, function(event)
 end)
 
 script.on_event(defines.events.on_gui_checked_state_changed, function(event)
+    -- "Show offline" toggle in platforms GUI
+    local el = event.element
+    if el and el.valid and el.name == "sb_show_offline_toggle" then
+        local player = game.get_player(event.player_index)
+        if player then
+            helpers.toggle_show_offline(player)
+            platforms_gui.build_platforms_gui(player)
+            if player.gui.screen.sb_research_frame then
+                research_gui.update_all()
+            end
+            if player.gui.screen.sb_stats_frame then
+                stats_gui.build_stats_gui(player)
+            end
+        end
+        return
+    end
+
     local changed_flag = admin_gui.on_gui_checked_state_changed(event)
     if changed_flag then
         local admin_player = game.get_player(event.player_index)
@@ -342,8 +372,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
                     force_utils.start_player_clock(player)
                 end
             end
-            platforms_gui.update_all()
-            research_gui.update_all()
+            refresh_all_gameplay_guis()
         end
         return
     end

@@ -256,6 +256,11 @@ local function player_forces(leaving_index)
     for name, force in pairs(game.forces) do
         if name:find("^player%-") and name ~= "spectator" then
             local pname = helpers.display_name(name)
+            -- Skip players who haven't spawned yet (still in landing pen)
+            local player_obj = game.get_player(pname)
+            if player_obj and not (storage.spawned_players or {})[player_obj.index] then
+                goto next_force
+            end
             local online = false
             for _, fp in ipairs(force.players) do
                 if fp.connected and fp.index ~= leaving_index then
@@ -268,6 +273,7 @@ local function player_forces(leaving_index)
                 force       = force,
                 online      = online,
             }
+            ::next_force::
         end
     end
     table.sort(list, function(a, b) return a.player_name < b.player_name end)
@@ -307,7 +313,15 @@ function stats_gui.build_stats_gui(player, leaving_index)
 
     local state      = get_state(player)
     local item_names = stats_gui.get_category_item_names(state.category)   -- [1..MAX_COLS], sparse
-    local pf         = player_forces(leaving_index)
+    local all_pf     = player_forces(leaving_index)
+    local show_offline = helpers.show_offline(player)
+    local my_name    = helpers.display_name(player.force.name)
+    local pf         = {}
+    for _, entry in ipairs(all_pf) do
+        if entry.online or entry.player_name == my_name or show_offline then
+            pf[#pf + 1] = entry
+        end
+    end
 
     -- ── Outer frame ──────────────────────────────────────────────────────────
     local frame = screen.add{
@@ -425,7 +439,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
         -- Player name cell: flow so we can append "(offline)" with a different style
         local name_cell = tbl.add{type = "flow", direction = "horizontal"}
         name_cell.style.vertical_align = "center"
-        name_cell.style.minimal_width  = 100
+        name_cell.style.minimal_width  = 160
 
         local name_lbl = name_cell.add{type = "label", caption = entry.player_name}
         name_lbl.style.font = "default-bold"

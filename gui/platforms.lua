@@ -257,7 +257,25 @@ function platforms_gui.build_platforms_gui(player)
     if collapsed then return end
 
     frame.style.maximal_height = 400
-    frame.style.minimal_width  = 256
+    frame.style.minimal_width  = 320
+
+    local show_offline = helpers.show_offline(player)
+
+    -- "Show offline" toggle
+    local offline_flow = frame.add{type = "flow", direction = "horizontal"}
+    offline_flow.style.horizontal_align = "right"
+    offline_flow.style.horizontally_stretchable = true
+    offline_flow.style.bottom_margin = 2
+    local offline_label = offline_flow.add{type = "label", caption = "show offline"}
+    offline_label.style.font       = "default-small"
+    offline_label.style.font_color = {0.6, 0.6, 0.6}
+    offline_label.style.right_margin = 4
+    offline_flow.add{
+        type    = "checkbox",
+        name    = "sb_show_offline_toggle",
+        state   = show_offline,
+        tooltip = show_offline and "Hide offline players" or "Show offline players",
+    }
 
     local scroll = frame.add{type = "scroll-pane", name = "sb_platforms_scroll", direction = "vertical"}
     scroll.style.maximal_height = 350
@@ -269,6 +287,7 @@ function platforms_gui.build_platforms_gui(player)
     local viewer_force_name = spectator.get_effective_force(player)
     local viewer_force      = game.forces[viewer_force_name]
     local current_target    = spectator.get_target(player)
+    local visible_count     = 0
 
     local owners, order, owner_info = platforms_gui.get_platforms_by_owner()
     for _, owner in ipairs(order) do
@@ -277,12 +296,15 @@ function platforms_gui.build_platforms_gui(player)
         local is_own            = (target_force_name == viewer_force_name)
         local is_current_target = (target_force_name == current_target)
 
-        add_owner_label(tbl, owner, info)
-        add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner)
-        add_platform_rows(tbl, owners[owner], target_force_name, owner, is_own, is_current_target)
+        if info.online or is_own or show_offline then
+            visible_count = visible_count + 1
+            add_owner_label(tbl, owner, info)
+            add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner)
+            add_platform_rows(tbl, owners[owner], target_force_name, owner, is_own, is_current_target)
+        end
     end
 
-    if #order == 0 then
+    if visible_count == 0 then
         tbl.add{type = "label", caption = "No players yet."}
         tbl.add{type = "label", caption = ""}
     end

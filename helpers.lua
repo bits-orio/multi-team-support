@@ -89,4 +89,18 @@ function helpers.add_title_bar(frame, caption)
     return title_bar
 end
 
+-- ─── Player Preferences ────────────────────────────────────────────────
+
+--- Returns true if this player wants to see offline players in GUIs.
+function helpers.show_offline(player)
+    storage.show_offline_players = storage.show_offline_players or {}
+    return storage.show_offline_players[player.index] or false
+end
+
+--- Toggle the show-offline preference for a player.
+function helpers.toggle_show_offline(player)
+    storage.show_offline_players = storage.show_offline_players or {}
+    storage.show_offline_players[player.index] = not helpers.show_offline(player)
+end
+
 return helpers
