@@ -1,4 +1,26 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.13
+Date: 2026-04-06
+  Features:
+    - "Allow Friendship" admin flag: disabling dissolves all friendships and hides checkboxes
+    - Per-player "show offline" toggle in Players panel (hidden by default)
+    - Players in the Landing Pen are excluded from Research and Stats GUIs
+  Changes:
+    - Codebase reorganized into gui/, compat/ folders with shared helpers.lua
+    - All module variables renamed from M/H to descriptive names
+    - Extracted force_utils.lua, surface_utils.lua, gui/friendship.lua,
+      gui/research_diff.lua, gui/landing_pen_terrain.lua for smaller files
+    - Vanilla surface naming changed from "st-<index>-<planet>" to "<force>-<planet>"
+    - Spectator exit always teleports player home (prevents god-mode stranding)
+    - Stats GUI refreshes on player spawn (not just connect/disconnect)
+    - Widened Players panel and Stats name column to prevent layout shifts
+  Bugfixes:
+    - Fix spectator bounce failing in Platformer god mode (force lookup used
+      spectator force instead of effective force)
+    - Fix landing pen player colors: use chat_color consistently instead of
+      hardcoded yellow for self and grey for spawned players
+
+---------------------------------------------------------------------------------------------------
 Version: 0.2.12
 Date: 2026-04-05
   Features:
