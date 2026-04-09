@@ -1,4 +1,4 @@
--- Solo Teams - platforms_gui.lua
+-- Solo Teams - surfaces_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -12,8 +12,9 @@ local helpers       = require("helpers")
 local surface_utils = require("surface_utils")
 local friendship    = require("gui.friendship")
 local admin_gui     = require("gui.admin")
+local landing_pen   = require("gui.landing_pen")
 
-local platforms_gui = {}
+local surfaces_gui = {}
 
 -- ─── GPS Helpers ───────────────────────────────────────────────────────
 
@@ -87,7 +88,7 @@ local SKIP_FORCES = {enemy = true, neutral = true, player = true, spectator = tr
 
 --- Collect all platforms grouped by owner (player name).
 --- Returns three tables: owners, order, owner_info.
-function platforms_gui.get_platforms_by_owner()
+function surfaces_gui.get_platforms_by_owner()
     local owners     = {}
     local owner_info = {}
     local order      = {}
@@ -147,9 +148,10 @@ end
 
 --- Add the friend checkbox (col 2) to the table.
 --- Hidden entirely when friendship is disabled via admin flag.
-local function add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner)
+local function add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner, viewer_player)
     if target_force_name == viewer_force_name
-       or not admin_gui.flag("friendship_enabled") then
+       or not admin_gui.flag("friendship_enabled")
+       or landing_pen.is_in_pen(viewer_player) then
         tbl.add{type = "label", caption = ""}
         return
     end
@@ -239,7 +241,7 @@ local function add_footer(frame, player, viewer_force)
 end
 
 --- Build (or rebuild) the platforms GUI for a single player.
-function platforms_gui.build_platforms_gui(player)
+function surfaces_gui.build_surfaces_gui(player)
     storage.gui_location = storage.gui_location or {}
     local frame = helpers.reuse_or_create_frame(
         player, "sb_platforms_frame", storage.gui_location, {x = 5, y = 400})
@@ -289,7 +291,7 @@ function platforms_gui.build_platforms_gui(player)
     local current_target    = spectator.get_target(player)
     local visible_count     = 0
 
-    local owners, order, owner_info = platforms_gui.get_platforms_by_owner()
+    local owners, order, owner_info = surfaces_gui.get_platforms_by_owner()
     for _, owner in ipairs(order) do
         local info             = owner_info[owner]
         local target_force_name = info.force_name
@@ -299,7 +301,7 @@ function platforms_gui.build_platforms_gui(player)
         if info.online or is_own or show_offline then
             visible_count = visible_count + 1
             add_owner_label(tbl, owner, info)
-            add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner)
+            add_friend_checkbox(tbl, viewer_force_name, viewer_force, target_force_name, owner, player)
             add_platform_rows(tbl, owners[owner], target_force_name, owner, is_own, is_current_target)
         end
     end
@@ -313,10 +315,10 @@ function platforms_gui.build_platforms_gui(player)
 end
 
 --- Rebuild the platforms GUI for all connected players.
-function platforms_gui.update_all()
+function surfaces_gui.update_all()
     for _, player in pairs(game.players) do
         if player.connected and player.gui.screen.sb_platforms_frame then
-            platforms_gui.build_platforms_gui(player)
+            surfaces_gui.build_surfaces_gui(player)
         end
     end
 end
@@ -326,10 +328,31 @@ end
 --- Handle return-to-base click: exit spectation, then teleport home.
 local function on_return_to_base(player)
     if spectator.is_spectating(player) then
+        -- spectator.exit() handles restoring saved location
         spectator.exit(player)
+        return
     end
-    local home = get_home_surface(player.force, player.index)
-    if home then player.teleport(helpers.ORIGIN, home) end
+    -- Friend-view or manual navigation: restore saved location or fall back to home origin
+    local saved = storage.spectator_saved_location
+        and storage.spectator_saved_location[player.index]
+    local target_surface, target_pos
+    if saved then
+        target_surface = game.surfaces[saved.surface_name]
+        target_pos     = saved.position
+        storage.spectator_saved_location[player.index] = nil
+    end
+    if not target_surface then
+        target_surface = get_home_surface(player.force, player.index)
+        target_pos     = helpers.ORIGIN
+    end
+    if target_surface then
+        if player.character then
+            local safe = target_surface.find_non_colliding_position(
+                player.character.name, target_pos, 8, 0.5)
+            target_pos = safe or target_pos
+        end
+        player.teleport(target_pos, target_surface)
+    end
 end
 
 --- Handle spectate button click.
@@ -338,6 +361,22 @@ local function on_spectate_click(player, tags)
     local surface      = game.surfaces[tags.sb_surface]
     local position     = tags.sb_position or helpers.ORIGIN
     if not (target_force and surface) then return end
+
+    -- If the target player is on this surface, spectate their live position.
+    -- If they're away (spectating someone else), use their saved pre-spectate position.
+    local target_name = helpers.display_name(target_force.name)
+    local target_player = game.get_player(target_name)
+    if target_player and target_player.connected then
+        if target_player.surface == surface then
+            position = target_player.position
+        else
+            local saved = storage.spectator_saved_location
+                and storage.spectator_saved_location[target_player.index]
+            if saved and saved.surface_name == surface.name then
+                position = saved.position
+            end
+        end
+    end
 
     local viewer_force = game.forces[spectator.get_effective_force(player)]
     if not viewer_force then return end
@@ -354,7 +393,7 @@ local function on_spectate_click(player, tags)
 end
 
 --- Handle GUI click events. Returns true if consumed.
-function platforms_gui.on_gui_click(event)
+function surfaces_gui.on_gui_click(event)
     local element = event.element
     if not element or not element.valid then return end
 
@@ -369,7 +408,7 @@ function platforms_gui.on_gui_click(event)
         if player then
             storage.gui_collapsed = storage.gui_collapsed or {}
             storage.gui_collapsed[player.index] = not is_gui_collapsed(player)
-            platforms_gui.build_platforms_gui(player)
+            surfaces_gui.build_surfaces_gui(player)
         end
         return true
     end
@@ -387,37 +426,39 @@ end
 
 --- Handle friend checkbox toggle (delegates to gui.friendship).
 --- No-ops when friendship is disabled via admin flag.
-function platforms_gui.on_friend_toggle(event)
+function surfaces_gui.on_friend_toggle(event)
     if not admin_gui.flag("friendship_enabled") then return end
+    local player = game.get_player(event.player_index)
+    if not player or landing_pen.is_in_pen(player) then return end
     if friendship.on_toggle(event) then
-        platforms_gui.update_all()
+        surfaces_gui.update_all()
     end
 end
 
 -- ─── Panel Toggle & Nav ────────────────────────────────────────────────
 
 --- Toggle the platforms panel open/closed for a player.
-function platforms_gui.toggle(player)
+function surfaces_gui.toggle(player)
     local frame = player.gui.screen.sb_platforms_frame
     if frame then
         storage.gui_location = storage.gui_location or {}
         storage.gui_location[player.index] = frame.location
         frame.destroy()
     else
-        platforms_gui.build_platforms_gui(player)
+        surfaces_gui.build_surfaces_gui(player)
     end
 end
 
 --- Register the nav bar button for this player.
-function platforms_gui.on_player_created(player)
+function surfaces_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = "sb_platforms_btn",
         sprite  = "utility/gps_map_icon",
         tooltip = "Players & Platforms",
     })
     nav.on_click("sb_platforms_btn", function(e)
-        platforms_gui.toggle(e.player)
+        surfaces_gui.toggle(e.player)
     end)
 end
 
-return platforms_gui
+return surfaces_gui

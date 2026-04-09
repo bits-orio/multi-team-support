@@ -27,7 +27,6 @@ local function apply_spectator_state(player)
     player.force = game.forces["spectator"]
     game.permissions.get_group("spectator").add_player(player)
     if player.character then
-        player.character.destructible = false
         storage.spectator_saved_craft_mod[player.index] =
             player.character_crafting_speed_modifier
         player.character_crafting_speed_modifier = -1
@@ -47,7 +46,6 @@ local function restore_player_state(player)
     local default_group = game.permissions.get_group("Default")
     if default_group then default_group.add_player(player) end
     if player.character then
-        player.character.destructible = true
         local saved = storage.spectator_saved_craft_mod[player.index]
         player.character_crafting_speed_modifier = saved or 0
     end
@@ -60,6 +58,7 @@ local function clear_spectator_storage(idx)
     storage.spectator_real_force[idx]      = nil
     storage.spectating_target[idx]         = nil
     storage.spectator_saved_craft_mod[idx] = nil
+    storage.spectator_saved_location[idx]  = nil
 end
 
 --- Announce spectation start/stop to all players (if notifications enabled).
@@ -194,6 +193,7 @@ function spectator.init_storage()
     storage.spectator_real_force      = storage.spectator_real_force      or {}
     storage.spectating_target         = storage.spectating_target         or {}
     storage.spectator_saved_craft_mod = storage.spectator_saved_craft_mod or {}
+    storage.spectator_saved_location  = storage.spectator_saved_location  or {}
     storage.friend_intents            = storage.friend_intents            or {}
 end
 
@@ -228,6 +228,14 @@ function spectator.enter(player, target_force, surface, position)
         .. " on " .. surface.name
         .. " at " .. serpent.line(position))
 
+    -- Save pre-spectate location for restoring on exit
+    if not spectator.is_spectating(player) then
+        storage.spectator_saved_location[player.index] = {
+            surface_name = player.surface.name,
+            position     = {x = player.position.x, y = player.position.y},
+        }
+    end
+
     storage.spectating_target[player.index] = target_force.name
     apply_spectator_state(player)
     open_remote_view(player, surface, position)
@@ -246,13 +254,27 @@ function spectator.exit(player)
     local target_fn = storage.spectating_target[player.index]
     restore_player_state(player)
 
-    -- Teleport home immediately — don't rely on bounce_if_foreign to catch this.
-    -- In God mode (Platformer), exiting remote view leaves the god controller on
-    -- the foreign surface since there's no character to return to.
-    local home = surface_utils.get_home_surface(player.force, player.index)
-    if home then
-        player.teleport(helpers.ORIGIN, home)
+    -- Restore to saved location, or fall back to home surface origin.
+    local saved = storage.spectator_saved_location[player.index]
+    local target_surface, target_pos
+    if saved then
+        target_surface = game.surfaces[saved.surface_name]
+        target_pos     = saved.position
     end
+    if not target_surface then
+        target_surface = surface_utils.get_home_surface(player.force, player.index)
+        target_pos     = helpers.ORIGIN
+    end
+    if target_surface then
+        -- Collision avoidance: bots may have built structures while spectating
+        if player.character then
+            local safe = target_surface.find_non_colliding_position(
+                player.character.name, target_pos, 8, 0.5)
+            target_pos = safe or target_pos
+        end
+        player.teleport(target_pos, target_surface)
+    end
+    storage.spectator_saved_location[player.index] = nil
 
     if target_fn then
         local target_force = game.forces[target_fn]
@@ -277,6 +299,14 @@ end
 function spectator.enter_friend_view(player, surface, position)
     log("[solo-teams:spectator] enter_friend_view: " .. player.name
         .. " on " .. surface.name)
+    -- Save pre-view location so "return to base" restores it
+    if not spectator.is_spectating(player)
+       and not storage.spectator_saved_location[player.index] then
+        storage.spectator_saved_location[player.index] = {
+            surface_name = player.surface.name,
+            position     = {x = player.position.x, y = player.position.y},
+        }
+    end
     open_remote_view(player, surface, position)
 end
 

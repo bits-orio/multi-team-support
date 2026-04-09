@@ -5,7 +5,7 @@
 -- Registers console commands:
 --   /platforms  - list all players and their platforms with GPS pings
 
-local platforms_gui = require("gui.platforms")
+local surfaces_gui = require("gui.surfaces")
 local helpers       = require("helpers")
 
 local commands_mod = {}
@@ -16,7 +16,7 @@ local commands_mod = {}
 function commands_mod.register()
     commands.add_command("st-players", "List all players, their bases, and platform locations", function(cmd)
         local caller = cmd.player_index and game.get_player(cmd.player_index)
-        local owners, order, owner_info = platforms_gui.get_platforms_by_owner()
+        local owners, order, owner_info = surfaces_gui.get_platforms_by_owner()
         local lines = {"[All Players]"}
         for _, owner in ipairs(order) do
             lines[#lines + 1] = helpers.colored_name(owner, owner_info[owner].color) .. ":"

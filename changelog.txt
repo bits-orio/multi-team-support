@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.2.16
+Date: 2026-04-08
+  Features:
+    - Spectate now focuses on the target player's live position (or their saved position if they are away spectating someone else), instead of always starting at surface origin
+    - Returning from spectate restores the player to their exact pre-spectate surface and position, with collision avoidance to prevent getting stuck in structures built by bots
+    - Character remains vulnerable (destructible) while spectating, preventing players from using spectate mode to escape enemy attacks
+  Changes:
+    - Rename gui/platforms.lua to gui/surfaces.lua (internal variable: surfaces_gui)
+  Bugfixes:
+    - Players in the Landing Pen can no longer see or use the "request friend" option for spawned players
+
+---------------------------------------------------------------------------------------------------
 Version: 0.2.15
 Date: 2026-04-07
   Changes:

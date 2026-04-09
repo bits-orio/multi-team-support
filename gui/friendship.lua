@@ -2,7 +2,7 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Friend toggle logic extracted from platforms_gui.lua.
+-- Friend toggle logic extracted from surfaces_gui.lua.
 -- Mutual friendship semantics: both sides must agree before it
 -- activates; either side can break it immediately.
 

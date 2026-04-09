@@ -116,7 +116,7 @@ end
 -- Player block helpers (overview)
 -- ---------------------------------------------------------------------------
 
---- Derive the owner name and force from the same logic as platforms_gui.
+--- Derive the owner name and force from the same logic as surfaces_gui.
 --- Returns an ordered list of { owner, force, color, online, clock_start }.
 local function get_player_forces()
     local result = {}

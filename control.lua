@@ -11,7 +11,7 @@ local spectator     = require("spectator")
 local force_utils   = require("force_utils")
 local surface_utils = require("surface_utils")
 local commands_mod  = require("commands")
-local platforms_gui = require("gui.platforms")
+local surfaces_gui  = require("gui.surfaces")
 local stats_gui     = require("gui.stats")
 local landing_pen   = require("gui.landing_pen")
 local admin_gui     = require("gui.admin")
@@ -38,7 +38,7 @@ end
 --- Register nav buttons for a player across all modules.
 local function register_nav_buttons(player)
     welcome_gui.on_player_created(player)
-    platforms_gui.on_player_created(player)
+    surfaces_gui.on_player_created(player)
     stats_gui.on_player_created(player)
     research_gui.on_player_created(player)
     admin_gui.on_player_created(player)
@@ -55,14 +55,14 @@ end
 
 --- Rebuild all gameplay GUIs (platforms, research, stats).
 local function refresh_all_gameplay_guis()
-    platforms_gui.update_all()
+    surfaces_gui.update_all()
     research_gui.update_all()
     refresh_stats()
 end
 
 --- Rebuild all GUIs for connectivity changes.
 local function rebuild_for_connectivity(leaving_index)
-    platforms_gui.update_all()
+    surfaces_gui.update_all()
     research_gui.update_all()
     landing_pen.update_pen_gui_all()
     landing_pen.rebuild_buddy_request_guis()
@@ -207,7 +207,7 @@ script.on_event(defines.events.on_player_created, function(event)
         spawn_into_world(player)
         force_utils.start_player_clock(player)
     end
-    platforms_gui.update_all()
+    surfaces_gui.update_all()
 end)
 
 script.on_event(defines.events.on_player_joined_game, function(event)
@@ -252,7 +252,7 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
         log("[solo-teams] surface_change: " .. player.name
             .. " → " .. (player.surface and player.surface.name or "nil"))
         force_utils.bounce_if_foreign(player)
-        platforms_gui.build_platforms_gui(player)
+        surfaces_gui.build_surfaces_gui(player)
     end
 end)
 
@@ -329,7 +329,7 @@ script.on_event(defines.events.on_gui_click, function(event)
     if research_gui.on_gui_click(event) then return end
     if admin_gui.on_gui_click(event) then return end
     if stats_gui.on_gui_click(event) then return end
-    platforms_gui.on_gui_click(event)
+    surfaces_gui.on_gui_click(event)
 end)
 
 script.on_event(defines.events.on_gui_elem_changed, function(event)
@@ -348,7 +348,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         local player = game.get_player(event.player_index)
         if player then
             helpers.toggle_show_offline(player)
-            platforms_gui.build_platforms_gui(player)
+            surfaces_gui.build_surfaces_gui(player)
             if player.gui.screen.sb_research_frame then
                 research_gui.update_all()
             end
@@ -372,10 +372,10 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         end
         if changed_flag == "friendship_enabled" and not admin_gui.flag("friendship_enabled") then
             friendship.break_all()
-            platforms_gui.update_all()
+            surfaces_gui.update_all()
         end
         if changed_flag == "friendship_enabled" and admin_gui.flag("friendship_enabled") then
-            platforms_gui.update_all()
+            surfaces_gui.update_all()
         end
         if changed_flag == "landing_pen_enabled" and not admin_gui.flag("landing_pen_enabled") then
             for _, player in pairs(game.players) do
@@ -389,7 +389,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         end
         return
     end
-    platforms_gui.on_friend_toggle(event)
+    surfaces_gui.on_friend_toggle(event)
 end)
 
 -- ─── Chat ──────────────────────────────────────────────────────────────
