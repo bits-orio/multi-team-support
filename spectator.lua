@@ -405,17 +405,44 @@ end
 --- Called from on_player_joined_game. Defensive cleanup.
 function spectator.on_player_joined(player)
     local real_fn = storage.spectator_real_force[player.index]
-    if not real_fn then return end
 
-    if player.force.name ~= "spectator" then
-        clear_spectator_storage(player.index)
-        log("[solo-teams:spectator] on_player_joined: cleaned stale storage for "
-            .. player.name)
-    else
+    if real_fn then
+        -- There is live spectator storage: restore force, permission group, and
+        -- crafting modifier regardless of which force the player is currently on.
+        -- The old code skipped restore_player_state when the force was already
+        -- non-spectator, leaving character_crafting_speed_modifier at -1 and the
+        -- player stuck in the spectator permission group.
+        local was_on_spectator = (player.force.name == "spectator")
         restore_player_state(player)
         clear_spectator_storage(player.index)
-        log("[solo-teams:spectator] on_player_joined: restored " .. player.name
-            .. " from spectator force")
+        if was_on_spectator then
+            log("[solo-teams:spectator] on_player_joined: restored " .. player.name
+                .. " from spectator force")
+        else
+            log("[solo-teams:spectator] on_player_joined: cleaned stale storage for "
+                .. player.name)
+        end
+        return
+    end
+
+    -- No spectator storage, but the player may still be stuck in the spectator
+    -- permission group or have a negative crafting modifier from a previous
+    -- session where storage was cleared without restoring state.  Fix both
+    -- defensively on every join when the player is on their own (non-spectator)
+    -- force.
+    if player.force.name ~= "spectator" then
+        local pg = player.permission_group
+        if pg and pg.name == "spectator" then
+            local default_group = game.permissions.get_group("Default")
+            if default_group then default_group.add_player(player) end
+            log("[solo-teams:spectator] on_player_joined: fixed leftover spectator"
+                .. " permission group for " .. player.name)
+        end
+        if player.character and player.character_crafting_speed_modifier < 0 then
+            player.character_crafting_speed_modifier = 0
+            log("[solo-teams:spectator] on_player_joined: reset negative crafting"
+                .. " modifier for " .. player.name)
+        end
     end
 end
 
