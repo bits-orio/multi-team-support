@@ -228,11 +228,14 @@ function spectator.enter(player, target_force, surface, position)
         .. " on " .. surface.name
         .. " at " .. serpent.line(position))
 
-    -- Save pre-spectate location for restoring on exit
+    -- Save pre-spectate location for restoring on exit.
+    -- Use physical_position/physical_surface: player.position and player.surface
+    -- reflect the remote-view camera when the player is in map view, which
+    -- would restore them to the wrong place on exit.
     if not spectator.is_spectating(player) then
         storage.spectator_saved_location[player.index] = {
-            surface_name = player.surface.name,
-            position     = {x = player.position.x, y = player.position.y},
+            surface_name = player.physical_surface.name,
+            position     = {x = player.physical_position.x, y = player.physical_position.y},
         }
     end
 
@@ -299,12 +302,14 @@ end
 function spectator.enter_friend_view(player, surface, position)
     log("[solo-teams:spectator] enter_friend_view: " .. player.name
         .. " on " .. surface.name)
-    -- Save pre-view location so "return to base" restores it
+    -- Save pre-view location so "return to base" restores it.
+    -- Use physical_position/physical_surface for the same reason as spectator.enter():
+    -- player.position is the camera position when already in remote map view.
     if not spectator.is_spectating(player)
        and not storage.spectator_saved_location[player.index] then
         storage.spectator_saved_location[player.index] = {
-            surface_name = player.surface.name,
-            position     = {x = player.position.x, y = player.position.y},
+            surface_name = player.physical_surface.name,
+            position     = {x = player.physical_position.x, y = player.physical_position.y},
         }
     end
     open_remote_view(player, surface, position)

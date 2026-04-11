@@ -41,3 +41,50 @@ jobs:
         with:
           files: ${{ steps.info.outputs.folder }}.zip
           generate_release_notes: true
+
+      - name: Extract release notes from changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          # Capture lines after "Version: X.Y.Z", skip the Date line,
+          # stop at the next "---" separator, and strip one level of indentation.
+          NOTES=$(awk "
+            /^Version: ${VERSION}/{f=1;next}
+            f && /^Date:/{next}
+            f && /^-{50}/{exit}
+            f{sub(/^  /,\"\"); print}
+          " changelog.txt)
+          # Truncate to stay within Discord's 4096-char embed description limit.
+          NOTES="${NOTES:0:4000}"
+          {
+            echo 'notes<<CHANGELOG_EOF'
+            echo "$NOTES"
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post release announcement to Discord
+        if: ${{ env.DISCORD_WEBHOOK != '' }}
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/v${VERSION}"
+          NOTES="${{ steps.changelog.outputs.notes }}"
+
+          PAYLOAD=$(jq -n \
+            --arg title "Solo Teams v${VERSION} Released!" \
+            --arg desc  "$NOTES" \
+            --arg url   "$RELEASE_URL" \
+            '{
+              embeds: [{
+                title:       $title,
+                description: $desc,
+                url:         $url,
+                color:       16748258
+              }]
+            }')
+
+          curl -fsSL \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK"
