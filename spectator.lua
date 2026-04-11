@@ -269,8 +269,12 @@ function spectator.exit(player)
         target_pos     = helpers.ORIGIN
     end
     if target_surface then
-        -- Collision avoidance: bots may have built structures while spectating
-        if player.character then
+        -- Collision avoidance only for the fallback origin: bots could have built
+        -- there while the player was spectating. Skipped when restoring to the
+        -- saved pre-spectate position because the character is still standing
+        -- there — find_non_colliding_position would see the character itself as
+        -- a blocker and return an offset position, shifting the player by ~1 tile.
+        if not saved and player.character then
             local safe = target_surface.find_non_colliding_position(
                 player.character.name, target_pos, 8, 0.5)
             target_pos = safe or target_pos
