@@ -1,4 +1,4 @@
--- Solo Teams - stats_gui.lua
+-- Multi-Team Support - stats_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Solo Teams — QR matrix generator
+Multi-Team Support — QR matrix generator
 ==================================
 Generates the Lua QR_MATRIX / QR_SIZE block that gets pasted into
 welcome_gui.lua whenever the Discord (or any other) URL changes.

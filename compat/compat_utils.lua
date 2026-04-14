@@ -1,4 +1,4 @@
--- Solo Teams - compat_utils.lua
+-- Multi-Team Support - compat_utils.lua
 -- Author: bits-orio
 -- License: MIT
 --

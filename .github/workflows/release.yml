@@ -82,7 +82,7 @@ jobs:
           NOTES="${{ steps.notes.outputs.notes }}"
 
           PAYLOAD=$(jq -n \
-            --arg title "Solo Teams v${VERSION} Released!" \
+            --arg title "Multi-Team Support v${VERSION} Released!" \
             --arg desc  "$NOTES" \
             --arg url   "$RELEASE_URL" \
             '{

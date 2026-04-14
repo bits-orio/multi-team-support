@@ -1,4 +1,4 @@
--- Solo Teams - force_utils.lua
+-- Multi-Team Support - force_utils.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -108,18 +108,18 @@ function force_utils.bounce_if_foreign(player)
     if spawned then
         local home = force_utils.get_home_surface(player)
         if not home then
-            log("[solo-teams] " .. player.name .. " on foreign surface "
+            log("[multi-team-support] " .. player.name .. " on foreign surface "
                 .. (player.surface and player.surface.name or "nil")
                 .. " but no home surface found")
             return
         end
-        log("[solo-teams] bouncing " .. player.name .. " from "
+        log("[multi-team-support] bouncing " .. player.name .. " from "
             .. player.surface.name .. " → " .. home.name)
         player.teleport(helpers.ORIGIN, home)
     else
         local pen = game.surfaces["landing-pen"]
         if pen and pen.valid and player.surface.name ~= "landing-pen" then
-            log("[solo-teams] bouncing " .. player.name .. " from "
+            log("[multi-team-support] bouncing " .. player.name .. " from "
                 .. player.surface.name .. " → landing-pen")
             player.teleport(helpers.ORIGIN, pen)
         end
@@ -131,7 +131,7 @@ function force_utils.start_player_clock(player)
     storage.player_clock_start = storage.player_clock_start or {}
     if not storage.player_clock_start[player.index] then
         storage.player_clock_start[player.index] = game.tick
-        log("[solo-teams] clock started for " .. player.name .. " at tick " .. game.tick)
+        log("[multi-team-support] clock started for " .. player.name .. " at tick " .. game.tick)
     end
 end
 

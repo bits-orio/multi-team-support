@@ -1,4 +1,4 @@
--- Solo Teams - surfaces_gui.lua
+-- Multi-Team Support - surfaces_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --

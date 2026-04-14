@@ -1,4 +1,4 @@
--- Solo Teams - helpers.lua
+-- Multi-Team Support - helpers.lua
 -- Author: bits-orio
 -- License: MIT
 --

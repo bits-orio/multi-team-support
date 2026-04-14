@@ -1,4 +1,4 @@
--- Solo Teams - data.lua
+-- Multi-Team Support - data.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -15,14 +15,14 @@ data:extend({
     {
         type          = "sprite",
         name          = "sb-discord",
-        filename      = "__solo-teams__/graphics/Discord_Logo_Blurple_PMS.png",
+        filename      = "__multi-team-support__/graphics/Discord_Logo_Blurple_PMS.png",
         size          = {847, 128},
         flags         = {"not-compressed"},
     },
     {
         type          = "sprite",
         name          = "sb-qr-code",
-        filename      = "__solo-teams__/graphics/qr-code.png",
+        filename      = "__multi-team-support__/graphics/qr-code.png",
         size          = 256,
         mipmap_count  = 6,
         flags         = {"not-compressed"},

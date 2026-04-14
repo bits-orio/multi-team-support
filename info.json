@@ -1,10 +1,10 @@
 {
-  "name": "solo-teams",
+  "name": "multi-team-support",
   "version": "0.2.19",
-  "title": "Solo Teams",
+  "title": "Multi-Team Support",
   "author": "bits-orio",
-  "description": "Solo by design. Legendary by choice. Each player gets their own force with independent research and their own copy of the map. Race your friends, compare stats, toggle friendships, and optionally buddy up — all from one server.",
-  "homepage": "https://github.com/bits-orio/solo-teams",
+  "description": "Same start. Different finish. Each player gets their own force with independent research and their own copy of the map. Race your friends, compare stats, toggle friendships, and optionally buddy up — all from one server.",
+  "homepage": "https://github.com/bits-orio/multi-team-support",
   "factorio_version": "2.0",
   "dependencies": [
     "base >= 2.0",

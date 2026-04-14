@@ -1,4 +1,4 @@
--- Solo Teams - voidblock_compat.lua
+-- Multi-Team Support - voidblock_compat.lua
 -- Author: bits-orio
 -- License: MIT
 --

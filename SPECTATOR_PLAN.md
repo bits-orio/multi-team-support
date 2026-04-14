@@ -5,7 +5,7 @@
 
 ## Problem Statement
 
-In Solo Teams (vanilla, no god mode), players cannot view other players' surfaces
+In Multi-Team Support (vanilla, no god mode), players cannot view other players' surfaces
 because chart data is not shared between forces. The Factorio API gates chart sharing
 behind `set_friend()`, which also grants building access and turret immunity — an
 unacceptable coupling for a competitive mod.
@@ -158,16 +158,16 @@ Every public function logs entry and key state transitions:
 
 ```lua
 function spectator.enter(player, target_force, surface, position)
-    log("[solo-teams:spectator] enter: " .. player.name
+    log("[multi-team-support:spectator] enter: " .. player.name
         .. " → " .. target_force.name
         .. " on " .. surface.name
         .. " at " .. serpent.line(position))
     -- ... implementation ...
-    log("[solo-teams:spectator] enter: done, force=" .. player.force.name)
+    log("[multi-team-support:spectator] enter: done, force=" .. player.force.name)
 end
 ```
 
-Pattern: `[solo-teams:spectator] <function>: <message>`. Always include player name
+Pattern: `[multi-team-support:spectator] <function>: <message>`. Always include player name
 and relevant force/surface names. Log before and after state changes.
 
 ---
@@ -184,7 +184,7 @@ function spectator.init()
     local spec = game.forces["spectator"]
     if not spec then
         spec = game.create_force("spectator")
-        log("[solo-teams:spectator] init: created spectator force")
+        log("[multi-team-support:spectator] init: created spectator force")
     end
     spec.share_chart = true
 
@@ -228,7 +228,7 @@ function spectator.init()
         p.set_allows_action(defines.input_action[name], true)
     end
 
-    log("[solo-teams:spectator] init: complete, permission group configured")
+    log("[multi-team-support:spectator] init: complete, permission group configured")
 end
 ```
 
@@ -248,7 +248,7 @@ function spectator.setup_force(new_force)
         spec.set_cease_fire(new_force, true)
         new_force.set_cease_fire(spec, true)
     end
-    log("[solo-teams:spectator] setup_force: " .. new_force.name)
+    log("[multi-team-support:spectator] setup_force: " .. new_force.name)
 end
 ```
 
@@ -335,7 +335,7 @@ player.set_controller({
 
 This keeps the player's character on their physical surface and opens a camera view
 on the target surface. The BB codebase omits the `surface` parameter because BB
-predates Space Age (single-surface game). Solo Teams requires it because every player
+predates Space Age (single-surface game). Multi-Team Support requires it because every player
 is on a different surface.
 
 The character remains where it is — `player.physical_surface` and
@@ -357,7 +357,7 @@ function spectator.on_controller_changed(player, old_controller_type)
 
     -- Player exited remote view (Esc, or clicked back to own surface)
     if spectator.is_spectating(player) then
-        log("[solo-teams:spectator] on_controller_changed: " .. player.name
+        log("[multi-team-support:spectator] on_controller_changed: " .. player.name
             .. " exited remote view, restoring force")
         spectator.exit(player)
     end
@@ -384,7 +384,7 @@ Order matters: exit spectator mode FIRST (restoring real force), THEN bounce
 
 ```lua
 function spectator.on_friend_changed(player_force, target_force, is_friend)
-    log("[solo-teams:spectator] on_friend_changed: "
+    log("[multi-team-support:spectator] on_friend_changed: "
         .. player_force.name .. (is_friend and " friended " or " unfriended ")
         .. target_force.name)
 
@@ -407,8 +407,8 @@ function spectator.on_friend_changed(player_force, target_force, is_friend)
                         p.show_on_map = true
                         storage.spectator_real_force[idx] = nil
                         storage.spectating_target[idx] = nil
-                        p.print("[solo-teams] You are now viewing as a friend.")
-                        log("[solo-teams:spectator] upgraded " .. p.name
+                        p.print("[multi-team-support] You are now viewing as a friend.")
+                        log("[multi-team-support:spectator] upgraded " .. p.name
                             .. " from spectator to friend-view")
                     end
                 end
@@ -422,9 +422,9 @@ function spectator.on_friend_changed(player_force, target_force, is_friend)
             if p.controller_type == defines.controllers.remote then
                 local owner = spectator.get_surface_owner(p.surface)
                 if owner == target_force.name then
-                    log("[solo-teams:spectator] bouncing " .. p.name
+                    log("[multi-team-support:spectator] bouncing " .. p.name
                         .. " from friend-view (unfriended)")
-                    p.print("[solo-teams] " .. target_force.name:match("^player%-(.+)$")
+                    p.print("[multi-team-support] " .. target_force.name:match("^player%-(.+)$")
                         .. " unfriended you. Returning to your base.")
                     -- Exit remote view → triggers on_controller_changed → bounce
                     p.set_controller({type = defines.controllers.character,
@@ -592,7 +592,7 @@ local function announce_spectation(viewer, target_force, is_entering)
         if p.connected then p.print(msg) end
     end
 
-    log("[solo-teams:spectator] announcement: " .. viewer_name .. " " .. action
+    log("[multi-team-support:spectator] announcement: " .. viewer_name .. " " .. action
         .. " " .. target_name)
 end
 ```
@@ -764,7 +764,7 @@ function spectator.cleanup_charts()
         end
     end
 
-    log("[solo-teams:spectator] cleanup_charts: cleared inactive surface charts")
+    log("[multi-team-support:spectator] cleanup_charts: cleared inactive surface charts")
 end
 ```
 

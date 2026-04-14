@@ -1,4 +1,4 @@
--- Solo Teams - landing_pen.lua
+-- Multi-Team Support - landing_pen.lua
 -- Author: bits-orio
 -- License: MIT
 --

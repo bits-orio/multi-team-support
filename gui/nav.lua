@@ -1,4 +1,4 @@
--- Solo Teams - nav.lua
+-- Multi-Team Support - nav.lua
 -- Author: bits-orio
 -- License: MIT
 --

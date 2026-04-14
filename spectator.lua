@@ -1,4 +1,4 @@
--- Solo Teams - spectator.lua
+-- Multi-Team Support - spectator.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -74,7 +74,7 @@ local function announce_spectation(viewer, target_force, is_entering)
         .. helpers.colored_name(target_name, target_color)
 
     helpers.broadcast(msg)
-    log("[solo-teams:spectator] announcement: " .. viewer.name .. " " .. action
+    log("[multi-team-support:spectator] announcement: " .. viewer.name .. " " .. action
         .. " " .. target_name)
 end
 
@@ -139,12 +139,12 @@ end
 --- Create the spectator force, permission group, and ensure all existing
 --- player forces have the correct friendship/cease-fire/share_chart.
 function spectator.init()
-    log("[solo-teams:spectator] init: starting")
+    log("[multi-team-support:spectator] init: starting")
 
     local spec = game.forces["spectator"]
     if not spec then
         spec = game.create_force("spectator")
-        log("[solo-teams:spectator] init: created spectator force")
+        log("[multi-team-support:spectator] init: created spectator force")
     end
     -- Spectator force must NOT share its chart — it accumulates everyone's
     -- chart data and sharing it back would leak all surfaces to all players.
@@ -166,7 +166,7 @@ function spectator.init()
     spec.technologies["logistic-robotics"].researched = true
 
     setup_permission_group()
-    log("[solo-teams:spectator] init: complete, permission group configured")
+    log("[multi-team-support:spectator] init: complete, permission group configured")
 end
 
 --- Set up bidirectional friendship + cease-fire between a new player force
@@ -188,7 +188,7 @@ function spectator.setup_force(new_force)
         end
     end
 
-    log("[solo-teams:spectator] setup_force: " .. new_force.name)
+    log("[multi-team-support:spectator] setup_force: " .. new_force.name)
 end
 
 --- Ensure storage tables exist.
@@ -226,7 +226,7 @@ end
 
 --- Begin spectating a target force's surface.
 function spectator.enter(player, target_force, surface, position)
-    log("[solo-teams:spectator] enter: " .. player.name
+    log("[multi-team-support:spectator] enter: " .. player.name
         .. " → " .. target_force.name
         .. " on " .. surface.name
         .. " at " .. serpent.line(position))
@@ -247,7 +247,7 @@ function spectator.enter(player, target_force, surface, position)
     open_remote_view(player, surface, position)
     announce_spectation(player, target_force, true)
 
-    log("[solo-teams:spectator] enter: done, force=" .. player.force.name)
+    log("[multi-team-support:spectator] enter: done, force=" .. player.force.name)
 end
 
 --- Stop spectating. Safe to call if not spectating (no-ops).
@@ -255,7 +255,7 @@ end
 --- (especially in God mode where there's no character anchor).
 function spectator.exit(player)
     if not spectator.is_spectating(player) then return end
-    log("[solo-teams:spectator] exit: " .. player.name)
+    log("[multi-team-support:spectator] exit: " .. player.name)
 
     local target_fn = storage.spectating_target[player.index]
     restore_player_state(player)
@@ -292,12 +292,12 @@ function spectator.exit(player)
     end
 
     clear_spectator_storage(player.index)
-    log("[solo-teams:spectator] exit: done, force=" .. player.force.name)
+    log("[multi-team-support:spectator] exit: done, force=" .. player.force.name)
 end
 
 --- Switch spectation target without leaving spectator force.
 function spectator.switch_target(player, target_force, surface, position)
-    log("[solo-teams:spectator] switch_target: " .. player.name
+    log("[multi-team-support:spectator] switch_target: " .. player.name
         .. " → " .. target_force.name .. " on " .. surface.name)
 
     storage.spectating_target[player.index] = target_force.name
@@ -307,7 +307,7 @@ end
 
 --- Open a friend-view: direct remote view without spectator force swap.
 function spectator.enter_friend_view(player, surface, position)
-    log("[solo-teams:spectator] enter_friend_view: " .. player.name
+    log("[multi-team-support:spectator] enter_friend_view: " .. player.name
         .. " on " .. surface.name)
     -- Save pre-view location so "return to base" restores it.
     -- Use physical_position/physical_surface for the same reason as spectator.enter():
@@ -330,7 +330,7 @@ function spectator.on_controller_changed(player, old_controller_type)
     if player.controller_type == defines.controllers.remote then return end
 
     if spectator.is_spectating(player) then
-        log("[solo-teams:spectator] on_controller_changed: " .. player.name
+        log("[multi-team-support:spectator] on_controller_changed: " .. player.name
             .. " exited remote view, restoring force")
         spectator.exit(player)
     end
@@ -341,16 +341,16 @@ local function upgrade_to_friend_view(p, idx)
     restore_player_state(p)
     clear_spectator_storage(idx)
     if p.crafting_queue_size > 0 then
-        p.print("[solo-teams] You are now viewing as a friend. Crafting resumed.")
+        p.print("[multi-team-support] You are now viewing as a friend. Crafting resumed.")
     else
-        p.print("[solo-teams] You are now viewing as a friend.")
+        p.print("[multi-team-support] You are now viewing as a friend.")
     end
-    log("[solo-teams:spectator] upgraded " .. p.name .. " from spectator to friend-view")
+    log("[multi-team-support:spectator] upgraded " .. p.name .. " from spectator to friend-view")
 end
 
 --- Downgrade a friend-viewer to spectator (swap force, keep remote view).
 local function downgrade_to_spectator(p, player_force)
-    log("[solo-teams:spectator] downgrading " .. p.name
+    log("[multi-team-support:spectator] downgrading " .. p.name
         .. " from friend-view to spectator (unfriended)")
 
     storage.spectating_target[p.index] = player_force.name
@@ -358,15 +358,15 @@ local function downgrade_to_spectator(p, player_force)
 
     local unfriender = helpers.display_name(player_force.name)
     if p.crafting_queue_size > 0 then
-        p.print("[solo-teams] " .. unfriender .. " unfriended you. Now spectating (crafting paused).")
+        p.print("[multi-team-support] " .. unfriender .. " unfriended you. Now spectating (crafting paused).")
     else
-        p.print("[solo-teams] " .. unfriender .. " unfriended you. Now spectating.")
+        p.print("[multi-team-support] " .. unfriender .. " unfriended you. Now spectating.")
     end
 end
 
 --- Handle friendship changes that affect active spectators/friend-viewers.
 function spectator.on_friend_changed(player_force, target_force, is_friend)
-    log("[solo-teams:spectator] on_friend_changed: "
+    log("[multi-team-support:spectator] on_friend_changed: "
         .. player_force.name .. (is_friend and " friended " or " unfriended ")
         .. target_force.name)
 
@@ -397,7 +397,7 @@ end
 --- Called from on_player_left_game.
 function spectator.on_player_left(player)
     if not spectator.is_spectating(player) then return end
-    log("[solo-teams:spectator] on_player_left: restoring " .. player.name)
+    log("[multi-team-support:spectator] on_player_left: restoring " .. player.name)
     restore_player_state(player)
     clear_spectator_storage(player.index)
 end
@@ -416,10 +416,10 @@ function spectator.on_player_joined(player)
         restore_player_state(player)
         clear_spectator_storage(player.index)
         if was_on_spectator then
-            log("[solo-teams:spectator] on_player_joined: restored " .. player.name
+            log("[multi-team-support:spectator] on_player_joined: restored " .. player.name
                 .. " from spectator force")
         else
-            log("[solo-teams:spectator] on_player_joined: cleaned stale storage for "
+            log("[multi-team-support:spectator] on_player_joined: cleaned stale storage for "
                 .. player.name)
         end
         return
@@ -435,12 +435,12 @@ function spectator.on_player_joined(player)
         if pg and pg.name == "spectator" then
             local default_group = game.permissions.get_group("Default")
             if default_group then default_group.add_player(player) end
-            log("[solo-teams:spectator] on_player_joined: fixed leftover spectator"
+            log("[multi-team-support:spectator] on_player_joined: fixed leftover spectator"
                 .. " permission group for " .. player.name)
         end
         if player.character and player.character_crafting_speed_modifier < 0 then
             player.character_crafting_speed_modifier = 0
-            log("[solo-teams:spectator] on_player_joined: reset negative crafting"
+            log("[multi-team-support:spectator] on_player_joined: reset negative crafting"
                 .. " modifier for " .. player.name)
         end
     end

@@ -1,4 +1,4 @@
--- Solo Teams - landing_pen_terrain.lua
+-- Multi-Team Support - landing_pen_terrain.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -59,13 +59,13 @@ function landing_pen_terrain.get_or_create_surface()
     surface.force_generate_chunk_requests()
 
     rendering.draw_text{
-        text = "SOLO TEAMS", surface = surface,
+        text = "MULTI-TEAM SUPPORT", surface = surface,
         target = {x = 0, y = -8},
         color = {r = 0.9, g = 0.7, b = 0.3, a = 0.8},
         scale = 5, font = "default-large-bold", alignment = "center",
     }
     rendering.draw_text{
-        text = "Solo by design. Legendary by choice.", surface = surface,
+        text = "Same start. Different finish.", surface = surface,
         target = {x = 0, y = -4},
         color = {r = 0.7, g = 0.7, b = 0.7, a = 0.8},
         scale = 3, font = "default-large", alignment = "center",

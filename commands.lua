@@ -1,4 +1,4 @@
--- Solo Teams - commands.lua
+-- Multi-Team Support - commands.lua
 -- Author: bits-orio
 -- License: MIT
 --

@@ -1,4 +1,4 @@
--- Solo Teams - surface_utils.lua
+-- Multi-Team Support - surface_utils.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -24,7 +24,7 @@ function surface_utils.get_owner(surface)
         end
     end
 
-    -- Vanilla solo surfaces: "<force_name>-<planet>" e.g. "player-bob-nauvis"
+    -- Vanilla per-player surfaces: "<force_name>-<planet>" e.g. "player-bob-nauvis"
     local force_name = surface.name:match("^(player%-.+)%-%w+$")
     if force_name and game.forces[force_name] then
         return force_name
@@ -102,7 +102,7 @@ function surface_utils.cleanup_charts()
         end
     end
 
-    log("[solo-teams:spectator] cleanup_charts: cleared inactive surface charts")
+    log("[multi-team-support:spectator] cleanup_charts: cleared inactive surface charts")
 end
 
 return surface_utils

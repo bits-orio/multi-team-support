@@ -1,4 +1,4 @@
--- Solo Teams - vanilla_compat.lua
+-- Multi-Team Support - vanilla_compat.lua
 -- Author: bits-orio
 -- License: MIT
 --

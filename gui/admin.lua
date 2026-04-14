@@ -1,4 +1,4 @@
--- Solo Teams - admin_gui.lua
+-- Multi-Team Support - admin_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -193,7 +193,7 @@ function admin_gui.on_gui_checked_state_changed(event)
     local key = el.tags.sb_admin_flag
     local flags = admin_gui.get_flags()
     flags[key] = el.state
-    log("[solo-teams] admin flag changed by " .. player.name .. ": " .. key .. " = " .. tostring(el.state))
+    log("[multi-team-support] admin flag changed by " .. player.name .. ": " .. key .. " = " .. tostring(el.state))
 
     -- Return the key so control.lua can apply immediate side effects.
     return key

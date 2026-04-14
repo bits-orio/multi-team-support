@@ -1,4 +1,4 @@
--- Solo Teams - control.lua
+-- Multi-Team Support - control.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -114,7 +114,7 @@ end
 -- ─── Lifecycle ─────────────────────────────────────────────────────────
 
 script.on_init(function()
-    log("[solo-teams] on_init fired")
+    log("[multi-team-support] on_init fired")
     storage.gui_collapsed            = {}
     storage.gui_location             = {}
     storage.stats_gui_state          = {}
@@ -173,7 +173,7 @@ script.on_load(function()
 end)
 
 script.on_configuration_changed(function()
-    log("[solo-teams] on_configuration_changed fired")
+    log("[multi-team-support] on_configuration_changed fired")
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}
@@ -249,7 +249,7 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
            and player.controller_type ~= defines.controllers.remote then
             spectator.exit(player)
         end
-        log("[solo-teams] surface_change: " .. player.name
+        log("[multi-team-support] surface_change: " .. player.name
             .. " → " .. (player.surface and player.surface.name or "nil"))
         force_utils.bounce_if_foreign(player)
         surfaces_gui.build_surfaces_gui(player)

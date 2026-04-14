@@ -1,4 +1,4 @@
--- Solo Teams - research_gui.lua
+-- Multi-Team Support - research_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --

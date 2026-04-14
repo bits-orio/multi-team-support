@@ -1,4 +1,4 @@
--- Solo Teams - platformer_compat.lua
+-- Multi-Team Support - platformer_compat.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -15,7 +15,7 @@ local helpers = require("helpers")
 local platformer = {}
 
 --- Starting items placed into each player's hub.
---- Mirrors Platformer's own set_starting_items() so every solo platform
+--- Mirrors Platformer's own set_starting_items() so every personal platform
 --- begins with the same loadout.
 local STARTING_ITEMS = {
     { name = "crusher",                   count = 1   },
@@ -32,7 +32,7 @@ function platformer.is_active()
     return script.active_mods["platformer"] ~= nil
 end
 
---- Create a personal space platform for `player` on their solo force,
+--- Create a personal space platform for `player` on their own force,
 --- populate it with starting items, add a visible name label, and
 --- teleport the player onto it.
 ---
@@ -53,7 +53,7 @@ function platformer.setup_player_platform(player)
     })
 
     if not platform then
-        player.print("[solo-teams] Could not create personal space platform.")
+        player.print("[multi-team-support] Could not create personal space platform.")
         return
     end
 

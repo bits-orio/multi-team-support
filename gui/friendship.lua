@@ -1,4 +1,4 @@
--- Solo Teams - friendship.lua
+-- Multi-Team Support - friendship.lua
 -- Author: bits-orio
 -- License: MIT
 --

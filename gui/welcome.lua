@@ -1,4 +1,4 @@
--- Solo Teams - welcome_gui.lua
+-- Multi-Team Support - welcome_gui.lua
 -- Author: bits-orio
 -- License: MIT
 --
@@ -8,7 +8,7 @@
 --   • Esc closes it (player.opened = frame).
 --
 -- Tabs (native tabbed-pane, no custom click handlers needed)
---   About   - what Solo Teams is and how it works
+--   About   - what Multi-Team Support is and how it works
 --   Discord - QR code PNG + selectable invite URL
 --
 -- QR CODE
@@ -61,14 +61,14 @@ local function draw_about(parent)
 
     -- Tagline
     local tagline = scroll.add{type = "label",
-        caption = "Solo by design. Legendary by choice."}
+        caption = "Same start. Different finish."}
     tagline.style.font       = "default-large-semibold"
     tagline.style.font_color = {r = 0.6, g = 0.8, b = 1}
     tagline.style.top_margin = 4
     tagline.style.bottom_margin = 6
 
     section(
-        "What is Solo Teams?",
+        "What is Multi-Team Support?",
         "Every player gets their own independent force. Research your own " ..
         "tech tree, build your own factory, and progress at your own pace, " ..
         "all on the same shared map."
@@ -172,7 +172,7 @@ local function draw_frame(player)
     local title_bar = frame.add{type = "flow", direction = "horizontal"}
     title_bar.style.vertical_align = "center"
     title_bar.drag_target = frame
-    title_bar.add{type = "label", caption = "Solo Teams", style = "frame_title"}
+    title_bar.add{type = "label", caption = "Multi-Team Support", style = "frame_title"}
     local spacer = title_bar.add{type = "empty-widget", style = "draggable_space_header"}
     spacer.style.horizontally_stretchable = true
     spacer.style.height = 24
@@ -253,7 +253,7 @@ function welcome_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = NAV_BTN,
         sprite  = "virtual-signal/signal-info",
-        tooltip = "About Solo Teams / Discord",
+        tooltip = "About Multi-Team Support / Discord",
     })
     nav.on_click(NAV_BTN, toggle)
     nav.on_click("sb_welcome_close", function(e)

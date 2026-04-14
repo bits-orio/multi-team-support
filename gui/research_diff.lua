@@ -1,4 +1,4 @@
--- Solo Teams - research_diff.lua
+-- Multi-Team Support - research_diff.lua
 -- Author: bits-orio
 -- License: MIT
 --

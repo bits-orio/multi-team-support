@@ -1,6 +1,6 @@
-# 🏭 Solo Teams
+# 🏭 Multi-Team Support
 
-> **Solo by design. Legendary by choice.**
+> **Same start. Different finish.**
 
 A Factorio 2.0 mod that gives each player their own independent force - research your own tech tree, build your own factory, and progress at your own pace, all on their own surfaces made from exact same map.
 
