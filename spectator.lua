@@ -61,6 +61,29 @@ local function clear_spectator_storage(idx)
     storage.spectator_saved_location[idx]  = nil
 end
 
+--- Recalculate which surfaces are visible to the spectator force.
+--- Only surfaces owned by currently-spectated targets (and landing-pen) are shown.
+--- Since set_surface_hidden is per-force (not per-player), all active spectators
+--- share visibility — the spectator force sees the union of all targets' surfaces.
+local function update_spectator_surfaces()
+    local spec = game.forces["spectator"]
+    if not spec then return end
+
+    local visible_forces = {}
+    for _, target_fn in pairs(storage.spectating_target) do
+        visible_forces[target_fn] = true
+    end
+
+    for _, surface in pairs(game.surfaces) do
+        if surface.name == "landing-pen" then
+            spec.set_surface_hidden(surface, false)
+        else
+            local owner = surface_utils.get_owner(surface)
+            spec.set_surface_hidden(surface, not (owner and visible_forces[owner]))
+        end
+    end
+end
+
 --- Announce spectation start/stop to all players (if notifications enabled).
 local function announce_spectation(viewer, target_force, is_entering)
     if not admin_gui.flag("spectate_notifications_enabled") then return end
@@ -166,6 +189,15 @@ function spectator.init()
     spec.technologies["logistic-robotics"].researched = true
 
     setup_permission_group()
+
+    -- Hide all surfaces from spectator force by default; they are selectively
+    -- shown per-target when a player starts spectating.
+    for _, surface in pairs(game.surfaces) do
+        if surface.name ~= "landing-pen" then
+            spec.set_surface_hidden(surface, true)
+        end
+    end
+
     log("[multi-team-support:spectator] init: complete, permission group configured")
 end
 
@@ -246,6 +278,7 @@ function spectator.enter(player, target_force, surface, position)
     apply_spectator_state(player)
     open_remote_view(player, surface, position)
     announce_spectation(player, target_force, true)
+    update_spectator_surfaces()
 
     log("[multi-team-support:spectator] enter: done, force=" .. player.force.name)
 end
@@ -292,6 +325,7 @@ function spectator.exit(player)
     end
 
     clear_spectator_storage(player.index)
+    update_spectator_surfaces()
     log("[multi-team-support:spectator] exit: done, force=" .. player.force.name)
 end
 
@@ -303,6 +337,7 @@ function spectator.switch_target(player, target_force, surface, position)
     storage.spectating_target[player.index] = target_force.name
     open_remote_view(player, surface, position)
     announce_spectation(player, target_force, true)
+    update_spectator_surfaces()
 end
 
 --- Open a friend-view: direct remote view without spectator force swap.
@@ -340,6 +375,7 @@ end
 local function upgrade_to_friend_view(p, idx)
     restore_player_state(p)
     clear_spectator_storage(idx)
+    update_spectator_surfaces()
     if p.crafting_queue_size > 0 then
         p.print("[multi-team-support] You are now viewing as a friend. Crafting resumed.")
     else
@@ -355,6 +391,7 @@ local function downgrade_to_spectator(p, player_force)
 
     storage.spectating_target[p.index] = player_force.name
     apply_spectator_state(p)
+    update_spectator_surfaces()
 
     local unfriender = helpers.display_name(player_force.name)
     if p.crafting_queue_size > 0 then
@@ -400,6 +437,7 @@ function spectator.on_player_left(player)
     log("[multi-team-support:spectator] on_player_left: restoring " .. player.name)
     restore_player_state(player)
     clear_spectator_storage(player.index)
+    update_spectator_surfaces()
 end
 
 --- Called from on_player_joined_game. Defensive cleanup.
@@ -415,6 +453,7 @@ function spectator.on_player_joined(player)
         local was_on_spectator = (player.force.name == "spectator")
         restore_player_state(player)
         clear_spectator_storage(player.index)
+        update_spectator_surfaces()
         if was_on_spectator then
             log("[multi-team-support:spectator] on_player_joined: restored " .. player.name
                 .. " from spectator force")

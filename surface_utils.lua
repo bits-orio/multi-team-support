@@ -73,6 +73,21 @@ function surface_utils.on_surface_created(surface)
             force.set_surface_hidden(surface, not are_friends)
         end
     end
+
+    -- Hide from spectator force unless someone is actively spectating the owner.
+    local spec = game.forces["spectator"]
+    if spec then
+        local spectated = false
+        if storage.spectating_target then
+            for _, target_fn in pairs(storage.spectating_target) do
+                if target_fn == owner_fn then
+                    spectated = true
+                    break
+                end
+            end
+        end
+        spec.set_surface_hidden(surface, not spectated)
+    end
 end
 
 --- Periodic chart cleanup: clears spectator force chart data for
