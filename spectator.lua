@@ -340,6 +340,30 @@ function spectator.switch_target(player, target_force, surface, position)
     update_spectator_surfaces()
 end
 
+--- Enter spectate mode when the player is already in remote view
+--- (e.g. from a GPS tag click or map click to a foreign surface).
+--- Like enter() but skips set_controller since the engine already did it.
+function spectator.enter_from_remote(player, target_force, surface, position)
+    log("[multi-team-support:spectator] enter_from_remote: " .. player.name
+        .. " → " .. target_force.name
+        .. " on " .. surface.name
+        .. " at " .. serpent.line(position))
+
+    if not spectator.is_spectating(player) then
+        storage.spectator_saved_location[player.index] = {
+            surface_name = player.physical_surface.name,
+            position     = {x = player.physical_position.x, y = player.physical_position.y},
+        }
+    end
+
+    storage.spectating_target[player.index] = target_force.name
+    apply_spectator_state(player)
+    announce_spectation(player, target_force, true)
+    update_spectator_surfaces()
+
+    log("[multi-team-support:spectator] enter_from_remote: done, force=" .. player.force.name)
+end
+
 --- Open a friend-view: direct remote view without spectator force swap.
 function spectator.enter_friend_view(player, surface, position)
     log("[multi-team-support:spectator] enter_friend_view: " .. player.name
@@ -360,11 +384,34 @@ end
 -- ─── Event Handlers ────────────────────────────────────────────────────
 
 --- Detects remote-view exit and calls exit().
+--- Also detects GPS/map-click entry into remote view on a foreign surface
+--- and retroactively wraps the player in spectate mode.
 function spectator.on_controller_changed(player, old_controller_type)
-    if old_controller_type ~= defines.controllers.remote then return end
-    if player.controller_type == defines.controllers.remote then return end
+    -- Case 1: Player entered remote view on a foreign surface (GPS click, map click).
+    if player.controller_type == defines.controllers.remote
+       and old_controller_type ~= defines.controllers.remote
+       and not spectator.is_spectating(player) then
+        local surface = player.surface
+        local owner   = surface_utils.get_owner(surface)
+        if owner then
+            local viewer_force = game.forces[spectator.get_effective_force(player)]
+            local target_force = game.forces[owner]
+            if viewer_force and target_force and viewer_force ~= target_force then
+                local position = player.position
+                if spectator.needs_spectator_mode(viewer_force, target_force) then
+                    spectator.enter_from_remote(player, target_force, surface, position)
+                else
+                    spectator.enter_friend_view(player, surface, position)
+                end
+            end
+        end
+        return
+    end
 
-    if spectator.is_spectating(player) then
+    -- Case 2: Player exited remote view.
+    if old_controller_type == defines.controllers.remote
+       and player.controller_type ~= defines.controllers.remote
+       and spectator.is_spectating(player) then
         log("[multi-team-support:spectator] on_controller_changed: " .. player.name
             .. " exited remote view, restoring force")
         spectator.exit(player)
