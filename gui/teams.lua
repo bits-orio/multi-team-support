@@ -1,0 +1,659 @@
+-- Multi-Team Support - gui/teams.lua
+-- Author: bits-orio
+-- License: MIT
+--
+-- Teams GUI: draggable panel showing all teams as cards.
+-- Each card shows team name, members, surfaces, and action buttons
+-- (watch, leave, rename for leader, friendship for other teams).
+--
+-- This replaces the earlier "Players & Platforms" GUI with a unified
+-- team-centric view.
+
+local nav           = require("gui.nav")
+local spectator     = require("spectator")
+local helpers       = require("helpers")
+local surface_utils = require("surface_utils")
+local friendship    = require("gui.friendship")
+local admin_gui     = require("gui.admin")
+local landing_pen   = require("gui.landing_pen")
+local follow_cam    = require("gui.follow_cam")
+
+local teams_gui = {}
+
+-- ─── GPS Helpers ───────────────────────────────────────────────────────
+
+--- Build a Factorio rich-text GPS tag for a platform's hub location.
+local function get_platform_gps(platform)
+    local hub = platform.hub
+    if not (hub and hub.valid and platform.surface) then return "" end
+    local pos = hub.position
+    return string.format("[gps=%d,%d,%s]", pos.x, pos.y, platform.surface.name)
+end
+
+-- ─── Data Collection ───────────────────────────────────────────────────
+
+local SKIP_FORCES = {enemy = true, neutral = true, player = true, spectator = true}
+
+--- Collect surfaces + platforms owned by a team force.
+--- Returns a table of { name, location, gps, surface_name, position }.
+local function collect_team_surfaces(force)
+    local list = {}
+
+    -- Space platforms
+    for _, platform in pairs(force.platforms) do
+        local location = platform.space_location and platform.space_location.name or "in transit"
+        local hub = platform.hub
+        local hub_pos = (hub and hub.valid) and hub.position or nil
+        list[#list + 1] = {
+            name         = platform.name,
+            location     = location,
+            gps          = get_platform_gps(platform),
+            surface_name = platform.surface and platform.surface.name or nil,
+            position     = hub_pos and {x = hub_pos.x, y = hub_pos.y} or helpers.ORIGIN,
+        }
+    end
+
+    -- Vanilla/voidblock per-team surfaces: "team-N-planet"
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid then
+            local owner_fn, planet = surface.name:match("^(team%-%d+)%-(%w+)$")
+            if owner_fn == force.name then
+                local planet_disp = planet:sub(1, 1):upper() .. planet:sub(2)
+                list[#list + 1] = {
+                    name         = planet_disp .. " base",
+                    location     = planet_disp,
+                    gps          = string.format("[gps=0,0,%s]", surface.name),
+                    surface_name = surface.name,
+                    position     = helpers.ORIGIN,
+                }
+            end
+        end
+    end
+
+    -- Space Age per-team planet variants (surface named after the variant
+    -- planet e.g. "mts-nauvis-1"). Only include surfaces that actually exist
+    -- (planet surfaces are created lazily on first access).
+    local per_team = (storage.map_force_to_planets or {})[force.name] or {}
+    for base, variant in pairs(per_team) do
+        local surface = game.surfaces[variant]
+        if surface and surface.valid then
+            local planet_disp = base:sub(1, 1):upper() .. base:sub(2)
+            list[#list + 1] = {
+                name         = planet_disp .. " base",
+                location     = planet_disp,
+                gps          = string.format("[gps=0,0,%s]", surface.name),
+                surface_name = surface.name,
+                position     = helpers.ORIGIN,
+            }
+        end
+    end
+
+    return list
+end
+
+--- Collect member info for a team: leader, members list.
+--- Uses *effective* force so spectating members still appear under their
+--- real team (they move to spectator force temporarily, but remain team
+--- members for UI purposes).
+--- Returns { leader = player_or_nil, members = {player, ...} }
+local function collect_team_members(force)
+    local leader_idx = (storage.team_leader or {})[force.name]
+    local leader = leader_idx and game.get_player(leader_idx) or nil
+
+    local members = {}
+    for _, p in pairs(game.players) do
+        if p.valid and spectator.get_effective_force(p) == force.name then
+            members[#members + 1] = p
+        end
+    end
+    table.sort(members, function(a, b)
+        -- Leader first, then alphabetical
+        if a == leader then return true end
+        if b == leader then return false end
+        return a.name < b.name
+    end)
+
+    return { leader = leader, members = members }
+end
+
+--- A team is "occupied" if its slot is claimed, regardless of whether the
+--- current members are temporarily on the spectator force.
+--- This prevents team cards from disappearing when a member spectates.
+local function is_team_occupied(force_name)
+    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    if not slot then return false end
+    return (storage.team_pool or {})[slot] == "occupied"
+end
+
+--- Public helper used by /mts-players command and other modules.
+--- Returns three tables: owners, order, owner_info (legacy API shape).
+function teams_gui.get_platforms_by_owner()
+    local owners     = {}
+    local owner_info = {}
+    local order      = {}
+
+    for _, force in pairs(game.forces) do
+        if not SKIP_FORCES[force.name] and is_team_occupied(force.name) then
+            local owner        = helpers.display_name(force.name)
+            local surfaces     = collect_team_surfaces(force)
+            local members      = collect_team_members(force)
+            local leader       = members.leader
+            local online       = leader and leader.connected or false
+            owners[owner]      = surfaces
+            owner_info[owner]  = {
+                gps        = "",
+                color      = (leader and leader.chat_color) or helpers.WHITE,
+                force_name = force.name,
+                online     = online,
+            }
+            order[#order + 1]  = owner
+        end
+    end
+
+    return owners, order, owner_info
+end
+
+-- ─── Card Rendering Helpers ────────────────────────────────────────────
+
+--- Add a horizontal colored stripe as a visual separator at the card top.
+local function add_color_stripe(parent, color)
+    local stripe = parent.add{type = "line"}
+    stripe.style.top_margin = 0
+    -- Note: Factorio doesn't support custom-colored lines; use a label with
+    -- a colored background as a workaround. Fall back to default line.
+end
+
+--- Add the card header row: team name, team ID, member count, Watch button.
+--- Renaming is handled by /mts-rename and Leaving by /mts-leave to keep the GUI minimal.
+local function add_card_header(card, force, members, viewer_player, is_own)
+    local hdr = card.add{type = "flow", direction = "horizontal"}
+    hdr.style.vertical_align           = "center"
+    hdr.style.horizontally_stretchable = true
+
+    local display_name = helpers.display_name(force.name)
+    local force_color  = helpers.force_color(force)
+
+    -- Team display name (colored by force color)
+    local name_label = hdr.add{type = "label", caption = display_name}
+    name_label.style.font       = "default-bold"
+    name_label.style.font_color = force_color
+
+    -- Internal team ID (subtle)
+    local id_label = hdr.add{type = "label", caption = " [" .. force.name .. "]"}
+    id_label.style.font        = "default-small"
+    id_label.style.font_color  = {0.5, 0.5, 0.5}
+    id_label.style.left_margin = 4
+
+    -- Member count
+    local count = #members.members
+    local count_label = hdr.add{
+        type    = "label",
+        caption = " — " .. count .. (count == 1 and " player" or " players"),
+    }
+    count_label.style.font       = "default-small"
+    count_label.style.font_color = {0.7, 0.7, 0.7}
+
+end
+
+--- Add a row for a single team member.
+local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_force_name, target_force, target_force_name, is_own_team)
+    local row = parent.add{type = "flow", direction = "horizontal"}
+    row.style.vertical_align = "center"
+
+    -- Fixed-width column for the leader star so names in a card align
+    -- regardless of which row is the leader.
+    local star_cell = row.add{type = "label", caption = is_leader_of_team and "\xE2\x98\x85" or ""}
+    star_cell.style.width        = 14
+    star_cell.style.right_margin = 4
+    if is_leader_of_team then
+        star_cell.style.font_color = {1, 0.8, 0}
+    end
+
+    -- Player name, colored
+    local name_lbl = row.add{type = "label", caption = member.name}
+    name_lbl.style.font_color = member.chat_color
+
+    -- Follow Cam toggle button, after the name (for any player except self).
+    -- Uses the radar icon to visually separate from the magnifying-glass
+    -- Spectate button on surface rows (Spectate teleports your view;
+    -- Follow Cam opens a passive mini-camera).
+    if member.index ~= viewer.index then
+        local already = follow_cam.is_following(viewer.index, member.index)
+        local cam_btn = row.add{
+            type    = "sprite-button",
+            sprite  = "item/radar",
+            style   = "mini_button",
+            tags    = {sb_follow_cam_toggle = true, target_idx = member.index},
+            tooltip = already and ("Stop following " .. member.name)
+                               or ("Follow " .. member.name
+                                   .. " in a mini-camera (does not move your character)"),
+        }
+        cam_btn.style.left_margin = 4
+    end
+
+    -- Online/offline indicator
+    if member.connected then
+        local dot = row.add{type = "label", caption = "  \xE2\x97\x8F"}  -- ●
+        dot.style.font_color = {0.4, 0.9, 0.4}
+        dot.style.left_margin = 4
+    else
+        local dot = row.add{type = "label", caption = "  \xE2\x97\x8B"}  -- ○
+        dot.style.font_color = {0.55, 0.55, 0.55}
+        dot.style.left_margin = 4
+        local off = row.add{type = "label", caption = " (offline)"}
+        off.style.font       = "default-small"
+        off.style.font_color = {0.55, 0.55, 0.55}
+    end
+
+    -- Friendship control: only on leader row, only for other teams,
+    -- only when leader is online, only when viewer is not in pen.
+    if is_leader_of_team
+       and not is_own_team
+       and member.connected
+       and admin_gui.flag("friendship_enabled")
+       and not landing_pen.is_in_pen(viewer) then
+        local viewer_force = game.forces[viewer_force_name]
+        if viewer_force and target_force then
+            local lbl_text, lbl_color, tip, checked =
+                friendship.get_state(viewer_force_name, target_force_name, viewer_force, target_force, helpers.display_name(target_force_name))
+
+            row.add{type = "empty-widget"}.style.horizontally_stretchable = true
+
+            local friend_label = row.add{type = "label", caption = lbl_text}
+            friend_label.style.font         = "default-small"
+            friend_label.style.font_color   = lbl_color
+            friend_label.style.right_margin = 4
+            row.add{
+                type    = "checkbox",
+                state   = checked,
+                tags    = {sb_friend_toggle = true, sb_target_force = target_force_name},
+                tooltip = tip,
+            }
+        end
+    end
+end
+
+--- Add the members section of a team card.
+local function add_members_section(card, force, members, viewer, viewer_force_name, target_force_name, is_own_team)
+    local sub = card.add{type = "label", caption = "Players"}
+    sub.style.font        = "default-bold"
+    sub.style.top_margin  = 4
+    sub.style.font_color  = {0.85, 0.85, 0.85}
+
+    if #members.members == 0 then
+        local none = card.add{type = "label", caption = "  (no players)"}
+        none.style.font_color = {0.5, 0.5, 0.5}
+        return
+    end
+
+    for _, member in ipairs(members.members) do
+        local is_leader = (members.leader and member.index == members.leader.index)
+        add_member_row(card, member, is_leader, viewer, viewer_force_name, force, target_force_name, is_own_team)
+    end
+end
+
+--- Add the surfaces section of a team card.
+local function add_surfaces_section(card, force, surfaces, is_own_team, is_current_target, viewer_player)
+    local sub = card.add{type = "label", caption = "Surfaces"}
+    sub.style.font        = "default-bold"
+    sub.style.top_margin  = 6
+    sub.style.font_color  = {0.85, 0.85, 0.85}
+
+    if #surfaces == 0 then
+        local none = card.add{type = "label", caption = "  (no surfaces yet)"}
+        none.style.font_color = {0.5, 0.5, 0.5}
+        return
+    end
+
+    for _, info in ipairs(surfaces) do
+        local row = card.add{type = "flow", direction = "horizontal"}
+        row.style.vertical_align = "center"
+
+        local name_lbl = row.add{type = "label", caption = "  " .. info.name}
+        name_lbl.style.font = "default-small"
+
+        local loc_lbl = row.add{type = "label", caption = "  (" .. info.location .. ")"}
+        loc_lbl.style.font       = "default-small"
+        loc_lbl.style.font_color = {0.6, 0.6, 0.6}
+
+        -- Spectate button for other teams' surfaces.
+        -- Allowed for pen players too (they're already on spectator force).
+        if not is_own_team and not is_current_target and info.surface_name then
+            row.add{type = "empty-widget"}.style.horizontally_stretchable = true
+            row.add{
+                type    = "sprite-button",
+                sprite  = "utility/search_icon",
+                tags    = {
+                    sb_spectate     = true,
+                    sb_target_force = force.name,
+                    sb_surface      = info.surface_name,
+                    sb_position     = info.position,
+                },
+                style   = "mini_button",
+                tooltip = "Spectate this surface (opens remote view; pauses your crafting while active)",
+            }
+        end
+    end
+end
+
+--- Build a single team card for the given force.
+local function build_team_card(parent, force, viewer_player, viewer_force_name, current_target)
+    local members  = collect_team_members(force)
+    local surfaces = collect_team_surfaces(force)
+    local is_own   = (force.name == viewer_force_name)
+    local is_current_target = (force.name == current_target)
+
+    -- Outer frame for the card; highlight own team
+    local card_style = is_own and "inside_deep_frame" or "inside_shallow_frame"
+    local card = parent.add{
+        type      = "frame",
+        direction = "vertical",
+        style     = card_style,
+    }
+    card.style.horizontally_stretchable = true
+    card.style.padding      = 6
+    card.style.margin       = 0
+    card.style.bottom_margin = 4
+
+    add_card_header(card, force, members, viewer_player, is_own)
+    card.add{type = "line"}.style.top_margin = 2
+    add_members_section(card, force, members, viewer_player, viewer_force_name, force.name, is_own)
+    add_surfaces_section(card, force, surfaces, is_own, is_current_target, viewer_player)
+end
+
+-- ─── GUI Building ──────────────────────────────────────────────────────
+
+--- Find the player's home surface (delegates to surface_utils).
+local function get_home_surface(force, player_index)
+    return surface_utils.get_home_surface(force, player_index)
+end
+
+--- Add the footer with return/stop-spectating button.
+local function add_footer(frame, player, viewer_force)
+    local in_pen  = landing_pen.is_in_pen(player)
+    local is_spec = spectator.is_spectating(player)
+
+    -- Pen players: only show "Stop spectating" when they're spectating.
+    if in_pen then
+        if not is_spec then return end
+    else
+        if not viewer_force then return end
+        local return_surface = get_home_surface(viewer_force, player.index)
+        if not return_surface then return end
+        if not is_spec and player.surface.index == return_surface.index then return end
+    end
+
+    local crafting = is_spec and player.crafting_queue_size > 0
+    local caption
+    if is_spec then
+        caption = crafting and "Stop spectating (crafting paused)" or "Stop spectating"
+    else
+        caption = "Return to my base"
+    end
+    local tooltip
+    if in_pen then
+        tooltip = "Stop spectating and return to the Landing Pen"
+    elseif is_spec then
+        tooltip = "Stop spectating and return to your base"
+    else
+        tooltip = "Teleport back to your base"
+    end
+
+    local footer = frame.add{type = "flow", direction = "horizontal"}
+    footer.style.top_margin       = 4
+    footer.style.horizontal_align = "center"
+    footer.style.horizontally_stretchable = true
+    footer.add{
+        type    = "button",
+        name    = "sb_return_to_base",
+        caption = caption,
+        style   = "button",
+        tooltip = tooltip,
+    }
+end
+
+--- Build (or rebuild) the teams GUI for a single player.
+function teams_gui.build_gui(player)
+    storage.gui_location = storage.gui_location or {}
+    local frame = helpers.reuse_or_create_frame(
+        player, "sb_platforms_frame", storage.gui_location, {x = 5, y = 400})
+
+    local title_bar = helpers.add_title_bar(frame, "Teams")
+    title_bar.style.horizontal_spacing = 8
+    title_bar.add{
+        type    = "sprite-button",
+        name    = "sb_platforms_close",
+        sprite  = "utility/close",
+        style   = "close_button",
+        tooltip = "Close panel",
+    }
+
+    frame.style.maximal_height = 600
+    frame.style.minimal_width  = 480
+    frame.style.maximal_width  = 560
+
+    local show_offline = helpers.show_offline(player)
+
+    -- "Show offline" toggle (keeps teams with offline leaders visible)
+    local offline_flow = frame.add{type = "flow", direction = "horizontal"}
+    offline_flow.style.horizontal_align = "right"
+    offline_flow.style.horizontally_stretchable = true
+    offline_flow.style.bottom_margin = 2
+    local offline_label = offline_flow.add{type = "label", caption = "show offline"}
+    offline_label.style.font         = "default-small"
+    offline_label.style.font_color   = {0.6, 0.6, 0.6}
+    offline_label.style.right_margin = 4
+    offline_flow.add{
+        type    = "checkbox",
+        name    = "sb_show_offline_toggle",
+        state   = show_offline,
+        tooltip = show_offline and "Hide offline teams" or "Show offline teams",
+    }
+
+    local scroll = frame.add{
+        type = "scroll-pane",
+        name = "sb_platforms_scroll",
+        direction = "vertical",
+        horizontal_scroll_policy = "never",
+        vertical_scroll_policy   = "auto-and-reserve-space",
+    }
+    scroll.style.maximal_height             = 520
+    scroll.style.horizontally_stretchable   = true
+
+    local viewer_force_name = spectator.get_effective_force(player)
+    local viewer_force      = game.forces[viewer_force_name]
+    local current_target    = spectator.get_target(player)
+
+    -- Sort teams: own team first, then by team number.
+    -- Uses team_pool to detect occupancy so spectating members don't hide a team.
+    local team_forces = {}
+    for _, force in pairs(game.forces) do
+        if not SKIP_FORCES[force.name] and is_team_occupied(force.name) then
+            team_forces[#team_forces + 1] = force
+        end
+    end
+    table.sort(team_forces, function(a, b)
+        if a.name == viewer_force_name then return true end
+        if b.name == viewer_force_name then return false end
+        return a.name < b.name
+    end)
+
+    -- A team is considered "online" if ANY member is connected (not just the
+    -- leader), so teams stay visible while the leader is offline if at least
+    -- one other member is online.
+    local function team_has_online_member(force)
+        -- Use effective force so spectating members still count as online
+        for _, p in pairs(game.players) do
+            if p.valid and p.connected then
+                local real_fn = (storage.spectator_real_force or {})[p.index]
+                                or p.force.name
+                if real_fn == force.name then return true end
+            end
+        end
+        return false
+    end
+
+    local visible_count = 0
+    for _, force in ipairs(team_forces) do
+        local is_own = (force.name == viewer_force_name)
+        local online = team_has_online_member(force)
+        if online or is_own or show_offline then
+            visible_count = visible_count + 1
+            build_team_card(scroll, force, player, viewer_force_name, current_target)
+        end
+    end
+
+    if visible_count == 0 then
+        local none = scroll.add{type = "label", caption = "No teams yet."}
+        none.style.font_color = {0.7, 0.7, 0.7}
+    end
+
+    add_footer(frame, player, viewer_force)
+end
+
+--- Rebuild the teams GUI for all connected players.
+function teams_gui.update_all()
+    for _, player in pairs(game.players) do
+        if player.connected and player.gui.screen.sb_platforms_frame then
+            teams_gui.build_gui(player)
+        end
+    end
+end
+
+-- ─── Click Handlers ────────────────────────────────────────────────────
+
+--- Handle return-to-base click: exit spectation, then teleport home.
+local function on_return_to_base(player)
+    if spectator.is_spectating(player) then
+        spectator.exit(player)
+        return
+    end
+    local saved = storage.spectator_saved_location
+        and storage.spectator_saved_location[player.index]
+    local target_surface, target_pos
+    if saved then
+        target_surface = game.surfaces[saved.surface_name]
+        target_pos     = saved.position
+        storage.spectator_saved_location[player.index] = nil
+    end
+    if not target_surface then
+        target_surface = get_home_surface(player.force, player.index)
+        target_pos     = helpers.ORIGIN
+    end
+    if target_surface then
+        if player.character then
+            local safe = target_surface.find_non_colliding_position(
+                player.character.name, target_pos, 8, 0.5)
+            target_pos = safe or target_pos
+        end
+        player.teleport(target_pos, target_surface)
+    end
+end
+
+--- Handle spectate button click.
+local function on_spectate_click(player, tags)
+    local target_force = game.forces[tags.sb_target_force]
+    local surface      = game.surfaces[tags.sb_surface]
+    local position     = tags.sb_position or helpers.ORIGIN
+    if not (target_force and surface) then return end
+
+    -- If the target's leader is on this surface, spectate their live position
+    local leader_idx = (storage.team_leader or {})[target_force.name]
+    local leader = leader_idx and game.get_player(leader_idx)
+    if leader and leader.connected and leader.surface == surface then
+        position = leader.position
+    end
+
+    local viewer_force = game.forces[spectator.get_effective_force(player)]
+    if not viewer_force then return end
+
+    if spectator.needs_spectator_mode(viewer_force, target_force) then
+        if spectator.is_spectating(player) then
+            spectator.switch_target(player, target_force, surface, position)
+        else
+            spectator.enter(player, target_force, surface, position)
+        end
+    else
+        spectator.enter_friend_view(player, surface, position)
+    end
+end
+
+--- Handle per-player Follow Cam toggle button.
+local function on_follow_cam_toggle(player, tags)
+    if not tags.target_idx then return end
+    follow_cam.toggle_target(player, tags.target_idx)
+    -- Rebuild teams GUI so the tooltip on the radar button reflects the new state
+    teams_gui.update_all()
+end
+
+--- Handle GUI click events. Returns true if consumed.
+function teams_gui.on_gui_click(event)
+    local element = event.element
+    if not element or not element.valid then return end
+
+    if element.name == "sb_return_to_base" then
+        local player = game.get_player(event.player_index)
+        if player then on_return_to_base(player) end
+        return true
+    end
+
+    if element.name == "sb_platforms_close" then
+        local player = game.get_player(event.player_index)
+        if player then teams_gui.toggle(player) end
+        return true
+    end
+
+    if element.tags and element.tags.sb_spectate then
+        local player = game.get_player(event.player_index)
+        if player then on_spectate_click(player, element.tags) end
+        return true
+    end
+
+    if element.tags and element.tags.sb_follow_cam_toggle then
+        local player = game.get_player(event.player_index)
+        if player then on_follow_cam_toggle(player, element.tags) end
+        return true
+    end
+
+    return false
+end
+
+-- ─── Friend Toggle ─────────────────────────────────────────────────────
+
+--- Handle friend checkbox toggle (delegates to gui.friendship).
+function teams_gui.on_friend_toggle(event)
+    if not admin_gui.flag("friendship_enabled") then return end
+    local player = game.get_player(event.player_index)
+    if not player or landing_pen.is_in_pen(player) then return end
+    if friendship.on_toggle(event) then
+        teams_gui.update_all()
+    end
+end
+
+-- ─── Panel Toggle & Nav ────────────────────────────────────────────────
+
+--- Toggle the teams panel open/closed for a player.
+function teams_gui.toggle(player)
+    local frame = player.gui.screen.sb_platforms_frame
+    if frame then
+        storage.gui_location = storage.gui_location or {}
+        storage.gui_location[player.index] = frame.location
+        frame.destroy()
+    else
+        teams_gui.build_gui(player)
+    end
+end
+
+--- Register the nav bar button for this player.
+function teams_gui.on_player_created(player)
+    nav.add_top_button(player, {
+        name    = "sb_platforms_btn",
+        sprite  = "utility/gps_map_icon",
+        tooltip = "Teams",
+    })
+    nav.on_click("sb_platforms_btn", function(e)
+        teams_gui.toggle(e.player)
+    end)
+end
+
+return teams_gui

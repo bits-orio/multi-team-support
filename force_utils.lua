@@ -2,14 +2,21 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Force creation, tech/quality syncing, surface ownership checks, and
--- bounce-home logic. Extracted from control.lua for size reduction.
+-- Team pool management, force creation, tech syncing, surface ownership
+-- checks, and bounce-home logic.
+--
+-- Forces are pre-created as "team-1" through "team-N" in on_init.
+-- Players claim a team slot on spawn and release it when leaving.
+-- Force names never change — only the display name and leader can change.
 
 local helpers       = require("helpers")
 local spectator     = require("spectator")
 local surface_utils = require("surface_utils")
+local planet_map    = require("planet_map")
 
 local force_utils = {}
+
+-- ─── Force State Helpers ──────────────────────────────────────────────
 
 --- Copy all researched technologies, quality unlocks, and space platform
 --- unlock from one force to another.
@@ -32,29 +39,155 @@ local function copy_force_state(source, target)
     end
 end
 
---- Create a dedicated force for a player and set up diplomacy.
-function force_utils.create_player_force(player)
-    local force_name = "force-" .. player.name
-    local ok, new_force = pcall(game.create_force, force_name)
-    if not ok then
-        player.print("Could not create separate force (64 force limit reached). Joining default team.")
-        return
+--- Reset a force's tech tree back to unresearched state.
+--- Used when recycling a team slot so stale research doesn't leak
+--- to the next occupant.
+local function reset_force_state(force)
+    for _, tech in pairs(force.technologies) do
+        if tech.researched then
+            tech.researched = false
+        end
     end
-    copy_force_state(game.forces.player, new_force)
-    player.force = new_force
+end
 
-    for _, other_force in pairs(game.forces) do
-        if other_force.name ~= "enemy" and other_force ~= new_force then
-            new_force.set_cease_fire(other_force, true)
-            other_force.set_cease_fire(new_force, true)
+-- ─── Team Pool Management ─────────────────────────────────────────────
+
+--- Return the max teams setting value.
+function force_utils.max_teams()
+    return settings.startup["mts_max_teams"].value
+end
+
+--- Check if a force name belongs to the team pool (matches "team-N" pattern).
+function force_utils.is_team_force(force_name)
+    return force_name:find("^team%-") ~= nil
+end
+
+--- Pre-create all team forces during on_init.
+--- Sets up diplomacy (cease-fire with all non-enemy forces) and
+--- spectator integration for each team force.
+function force_utils.create_team_pool()
+    local max = force_utils.max_teams()
+    storage.team_pool       = {}
+    storage.team_names      = {}
+    storage.team_leader     = {}
+    storage.team_clock_start = {}
+
+    for i = 1, max do
+        local force_name = "team-" .. i
+        local ok, new_force = pcall(game.create_force, force_name)
+        if not ok then
+            log("[multi-team-support] WARNING: Could not create " .. force_name
+                .. " (64 force limit reached)")
+            break
+        end
+
+        -- Copy baseline research from the default player force
+        copy_force_state(game.forces.player, new_force)
+
+        -- Set up diplomacy: cease-fire with all non-enemy forces
+        for _, other_force in pairs(game.forces) do
+            if other_force.name ~= "enemy" and other_force ~= new_force then
+                new_force.set_cease_fire(other_force, true)
+                other_force.set_cease_fire(new_force, true)
+            end
+        end
+
+        -- Integrate with spectator system
+        spectator.setup_force(new_force)
+
+        -- Mark slot as available, set default display name
+        storage.team_pool[i]  = "available"
+        storage.team_names[force_name] = string.format("Team %02d", i)
+
+        log("[multi-team-support] created team slot: " .. force_name)
+    end
+end
+
+--- Claim the next available team slot for a player.
+--- Resets the force's tech tree, copies baseline research, assigns the
+--- player, sets force color, and starts the team clock.
+--- Returns the force name, or nil if no slots available.
+function force_utils.claim_team_slot(player)
+    storage.team_pool = storage.team_pool or {}
+
+    -- Find first available slot
+    local slot = nil
+    for i = 1, force_utils.max_teams() do
+        if storage.team_pool[i] == "available" then
+            slot = i
+            break
         end
     end
 
-    spectator.setup_force(new_force)
+    if not slot then
+        player.print("No team slots available. All " .. force_utils.max_teams()
+            .. " teams are occupied.")
+        return nil
+    end
 
+    local force_name = "team-" .. slot
+    local force = game.forces[force_name]
+    if not force then return nil end
+
+    -- Reset and copy baseline research (prevents stale tech from previous occupant)
+    reset_force_state(force)
+    copy_force_state(game.forces.player, force)
+
+    -- Assign player to the team force
+    player.force = force
+
+    -- Set force display color to the leader's (this player's) color
+    -- Note: force.color is read-only; use custom_color to override
+    force.custom_color = player.color
+
+    -- Track team leader and mark slot as occupied
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = player.index
+    storage.team_pool[slot] = "occupied"
+
+    -- Start team clock on first claim (never reset after that)
+    storage.team_clock_start = storage.team_clock_start or {}
+    if not storage.team_clock_start[force_name] then
+        storage.team_clock_start[force_name] = game.tick
+        log("[multi-team-support] team clock started for " .. force_name
+            .. " at tick " .. game.tick)
+    end
+
+    -- Space Age: reapply locks so only their home variant is unlocked.
+    -- Safe to call when Space Age isn't active (no-op inside).
+    planet_map.apply_force_locks(force)
+
+    log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
+        .. " (" .. force_name .. ")")
+    return force_name
 end
+
+--- Release a team slot back to the pool.
+--- Resets the force's tech tree so stale research doesn't leak.
+function force_utils.release_team_slot(force_name)
+    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    if not slot then return end
+
+    storage.team_pool = storage.team_pool or {}
+    storage.team_pool[slot] = "available"
+
+    -- Clear leadership
+    storage.team_leader = storage.team_leader or {}
+    storage.team_leader[force_name] = nil
+
+    -- Reset tech tree to prevent stale research leaking to next occupant
+    local force = game.forces[force_name]
+    if force then
+        reset_force_state(force)
+        copy_force_state(game.forces.player, force)
+        -- Space Age: re-lock all non-home variants
+        planet_map.apply_force_locks(force)
+    end
+
+    log("[multi-team-support] released team slot: " .. force_name)
+end
+
+-- ─── Team Leader ──────────────────────────────────────────────────────
 
 --- Return true if the player is the team leader of their current force.
 function force_utils.is_team_leader(player)
@@ -81,10 +214,12 @@ local function pick_new_leader(force, exclude_index)
     return fallback
 end
 
+-- ─── Surface Cleanup ──────────────────────────────────────────────────
+
 --- Delete all surfaces owned by a force and clean up related storage.
 local function cleanup_force_surfaces(force_name)
-    -- Delete surfaces matching "{force_name}-{planet}" pattern
     local deleted = {}
+    -- Delete surfaces matching "{force_name}-{planet}" pattern
     for _, surface in pairs(game.surfaces) do
         if surface.valid and surface.name:find("^" .. force_name:gsub("%-", "%%-") .. "%-") then
             deleted[#deleted + 1] = surface.name
@@ -114,13 +249,19 @@ local function cleanup_force_surfaces(force_name)
     return deleted
 end
 
---- Remove a player from their current team, move them to their own force.
---- Handles three cases:
----   • Solo player (last member): cleans up force surfaces and creates a fresh force.
----   • Non-owner on a team: moves to their own "force-{name}" force.
----   • Force owner on a team: swaps into the new leader's empty force so the
----     remaining team keeps the base.
---- Handles leader promotion and broadcasts the change.
+-- ─── Remove from Team ─────────────────────────────────────────────────
+
+--- Remove a player from their current team.
+--- With numbered forces, this is much simpler than the old system:
+---   - The team's force name never changes (it's always "team-N").
+---   - No force swapping is needed when the leader leaves.
+---   - Departing player gets a fresh team slot with baseline research.
+---
+--- Three cases:
+---   1. Solo player (last member): release team slot, clean up surfaces.
+---   2. Leader leaving a multi-player team: elect new leader, player leaves.
+---   3. Non-leader leaving: player simply leaves.
+---
 --- The caller is responsible for placing the player back in the landing pen.
 function force_utils.remove_from_team(player)
     local old_force = player.force
@@ -133,93 +274,52 @@ function force_utils.remove_from_team(player)
     storage.left_teams[player.index][old_force_name] = true
 
     storage.team_leader = storage.team_leader or {}
-    local own_force_name = "force-" .. player.name
-    local is_owner = (own_force_name == old_force_name)
+    local is_leader = (storage.team_leader[old_force_name] == player.index)
+    local cn_player = helpers.colored_name(player.name, player.chat_color)
+    local team_tag  = helpers.team_tag(old_force_name)
 
     if member_count <= 1 then
-        -- Solo player leaving: clean up surfaces but keep the force.
-        -- The force is reused when the player re-spawns from the pen.
-        local display = helpers.display_name(old_force_name)
+        -- Solo player leaving: clean up surfaces and release the team slot.
         local deleted = cleanup_force_surfaces(old_force_name)
 
+        -- Move player to spectator force (they'll be placed in pen by caller)
+        local spec_force = game.forces["spectator"]
+        if spec_force then player.force = spec_force end
+
+        -- Release the team slot back to the pool
+        force_utils.release_team_slot(old_force_name)
+
         if #deleted > 0 then
-            helpers.broadcast("[Team] " .. helpers.colored_name(player.name, player.chat_color) .. "'s base has been cleaned up." .. helpers.force_tag(old_force_name))
+            helpers.broadcast("[Team] " .. team_tag .. "'s base has been cleaned up.")
         end
-    elseif is_owner then
-        -- Owner is leaving. The remaining team keeps the force (and the base).
-        -- Swap the owner into the new leader's empty force.
-        local new_leader = pick_new_leader(old_force, player.index)
-        if not new_leader then return false end
+    else
+        -- Multi-player team: player leaves, team stays.
+        -- Move player to spectator force (they'll be placed in pen by caller)
+        local spec_force = game.forces["spectator"]
+        if spec_force then player.force = spec_force end
 
-        local swap_force_name = "force-" .. new_leader.name
-        local swap_force = game.forces[swap_force_name]
-        if not swap_force then
-            local ok, created = pcall(game.create_force, swap_force_name)
-            if not ok then
-                player.print("Could not create force for team transfer.")
-                return false
-            end
-            swap_force = created
-            copy_force_state(game.forces.player, swap_force)
-            for _, other in pairs(game.forces) do
-                if other.name ~= "enemy" and other ~= swap_force then
-                    swap_force.set_cease_fire(other, true)
-                    other.set_cease_fire(swap_force, true)
-                end
-            end
-            spectator.setup_force(swap_force)
-        end
-
-        copy_force_state(old_force, swap_force)
-        player.force = swap_force
-
-        storage.team_leader[old_force_name] = new_leader.index
-        storage.team_leader[swap_force_name] = player.index
-
-        local cn_player = helpers.colored_name(player.name, player.chat_color)
-        local cn_leader = helpers.colored_name(new_leader.name, new_leader.chat_color)
-        local ft = helpers.force_tag(old_force_name)
+        -- Notify remaining team members
         for _, member in pairs(old_force.players) do
             if member.connected then
-                member.print(cn_player .. " has left the team." .. ft)
-                member.print(cn_leader .. " is now the team leader." .. ft)
+                member.print(cn_player .. " has left " .. team_tag .. ".")
             end
         end
-        helpers.broadcast("[Team] " .. cn_leader .. " now leads "
-            .. cn_player .. "'s former team." .. ft)
-    else
-        -- Non-owner leaving: move to their own force.
-        local own_force = game.forces[own_force_name]
-        if not own_force then
-            player.print("Could not find your force.")
-            return false
-        end
 
-        copy_force_state(old_force, own_force)
-        player.force = own_force
-        storage.team_leader[own_force_name] = player.index
-
-        if storage.team_leader[old_force_name] == player.index then
+        -- Elect new leader if the departing player was the leader
+        if is_leader then
             local new_leader = pick_new_leader(old_force, player.index)
             if new_leader then
                 storage.team_leader[old_force_name] = new_leader.index
+                -- Update force display color to new leader's color
+                old_force.custom_color = new_leader.color
+
                 local cn_leader = helpers.colored_name(new_leader.name, new_leader.chat_color)
-                local ft = helpers.force_tag(old_force_name)
                 for _, member in pairs(old_force.players) do
                     if member.connected then
-                        member.print(cn_leader .. " is now the team leader." .. ft)
+                        member.print(cn_leader .. " is now the leader of " .. team_tag .. ".")
                     end
                 end
-                helpers.broadcast("[Team] " .. cn_leader .. " now leads "
-                    .. helpers.display_name(old_force_name) .. "'s team." .. ft)
-            end
-        end
-
-        local cn_player = helpers.colored_name(player.name, player.chat_color)
-        local ft = helpers.force_tag(old_force_name)
-        for _, member in pairs(old_force.players) do
-            if member.connected then
-                member.print(cn_player .. " has left the team." .. ft)
+                helpers.broadcast("[Team] " .. cn_leader .. " now leads " .. team_tag .. ".")
             end
         end
     end
@@ -227,14 +327,18 @@ function force_utils.remove_from_team(player)
     return true
 end
 
---- Periodically unlock "uncommon" quality for all player forces.
+-- ─── Quality Sync ─────────────────────────────────────────────────────
+
+--- Periodically unlock "uncommon" quality for all team forces.
 function force_utils.sync_quality_all_forces()
     for _, force in pairs(game.forces) do
-        if force.name ~= "enemy" and force.name ~= "neutral" then
+        if force_utils.is_team_force(force.name) then
             pcall(function() force.unlock_quality("uncommon") end)
         end
     end
 end
+
+-- ─── Foreign Surface Detection ────────────────────────────────────────
 
 --- Get the player's real force (accounts for spectator mode).
 local function effective_force(player)
@@ -242,7 +346,7 @@ local function effective_force(player)
     return game.forces[real_fn]
 end
 
---- Check whether the player is on another player's private surface.
+--- Check whether the player is on another team's private surface.
 --- Uses effective force (real force when spectating).
 function force_utils.on_foreign_surface(player)
     local surface = player.surface
@@ -250,11 +354,14 @@ function force_utils.on_foreign_surface(player)
     local my_force = effective_force(player)
     if not my_force then return false end
     local my_force_name = my_force.name
-    local owner_force = surface.name:match("^(force%-.+)%-%w+$")
+
+    -- Check surface name pattern: "team-N-planet"
+    local owner_force = surface.name:match("^(team%-%d+)%-%w+$")
     if owner_force and owner_force ~= my_force_name then return true end
+
+    -- Check space platforms owned by other team forces
     for _, force in pairs(game.forces) do
-        if force ~= my_force and force.name ~= "enemy" and force.name ~= "neutral"
-           and force.name ~= "spectator" then
+        if force ~= my_force and force_utils.is_team_force(force.name) then
             for _, plat in pairs(force.platforms) do
                 if plat.surface and plat.surface.valid
                    and plat.surface.index == surface.index then
@@ -265,6 +372,8 @@ function force_utils.on_foreign_surface(player)
     end
     return false
 end
+
+-- ─── Home Surface ─────────────────────────────────────────────────────
 
 --- Find the player's home surface (uses effective force for spectator compat).
 function force_utils.get_home_surface(player)
@@ -299,6 +408,8 @@ function force_utils.bounce_if_foreign(player)
         end
     end
 end
+
+-- ─── Player Clock ─────────────────────────────────────────────────────
 
 --- Mark a player's clock as started.
 function force_utils.start_player_clock(player)

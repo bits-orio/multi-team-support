@@ -12,9 +12,9 @@ local surface_utils = {}
 function surface_utils.get_owner(surface)
     if not surface or not surface.valid then return nil end
 
-    -- Space platforms
+    -- Space platforms owned by team forces
     for _, force in pairs(game.forces) do
-        if force.name:find("^force%-") then
+        if force.name:find("^team%-") then
             for _, plat in pairs(force.platforms) do
                 if plat.surface and plat.surface.valid
                    and plat.surface.index == surface.index then
@@ -24,8 +24,16 @@ function surface_utils.get_owner(surface)
         end
     end
 
-    -- Vanilla per-player surfaces: "<force_name>-<planet>" e.g. "force-bob-nauvis"
-    local force_name = surface.name:match("^(force%-.+)%-%w+$")
+    -- Space Age: per-team planet variants have their own surfaces named
+    -- after the planet (e.g. "mts-nauvis-1"). The planet_map keeps a
+    -- reverse lookup built at on_init.
+    local by_planet = (storage.map_planet_to_force or {})[surface.name]
+    if by_planet and game.forces[by_planet] then
+        return by_planet
+    end
+
+    -- Fallback (non-Space-Age): cloned surfaces named "team-N-planet"
+    local force_name = surface.name:match("^(team%-%d+)%-%w+$")
     if force_name and game.forces[force_name] then
         return force_name
     end
@@ -35,14 +43,30 @@ end
 
 --- Find a player's home surface: first space platform, then vanilla surface.
 --- Accepts a force object (the player's effective force).
+--- Falls back to searching all surfaces by name pattern for the force,
+--- which handles buddies who don't have their own player_surfaces entry.
 function surface_utils.get_home_surface(force, player_index)
     for _, plat in pairs(force.platforms) do
         if plat.surface and plat.surface.valid then return plat.surface end
     end
+    -- Try the player's own storage entry first
     local ps = storage.player_surfaces and storage.player_surfaces[player_index]
     if ps then
         local s = game.surfaces[ps.name]
         if s and s.valid then return s end
+    end
+    -- Space Age: look up the team's home planet variant
+    local map_entry = (storage.map_force_to_planets or {})[force.name]
+    if map_entry and map_entry.nauvis then
+        local s = game.surfaces[map_entry.nauvis]
+        if s and s.valid then return s end
+    end
+    -- Fallback: search for any surface owned by this force
+    -- (e.g. buddy joined a team but has no player_surfaces entry)
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid and surface.name:find("^" .. force.name:gsub("%-", "%%-") .. "%-") then
+            return surface
+        end
     end
     return nil
 end
@@ -67,7 +91,7 @@ function surface_utils.on_surface_created(surface)
     if not owner_force then return end
 
     for _, force in pairs(game.forces) do
-        if force.name:find("^force%-") and force.name ~= owner_fn then
+        if force.name:find("^team%-") and force.name ~= owner_fn then
             local are_friends = force.get_friend(owner_force)
                 and owner_force.get_friend(force)
             force.set_surface_hidden(surface, not are_friends)

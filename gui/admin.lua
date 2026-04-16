@@ -9,8 +9,11 @@
 --   landing_pen_enabled  — whether new players land in the pen or spawn directly
 
 local helpers = require("helpers")
+local nav     = require("gui.nav")
 
 local admin_gui = {}
+
+local NAV_BTN_NAME = "sb_admin_btn"
 
 -- ---------------------------------------------------------------------------
 -- Flag definitions
@@ -25,8 +28,8 @@ local FLAGS = {
     },
     {
         key     = "buddy_join_enabled",
-        label   = "Buddy Join",
-        tooltip = "When enabled, players in the Landing Pen can request to join another player's force.",
+        label   = "Multi-player teams",
+        tooltip = "When enabled, players in the Landing Pen can request to join an existing team.",
     },
     {
         key     = "friendship_enabled",
@@ -43,7 +46,7 @@ local FLAGS = {
 -- Defaults used on first init.
 local FLAG_DEFAULTS = {
     landing_pen_enabled             = true,
-    buddy_join_enabled              = false,
+    buddy_join_enabled              = true,
     friendship_enabled              = true,
     spectate_notifications_enabled  = false,
 }
@@ -167,11 +170,6 @@ local function is_admin(player)
     return player.admin
 end
 
-local function is_collapsed(player)
-    storage.admin_gui_collapsed = storage.admin_gui_collapsed or {}
-    return storage.admin_gui_collapsed[player.index] or false
-end
-
 --- Build (or rebuild) the admin panel for one player.
 --- No-ops if the player is not an admin.
 function admin_gui.build_admin_gui(player)
@@ -189,17 +187,14 @@ function admin_gui.build_admin_gui(player)
     local frame = helpers.reuse_or_create_frame(
         player, "sb_admin_frame", storage.admin_gui_location, {x = 270, y = 200})
 
-    local collapsed = is_collapsed(player)
     local title_bar = helpers.add_title_bar(frame, "Admin")
     title_bar.add{
         type    = "sprite-button",
-        name    = "sb_admin_toggle",
-        caption = collapsed and "+" or "-",
+        name    = "sb_admin_close",
+        sprite  = "utility/close",
         style   = "close_button",
-        tooltip = collapsed and "Expand" or "Collapse",
+        tooltip = "Close panel",
     }
-
-    if collapsed then return end
 
     frame.style.minimal_width = 280
 
@@ -346,17 +341,14 @@ function admin_gui.build_admin_gui(player)
     tabs.selected_tab_index = prev_tab
 end
 
---- Ensure the admin panel exists for all connected admins; destroy it for non-admins.
---- Only creates the panel if it doesn't exist yet — periodic rebuilds are unnecessary
---- because flag changes already trigger their own rebuild via checkbox handlers.
+--- Ensure the admin nav button is in sync with each player's admin status.
+--- Also destroys the admin panel for non-admins.
+--- Call on connectivity changes (join/leave).
 function admin_gui.update_all()
     for _, player in pairs(game.players) do
         if player.connected then
-            if is_admin(player) then
-                if not player.gui.screen.sb_admin_frame then
-                    admin_gui.build_admin_gui(player)
-                end
-            elseif player.gui.screen.sb_admin_frame then
+            admin_gui.refresh_nav_button(player)
+            if not is_admin(player) and player.gui.screen.sb_admin_frame then
                 player.gui.screen.sb_admin_frame.destroy()
             end
         end
@@ -368,13 +360,9 @@ function admin_gui.on_gui_click(event)
     local el = event.element
     if not el or not el.valid then return false end
 
-    if el.name == "sb_admin_toggle" then
+    if el.name == "sb_admin_close" then
         local player = game.get_player(event.player_index)
-        if player and is_admin(player) then
-            storage.admin_gui_collapsed = storage.admin_gui_collapsed or {}
-            storage.admin_gui_collapsed[player.index] = not is_collapsed(player)
-            admin_gui.build_admin_gui(player)
-        end
+        if player and is_admin(player) then admin_gui.toggle(player) end
         return true
     end
 
@@ -506,10 +494,45 @@ function admin_gui.toggle(player)
     end
 end
 
---- No nav bar button — the admin panel is shown automatically by the
---- 60-tick update_all cycle for the host player (index 1).  Adding a
---- button during on_player_created caused multiplayer desyncs because
---- player.admin is not synchronised at that point.
+--- Ensure the admin nav button exists for admins, remove it for non-admins.
+--- Call whenever admin status might have changed (on_player_joined_game after
+--- a short delay, on_player_promoted, on_player_demoted).
+--- Safe to call repeatedly — add_top_button is idempotent.
+function admin_gui.refresh_nav_button(player)
+    if not (player and player.valid and player.connected) then return end
+    local top = player.gui.top
+    if is_admin(player) then
+        -- Idempotent: safe to call repeatedly
+        if not top[NAV_BTN_NAME] then
+            -- Insert right after the last mts nav button so the admin button
+            -- stays grouped with our buttons (before other mods like helmod)
+            -- even after demote/promote cycles.
+            local insert_index = nav.position_after_mts(player)
+            local add_args = {
+                type    = "sprite-button",
+                name    = NAV_BTN_NAME,
+                sprite  = "utility/bookmark",
+                tooltip = "Open Admin panel",
+                style   = "tool_button",
+            }
+            if insert_index then add_args.index = insert_index end
+            local btn = top.add(add_args)
+            btn.style.width  = 56
+            btn.style.height = 56
+        end
+    else
+        if top[NAV_BTN_NAME] then top[NAV_BTN_NAME].destroy() end
+    end
+end
+
+--- Register the nav click handler at module load (desync-safe).
+nav.on_click(NAV_BTN_NAME, function(event)
+    admin_gui.toggle(event.player)
+end)
+
+--- Called from control.lua on_player_created. Admin status isn't guaranteed
+--- yet, so we defer the nav button registration to on_player_joined_game
+--- via the pending_admin_check mechanism.
 function admin_gui.on_player_created(_player)
     -- intentionally empty
 end

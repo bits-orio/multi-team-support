@@ -84,9 +84,10 @@ function friendship.on_toggle(event)
     if not viewer_force then return end
 
     local target_force_name = target_force.name
-    local target_name       = helpers.display_name(target_force_name)
-    local viewer_tag        = helpers.colored_name(player.name, player.chat_color)
-    local target_tag        = helpers.colored_name(target_name, helpers.force_color(target_force))
+    -- Use team names (not player names) so messages remain correct even when
+    -- the team leader changes later.
+    local viewer_tag = helpers.team_tag(viewer_force_name)
+    local target_tag = helpers.team_tag(target_force_name)
 
     storage.friend_intents = storage.friend_intents or {}
     storage.friend_intents[viewer_force_name] = storage.friend_intents[viewer_force_name] or {}
@@ -130,9 +131,9 @@ function friendship.break_all()
     storage.friend_intents = storage.friend_intents or {}
     local broken = {}
     for _, force_a in pairs(game.forces) do
-        if force_a.name:find("^force%-") then
+        if force_a.name:find("^team%-") then
             for _, force_b in pairs(game.forces) do
-                if force_b.name:find("^force%-") and force_a.index < force_b.index then
+                if force_b.name:find("^team%-") and force_a.index < force_b.index then
                     if force_a.get_friend(force_b) or force_b.get_friend(force_a) then
                         force_a.set_friend(force_b, false)
                         force_b.set_friend(force_a, false)

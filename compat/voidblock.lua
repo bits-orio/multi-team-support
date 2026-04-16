@@ -76,7 +76,7 @@ local function get_planet_config(surface_name)
         local suffix = "-" .. planet
         if surface_name:sub(-#suffix) == suffix then
             local prefix = surface_name:sub(1, -(#suffix + 1))
-            if prefix:find("^force%-") and game.forces[prefix] then
+            if prefix:find("^team%-") and game.forces[prefix] then
                 return config
             end
         end

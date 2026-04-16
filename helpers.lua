@@ -15,27 +15,60 @@ helpers.ORIGIN = {x = 0, y = 0}
 
 -- ─── Force Helpers ─────────────────────────────────────────────────────
 
---- Get the display name for a force. Uses the team leader's name when
---- available, falling back to stripping the "force-" prefix.
----   "force-bob" → "bob"  (or the current team leader's name)
----   "enemy"     → "enemy"
+--- Get the display name for a force.
+--- Uses storage.team_names for team forces (e.g. "Team 01" or custom name),
+--- falling back to the force name itself for non-team forces.
+---   "team-1" → "Team 01" (or custom name from /mts-rename)
+---   "enemy"  → "enemy"
 function helpers.display_name(force_name)
-    if storage and storage.team_leader then
-        local leader_index = storage.team_leader[force_name]
-        if leader_index then
-            local leader = game.get_player(leader_index)
-            if leader and leader.valid and leader.force.name == force_name then
-                return leader.name
-            end
-        end
+    if storage and storage.team_names and storage.team_names[force_name] then
+        return storage.team_names[force_name]
     end
-    return force_name:match("^force%-(.+)$") or force_name
+    return force_name
 end
 
---- Return the first connected player's chat_color for a force, or white.
+--- Get the team name for use in chat announcements. Always prefixed with
+--- "Team " when the display name doesn't already start with "Team".
+---   "team-1" with default name "Team 01" → "Team 01"
+---   "team-1" renamed to "Pioneers"       → "Team Pioneers"
+---   "team-1" renamed to "team alpha"     → "team alpha"  (already has it)
+function helpers.team_display(force_name)
+    local name = helpers.display_name(force_name)
+    if name:lower():find("^team") then
+        return name
+    end
+    return "Team " .. name
+end
+
+--- Rich-text colored team name for announcements. Uses the force's color.
+---   "team-1" renamed to "Pioneers" → "[color=R,G,B]Team Pioneers[/color]"
+function helpers.team_tag(force_name)
+    local force = game.forces[force_name]
+    local color = force and helpers.force_color(force) or helpers.WHITE
+    return helpers.colored_name(helpers.team_display(force_name), color)
+end
+
+--- Return the force's color (set from the team leader's player color).
+--- Prefers custom_color (writable) over color (read-only, may be stale).
+--- Falls back to white if neither is set.
 function helpers.force_color(force)
-    local first = force.connected_players[1]
-    return first and first.chat_color or helpers.WHITE
+    return force.custom_color or force.color or helpers.WHITE
+end
+
+--- Wrap a string in a Factorio localised_name reference so it renders
+--- with icon+name in chat. Falls back to the plain name if no prototype.
+---   helpers.item_rich_name("iron-plate") → "[item=iron-plate]"
+function helpers.item_rich_name(item_name)
+    if prototypes and prototypes.item and prototypes.item[item_name] then
+        return "[item=" .. item_name .. "]"
+    end
+    return item_name
+end
+
+--- Return a rich-text tech name including icon.
+---   helpers.tech_rich_name("automation") → "[technology=automation]"
+function helpers.tech_rich_name(tech_name)
+    return "[technology=" .. tech_name .. "]"
 end
 
 --- Build a grey force-name tag for chat messages.
@@ -52,6 +85,28 @@ function helpers.colored_name(name, color)
         color.g or color[2] or 1,
         color.b or color[3] or 1,
         name)
+end
+
+-- ─── Time Formatting ───────────────────────────────────────────────────
+
+--- Format an elapsed tick count into a human-readable string.
+--- 60 ticks = 1 second in Factorio.
+---   3600 ticks     → "60s"
+---   60*60 ticks    → "1m 0s"
+---   60*60*60 ticks → "1h 0m"
+function helpers.format_elapsed(ticks)
+    if not ticks or ticks < 0 then return "?" end
+    local total_seconds = math.floor(ticks / 60)
+    local hours = math.floor(total_seconds / 3600)
+    local mins  = math.floor((total_seconds % 3600) / 60)
+    local secs  = total_seconds % 60
+    if hours > 0 then
+        return string.format("%dh %dm", hours, mins)
+    elseif mins > 0 then
+        return string.format("%dm %ds", mins, secs)
+    else
+        return string.format("%ds", secs)
+    end
 end
 
 -- ─── Broadcast ─────────────────────────────────────────────────────────

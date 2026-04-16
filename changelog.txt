@@ -1,4 +1,58 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.0
+Date: 2026-04-16
+  Features:
+    - Space Age support: per-team planet variants (mts-nauvis-1, mts-vulcanus-1, etc.)
+      with space-connection topology mirrored from vanilla. Auto-detected at runtime.
+    - Each team gets their own full solar system; base planets are locked and hidden
+      for team forces so teams never collide on shared planets.
+    - Researching planet-discovery techs unlocks the team's variant (not the base).
+    - Teams GUI: replaces "Players & Platforms" with a card-based team-centric view.
+      Each card shows members (★ leader, online/offline, friendship), surfaces, and
+      per-player Follow Cam buttons.
+    - Follow Cam: grid of live camera widgets tracking individual players across
+      planets and surfaces. Updates at ~30 FPS. Click a cell's magnifier to expand
+      into full spectator mode; Esc returns to the grid with state preserved.
+    - Tech records & announcements: tracks first + fastest per technology across
+      teams. Broadcasts "first to research [X]" and "new speed record" messages.
+    - Milestone engine: generic production-threshold tracker (science, landfill,
+      space platform tile). Editable via milestones/config.lua — add any category
+      with its own thresholds and counters.
+    - Team clock: each team's elapsed time starts when the first member spawns,
+      used for all record comparisons regardless of team creation time.
+    - Redesigned Landing Pen: "Start a new team" primary button + "OR join an
+      existing team" section with per-team Request to Join. Request flow announces
+      to all team members (only the leader can accept).
+    - Cancel request button: requesters can withdraw before a response.
+    - Leave/Kick confirmation dialogs explain consequences before executing.
+    - Admin toolbar button (only visible to admins) replaces auto-open panel.
+    - Commands: /mts-teams (list all teams + status), /mts-rename (leader renames).
+  Changes:
+    - Force naming reform: forces are now "team-1" through "team-N" (pre-created
+      at game start via mts_max_teams startup setting; default 20). Forces no
+      longer carry a player's name — any member can become leader without a swap.
+    - Team names are customizable via /mts-rename or the Teams panel.
+    - Force color always derived from team leader's player color.
+    - Simplified team-leader logic: leader leaving elects a new leader; no
+      complex force-swapping.
+    - Landing pen players stay on the spectator force until they click Spawn,
+      so game.forces.player stays clean as a research baseline.
+    - Teams GUI and all chat announcements use "Team <name>" prefix and
+      color-tag teams consistently.
+    - Default nauvis surface is hidden from team forces (Space Age or not).
+    - /mts-kick and /mts-leave now use confirmation dialogs (gui/confirm.lua).
+    - Multi-player teams (buddy join) enabled by default.
+  Bugfixes:
+    - Research on leaving a team resets to baseline (was incorrectly carrying
+      over the team's full research to the departing player's new force).
+    - Team cards stay visible while a member is spectating (uses team_pool
+      occupancy check, not force.players length, so spectating members don't
+      hide their team).
+    - Follow Cam tooltips update when targets are added/removed.
+    - Buddy join request routes to team leader (not arbitrary member).
+    - Admin nav button stays grouped with mod buttons after demote/promote.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.2.20
 Date: 2026-04-14
   Features:

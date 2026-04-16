@@ -66,29 +66,22 @@ end
 -- Diff mode
 -- ---------------------------------------------------------------------------
 
---- Draw the research diff view comparing viewer_force against target_owner.
+--- Draw the research diff view comparing viewer_force against a target team.
 --- @param content_frame  LuaGuiElement  scrollable pane to draw into
 --- @param viewer_force   LuaForce
---- @param viewer_clock   number|nil     tick the viewer spawned
---- @param target_owner   string         display name of the comparison target
+--- @param viewer_clock   number|nil     tick the viewer's team started
+--- @param target_force_name string      internal force name (e.g. "team-1")
 --- @param collapsed_cols number         number of icon columns per row
-function research_diff.draw(content_frame, viewer_force, viewer_clock, target_owner, collapsed_cols)
+function research_diff.draw(content_frame, viewer_force, viewer_clock, target_force_name, collapsed_cols)
     -- Resolve target force
-    local target_force_name = "force-" .. target_owner
     local target_force = game.forces[target_force_name]
     if not target_force then
-        content_frame.add{type = "label", caption = "Player '" .. target_owner .. "' not found."}
+        content_frame.add{type = "label", caption = "Team '" .. target_force_name .. "' not found."}
         return
     end
 
-    -- Target clock start
-    local target_clock
-    for _, p in pairs(game.players) do
-        if p.name == target_owner then
-            target_clock = (storage.player_clock_start or {})[p.index]
-            break
-        end
-    end
+    -- Target clock start (team clock, not player clock)
+    local target_clock = (storage.team_clock_start or {})[target_force_name]
 
     -- Back button
     local back_btn = content_frame.add{
@@ -100,6 +93,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_ow
     back_btn.style.bottom_margin = 6
 
     -- Context: who started earlier
+    local target_owner = helpers.display_name(target_force_name)
     local viewer_owner = helpers.display_name(viewer_force.name)
     if viewer_clock and target_clock then
         local diff_ticks = math.abs(viewer_clock - target_clock)

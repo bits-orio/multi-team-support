@@ -174,7 +174,7 @@ function spectator.init()
     spec.share_chart = false
 
     for _, force in pairs(game.forces) do
-        if force.name:find("^force%-") then
+        if force.name:find("^team%-") then
             spec.set_friend(force, true)
             force.set_friend(spec, true)
             force.share_chart = true

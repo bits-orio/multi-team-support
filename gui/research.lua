@@ -122,35 +122,28 @@ local function get_player_forces()
     local result = {}
     local seen   = {}
     for _, force in pairs(game.forces) do
-        if force.name ~= "enemy" and force.name ~= "neutral"
-           and force.name ~= "player" and force.name ~= "spectator" then
-            local owner = helpers.display_name(force.name)
-            if not seen[owner] then
-                seen[owner] = true
-                local color   = {1, 1, 1}
-                local online  = false
-                for _, p in pairs(force.players) do
-                    if p.connected and (p.name == owner or force.name == "player") then
-                        color  = p.chat_color
-                        online = true
-                        break
-                    end
-                end
-                local player_index
-                for _, p in pairs(game.players) do
-                    if p.name == owner then player_index = p.index; break end
-                end
-                -- Skip players who haven't spawned yet (still in landing pen)
-                local spawned = player_index
-                    and (storage.spawned_players or {})[player_index]
-                if not spawned then goto next_force end
+        if force.name:find("^team%-") then
+            local force_name = force.name
+            if not seen[force_name] then
+                seen[force_name] = true
+                -- Skip teams with no players (unoccupied slots)
+                -- Skip unoccupied slots (use team_pool since spectating members
+                -- temporarily move off their team force).
+                local slot = tonumber(force_name:match("^team%-(%d+)$"))
+                local occupied = slot and (storage.team_pool or {})[slot] == "occupied"
+                if not occupied then goto next_force end
+                local owner = helpers.display_name(force_name)
+                local color = helpers.force_color(force)
+                local online = #force.connected_players > 0
+                -- Use team clock instead of player clock for research timing
+                local clock_start = (storage.team_clock_start or {})[force_name]
                 result[#result + 1] = {
                     owner        = owner,
+                    force_name   = force_name,  -- internal force name for lookups
                     force        = force,
                     color        = color,
                     online       = online,
-                    clock_start  = player_index and (storage.player_clock_start or {})[player_index] or nil,
-                    player_index = player_index,
+                    clock_start  = clock_start,
                 }
                 ::next_force::
             end
@@ -177,18 +170,19 @@ local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_p
         return
     end
 
-    local own_owner    = helpers.display_name(viewer_force.name)
+    local own_force_name = viewer_force.name
+    local own_owner      = helpers.display_name(viewer_force.name)
     local show_offline = helpers.show_offline(viewer_player)
     local viewer_index = viewer_player.index
 
     for _, info in ipairs(forces) do
-        -- Skip offline players unless it's the viewer or show_offline is on
-        if not info.online and info.owner ~= own_owner and not show_offline then
+        -- Skip offline teams unless it's the viewer's team or show_offline is on
+        if not info.online and info.force_name ~= own_force_name and not show_offline then
             goto continue
         end
 
         local techs    = get_researched(info.force)
-        local expanded = get_expanded(viewer_index, info.owner)
+        local expanded = get_expanded(viewer_index, info.force_name)
 
         -- Section frame per player
         local section = content_frame.add{
@@ -233,14 +227,14 @@ local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_p
         start_lbl.style.font       = "default-small"
         start_lbl.style.font_color = {0.6, 0.8, 0.6}
 
-        -- Diff button (for other players)
-        if info.owner ~= own_owner then
+        -- Diff button (for other teams)
+        if info.force_name ~= own_force_name then
             local diff_btn = hdr.add{
                 type    = "sprite-button",
                 sprite  = "utility/search_icon",
                 style   = "mini_button",
                 tooltip = "Compare: you vs " .. info.owner,
-                tags    = {sb_research_diff_target = info.owner},
+                tags    = {sb_research_diff_target = info.force_name},
             }
             diff_btn.style.left_margin = 4
         end
@@ -252,7 +246,7 @@ local function draw_overview(content_frame, viewer_force, viewer_clock, viewer_p
                 caption = expanded and "\xE2\x96\xB2\xE2\x96\xB2" or "\xE2\x96\xBC\xE2\x96\xBC",
                 style   = "tool_button",
                 tooltip = expanded and "Collapse" or "Expand all " .. #techs .. " technologies",
-                tags    = {sb_research_expand_toggle = info.owner},
+                tags    = {sb_research_expand_toggle = info.force_name},
             }
             toggle_btn.style.width       = 28
             toggle_btn.style.height      = 28
@@ -304,7 +298,9 @@ local function build_frame(player, diff_target)
     -- Persist diff target for Escape handling
     set_diff_target(player.index, diff_target)
 
-    local caption = diff_target and ("Research: You vs " .. diff_target) or "Research"
+    -- diff_target is a force name (e.g. "team-1"), convert to display name for caption
+    local diff_display = diff_target and helpers.display_name(diff_target) or nil
+    local caption = diff_display and ("Research: You vs " .. diff_display) or "Research"
     local title_bar = helpers.add_title_bar(frame, caption)
     title_bar.add{
         type    = "sprite-button",

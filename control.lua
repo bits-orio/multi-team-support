@@ -5,22 +5,28 @@
 -- Main control script. Wires up all event handlers, initializes storage,
 -- and delegates to specialized modules.
 
-local nav           = require("gui.nav")
-local helpers       = require("helpers")
-local spectator     = require("spectator")
-local force_utils   = require("force_utils")
-local surface_utils = require("surface_utils")
-local commands_mod  = require("commands")
-local surfaces_gui  = require("gui.surfaces")
-local stats_gui     = require("gui.stats")
-local landing_pen   = require("gui.landing_pen")
-local admin_gui     = require("gui.admin")
-local welcome_gui   = require("gui.welcome")
-local research_gui  = require("gui.research")
-local platformer    = require("compat.platformer")
-local vanilla       = require("compat.vanilla")
-local voidblock     = require("compat.voidblock")
-local friendship    = require("gui.friendship")
+local nav             = require("gui.nav")
+local helpers         = require("helpers")
+local spectator       = require("spectator")
+local force_utils     = require("force_utils")
+local surface_utils   = require("surface_utils")
+local commands_mod    = require("commands")
+local teams_gui       = require("gui.teams")
+local stats_gui       = require("gui.stats")
+local landing_pen     = require("gui.landing_pen")
+local admin_gui       = require("gui.admin")
+local welcome_gui     = require("gui.welcome")
+local research_gui    = require("gui.research")
+local platformer      = require("compat.platformer")
+local vanilla         = require("compat.vanilla")
+local voidblock       = require("compat.voidblock")
+local friendship      = require("gui.friendship")
+local tech_records    = require("tech_records")
+local milestones      = require("milestones.engine")
+local confirm_gui     = require("gui.confirm")
+local follow_cam      = require("gui.follow_cam")
+local planet_map      = require("planet_map")
+local space_age       = require("space_age")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -38,7 +44,7 @@ end
 --- Register nav buttons for a player across all modules.
 local function register_nav_buttons(player)
     welcome_gui.on_player_created(player)
-    surfaces_gui.on_player_created(player)
+    teams_gui.on_player_created(player)
     stats_gui.on_player_created(player)
     research_gui.on_player_created(player)
     admin_gui.on_player_created(player)
@@ -55,19 +61,21 @@ end
 
 --- Rebuild all gameplay GUIs (platforms, research, stats).
 local function refresh_all_gameplay_guis()
-    surfaces_gui.update_all()
+    teams_gui.update_all()
     research_gui.update_all()
     refresh_stats()
 end
 
 --- Rebuild all GUIs for connectivity changes.
 local function rebuild_for_connectivity(leaving_index)
-    surfaces_gui.update_all()
+    teams_gui.update_all()
     research_gui.update_all()
     landing_pen.update_pen_gui_all()
     landing_pen.rebuild_buddy_request_guis()
     admin_gui.update_all()
     refresh_stats(leaving_index)
+    -- Follow cam panels list team members; connectivity changes may remove them
+    follow_cam.rebuild_all()
 end
 
 -- ─── Tick Events ───────────────────────────────────────────────────────
@@ -81,9 +89,31 @@ local function init_events()
     end)
     script.on_event(defines.events.on_surface_created, function(event)
         local surface = game.surfaces[event.surface_index]
-        if surface then surface_utils.on_surface_created(surface) end
+        if surface then
+            surface_utils.on_surface_created(surface)
+            -- Space Age: when a base planet's surface is lazily created,
+            -- re-apply locks so all team forces hide it.
+            planet_map.apply_all_force_locks()
+        end
+    end)
+
+    -- Re-apply space-location locks when force state is reset externally
+    -- (mirrors Team Starts' approach for Space Age).
+    script.on_event(defines.events.on_force_reset, function(event)
+        if event.force then planet_map.apply_force_locks(event.force) end
+    end)
+    script.on_event(defines.events.on_technology_effects_reset, function(event)
+        if event.force then planet_map.apply_force_locks(event.force) end
     end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
+
+    -- Poll milestones every 300 ticks (5 seconds).
+    -- Lightweight check across all trackers × items × occupied teams.
+    script.on_nth_tick(300, function() milestones.tick() end)
+
+    -- Update follow cams every 2 ticks (~30 FPS). Server cost is just
+    -- per-camera position/surface property writes; rendering is client-side.
+    script.on_nth_tick(2, function() follow_cam.tick() end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
@@ -99,8 +129,9 @@ local function init_events()
                 if game.tick >= target_tick then
                     done[#done + 1] = idx
                     local p = game.get_player(idx)
-                    if p and p.connected and p.admin and not p.gui.screen.sb_admin_frame then
-                        admin_gui.build_admin_gui(p)
+                    if p and p.connected then
+                        -- Refresh admin nav button based on current admin status
+                        admin_gui.refresh_nav_button(p)
                     end
                 end
             end
@@ -131,10 +162,13 @@ script.on_init(function()
     storage.pending_admin_check      = {}
     storage.admin_gui_collapsed      = {}
     storage.admin_gui_location       = {}
-    storage.team_leader              = {}
     storage.left_teams               = {}
     storage.player_clock_start       = {}
     storage.tech_research_ticks      = {}
+    storage.follow_cam               = {}
+    storage.follow_cam_location      = {}
+    storage.map_force_to_planets     = {}
+    storage.map_planet_to_force      = {}
     storage.research_gui_location    = {}
     storage.research_gui_expanded    = {}
     storage.research_gui_diff_target = {}
@@ -142,6 +176,19 @@ script.on_init(function()
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
+
+    -- Pre-create all team forces ("team-1" through "team-N")
+    force_utils.create_team_pool()
+
+    -- Build the team↔planet variant maps (Space Age only; no-op otherwise)
+    -- and apply space-location locks so teams only see their own planets.
+    planet_map.build()
+    planet_map.apply_all_force_locks()
+
+    -- Initialize records and milestone tracking
+    tech_records.init_storage()
+    milestones.discover_items()
+
     commands_mod.register()
     init_events()
 end)
@@ -160,11 +207,18 @@ script.on_configuration_changed(function()
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}
+    storage.follow_cam               = storage.follow_cam               or {}
+    storage.follow_cam_location      = storage.follow_cam_location      or {}
+    storage.map_force_to_planets     = storage.map_force_to_planets     or {}
+    storage.map_planet_to_force      = storage.map_planet_to_force      or {}
     storage.research_gui_location    = storage.research_gui_location    or {}
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
     storage.show_offline_players     = storage.show_offline_players     or {}
     storage.team_leader              = storage.team_leader              or {}
+    storage.team_pool                = storage.team_pool                or {}
+    storage.team_names               = storage.team_names               or {}
+    storage.team_clock_start         = storage.team_clock_start         or {}
     storage.left_teams               = storage.left_teams               or {}
     for _, player in pairs(game.players) do
         if not storage.spawned_players[player.index] then
@@ -174,6 +228,19 @@ script.on_configuration_changed(function()
     stats_gui.invalidate_categories()
     spectator.init()
     spectator.init_storage()
+
+    -- Re-discover milestone items in case mod combo changed
+    tech_records.init_storage()
+    milestones.discover_items()
+
+    -- Invalidate Space Age detection cache so we re-probe after the mod list changed
+    space_age.invalidate_cache()
+
+    -- Rebuild planet mappings + re-apply locks. Handles: max_teams change,
+    -- Space Age added/removed, or variant prototypes changing.
+    planet_map.build()
+    planet_map.apply_all_force_locks()
+
     init_events()
 end)
 
@@ -181,19 +248,24 @@ end)
 
 script.on_event(defines.events.on_player_created, function(event)
     local player = game.get_player(event.player_index)
-    force_utils.create_player_force(player)
     register_nav_buttons(player)
     admin_gui.auto_populate_starter_items(player)
 
     if admin_gui.flag("landing_pen_enabled") then
+        -- Player stays on spectator force in the landing pen.
+        -- They'll claim a team slot when they click "Spawn into game".
+        local spec_force = game.forces["spectator"]
+        if spec_force then player.force = spec_force end
         landing_pen.place_player(player)
     else
+        -- No landing pen: claim a team slot immediately and spawn
+        force_utils.claim_team_slot(player)
         storage.spawned_players = storage.spawned_players or {}
         storage.spawned_players[player.index] = true
         spawn_into_world(player)
         force_utils.start_player_clock(player)
     end
-    surfaces_gui.update_all()
+    teams_gui.update_all()
 end)
 
 script.on_event(defines.events.on_player_joined_game, function(event)
@@ -210,19 +282,27 @@ end)
 
 script.on_event(defines.events.on_player_left_game, function(event)
     local player = game.get_player(event.player_index)
-    if player then spectator.on_player_left(player) end
+    if player then
+        spectator.on_player_left(player)
+        follow_cam.on_player_left(player)
+    end
     rebuild_for_connectivity(event.player_index)
 end)
 
 script.on_event(defines.events.on_player_promoted, function(event)
     local player = game.get_player(event.player_index)
-    if player and player.connected then admin_gui.build_admin_gui(player) end
+    if player and player.connected then
+        admin_gui.refresh_nav_button(player)
+    end
 end)
 
 script.on_event(defines.events.on_player_demoted, function(event)
     local player = game.get_player(event.player_index)
-    if player and player.gui.screen.sb_admin_frame then
-        player.gui.screen.sb_admin_frame.destroy()
+    if player then
+        admin_gui.refresh_nav_button(player)
+        if player.gui.screen.sb_admin_frame then
+            player.gui.screen.sb_admin_frame.destroy()
+        end
     end
 end)
 
@@ -238,7 +318,7 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
         log("[multi-team-support] surface_change: " .. player.name
             .. " → " .. (player.surface and player.surface.name or "nil"))
         force_utils.bounce_if_foreign(player)
-        surfaces_gui.build_surfaces_gui(player)
+        teams_gui.build_gui(player)
     end
 end)
 
@@ -253,11 +333,9 @@ end)
 -- ─── Research Events ───────────────────────────────────────────────────
 
 script.on_event(defines.events.on_research_finished, function(event)
-    local tech  = event.research
-    local force = tech.force
-    storage.tech_research_ticks             = storage.tech_research_ticks or {}
-    storage.tech_research_ticks[force.name] = storage.tech_research_ticks[force.name] or {}
-    storage.tech_research_ticks[force.name][tech.name] = game.tick
+    -- Handle tech records (first/fastest tracking + announcements)
+    tech_records.on_research_finished(event)
+    -- Sync quality and refresh research GUI
     force_utils.sync_quality_all_forces()
     research_gui.update_all()
 end)
@@ -270,12 +348,25 @@ script.on_event(defines.events.on_gui_click, function(event)
 
     if nav.dispatch_click(event) then return end
 
+    -- Confirmation dialogs (leave, kick)
+    if confirm_gui.on_gui_click(event) then return end
+
+    -- Follow Cam close button (refresh teams GUI so radar tooltips update)
+    if follow_cam.on_gui_click(event) then
+        teams_gui.update_all()
+        return
+    end
+
     if el.name == "sb_spawn_btn" then
         local player = game.get_player(event.player_index)
         if player and landing_pen.is_in_pen(player) then
             if spectator.is_spectating(player) then
                 spectator.exit(player)
             end
+            -- Claim a team slot (assigns player to "team-N" force)
+            local force_name = force_utils.claim_team_slot(player)
+            if not force_name then return end  -- No slots available
+
             local default_group = game.permissions.get_group("Default")
             if default_group then default_group.add_player(player) end
             admin_gui.auto_populate_starter_items(player)
@@ -284,7 +375,7 @@ script.on_event(defines.events.on_gui_click, function(event)
             spawn_into_world(player)
             force_utils.start_player_clock(player)
             helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
-                .. " has started their team." .. helpers.force_tag(player.force.name))
+                .. " has joined " .. helpers.team_tag(player.force.name) .. ".")
             refresh_all_gameplay_guis()
         end
         return
@@ -318,10 +409,18 @@ script.on_event(defines.events.on_gui_click, function(event)
         return
     end
 
+    if el.name == "sb_buddy_cancel" then
+        local player = game.get_player(event.player_index)
+        if player and landing_pen.is_in_pen(player) then
+            landing_pen.cancel_buddy_request(player)
+        end
+        return
+    end
+
     if research_gui.on_gui_click(event) then return end
     if admin_gui.on_gui_click(event) then return end
     if stats_gui.on_gui_click(event) then return end
-    surfaces_gui.on_gui_click(event)
+    teams_gui.on_gui_click(event)
 end)
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
@@ -352,7 +451,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         local player = game.get_player(event.player_index)
         if player then
             helpers.toggle_show_offline(player)
-            surfaces_gui.build_surfaces_gui(player)
+            teams_gui.build_gui(player)
             if player.gui.screen.sb_research_frame then
                 research_gui.update_all()
             end
@@ -382,10 +481,10 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         end
         if changed_flag == "friendship_enabled" and not admin_gui.flag("friendship_enabled") then
             friendship.break_all()
-            surfaces_gui.update_all()
+            teams_gui.update_all()
         end
         if changed_flag == "friendship_enabled" and admin_gui.flag("friendship_enabled") then
-            surfaces_gui.update_all()
+            teams_gui.update_all()
         end
         if changed_flag == "landing_pen_enabled" and not admin_gui.flag("landing_pen_enabled") then
             for _, player in pairs(game.players) do
@@ -401,7 +500,7 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         end
         return
     end
-    surfaces_gui.on_friend_toggle(event)
+    teams_gui.on_friend_toggle(event)
 end)
 
 -- ─── Chat ──────────────────────────────────────────────────────────────

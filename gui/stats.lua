@@ -254,11 +254,13 @@ end
 local function player_forces(leaving_index)
     local list = {}
     for name, force in pairs(game.forces) do
-        if name:find("^force%-") and name ~= "spectator" then
+        if name:find("^team%-") then
             local pname = helpers.display_name(name)
-            -- Skip players who haven't spawned yet (still in landing pen)
-            local player_obj = game.get_player(pname)
-            if player_obj and not (storage.spawned_players or {})[player_obj.index] then
+            -- Skip unoccupied team slots (use team_pool instead of #force.players,
+            -- since members spectating temporarily leave their own force).
+            local slot = tonumber(name:match("^team%-(%d+)$"))
+            local occupied = slot and (storage.team_pool or {})[slot] == "occupied"
+            if not occupied then
                 goto next_force
             end
             local online = false

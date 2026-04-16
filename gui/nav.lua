@@ -72,4 +72,24 @@ function nav.rebuild_buttons(player)
     end
 end
 
+--- Find the 1-based index to insert a new button so it stays grouped with
+--- the mts buttons (right after the last registered mts nav button).
+--- Other mods' buttons are pushed after this group.
+--- Returns nil if none of our buttons are present yet (caller should append).
+function nav.position_after_mts(player)
+    local top = player.gui.top
+    -- Build a set of our button names for fast lookup
+    local mts_names = {}
+    for _, spec in ipairs(btn_specs) do mts_names[spec.name] = true end
+
+    local last_idx = nil
+    for i, child in ipairs(top.children) do
+        if mts_names[child.name] then
+            last_idx = i
+        end
+    end
+    if not last_idx then return nil end
+    return last_idx + 1
+end
+
 return nav

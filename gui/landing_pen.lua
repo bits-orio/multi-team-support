@@ -3,9 +3,8 @@
 -- License: MIT
 --
 -- A shared pre-game waiting surface ("Landing Pen") where all new players
--- land before spawning into the actual game.  Players see each other in the
--- pen and click "Spawn into game" when they're ready, so everyone can start
--- at roughly the same time.
+-- land before spawning into the actual game. Players can either start their
+-- own team or request to join an existing team.
 
 local admin_gui    = require("gui.admin")
 local helpers      = require("helpers")
@@ -13,6 +12,7 @@ local terrain      = require("gui.landing_pen_terrain")
 local platformer   = require("compat.platformer")
 local voidblock    = require("compat.voidblock")
 local compat_utils = require("compat.compat_utils")
+local force_utils  = require("force_utils")
 
 local landing_pen = {}
 
@@ -101,10 +101,7 @@ function landing_pen.process_pending_teleports()
             end
             local ok = player.teleport(tp.position, tp.surface)
             if ok then
-                local solo_force = game.forces["force-" .. player.name]
-                if solo_force and player.force ~= solo_force then
-                    player.force = solo_force
-                end
+                -- Pen players stay on spectator force until they click "Spawn"
                 local spec_group = game.permissions.get_group("spectator")
                 if spec_group then spec_group.add_player(player) end
                 done[#done + 1] = player_index
@@ -129,139 +126,194 @@ end
 
 -- ���── Pen GUI ───────────────────────────────────────────────────────────
 
---- Add the in-pen player list to the frame.
-local function add_pen_player_list(frame, viewer)
-    local in_pen = {}
-    for _, p in pairs(game.players) do
-        if landing_pen.is_in_pen(p) then
-            in_pen[#in_pen + 1] = p
-        end
-    end
-    if #in_pen == 0 then return end
-
-    local hdr = frame.add{type = "label", caption = "In the pen:"}
-    hdr.style.font        = "default-bold"
-    hdr.style.left_margin = 4
-    hdr.style.top_margin  = 4
-    for _, p in ipairs(in_pen) do
-        local lbl = frame.add{type = "label", caption = "  \xE2\x80\xA2 " .. p.name}
-        lbl.style.left_margin = 4
-        if p.connected then
-            lbl.style.font_color = p.chat_color
-        else
-            lbl.style.font_color = {0.65, 0.65, 0.65}
-        end
-    end
-end
-
---- Add the already-spawned player list to the frame.
-local function add_spawned_player_list(frame)
-    storage.spawned_players = storage.spawned_players or {}
-    local spawned = {}
-    for idx in pairs(storage.spawned_players) do
-        local p = game.get_player(idx)
-        if p then spawned[#spawned + 1] = p end
-    end
-    if #spawned == 0 then return end
-
-    table.sort(spawned, function(a, b) return a.name < b.name end)
-    local hdr = frame.add{type = "label", caption = "Already spawned:"}
-    hdr.style.font        = "default-bold"
-    hdr.style.left_margin = 4
-    hdr.style.top_margin  = 6
-    for _, p in ipairs(spawned) do
-        local lbl = frame.add{type = "label", caption = "  \xE2\x80\xA2 " .. p.name}
-        lbl.style.left_margin = 4
-        if p.connected then
-            lbl.style.font_color = p.chat_color
-        else
-            lbl.style.font_color = {0.5, 0.5, 0.5}
-        end
-    end
-end
-
---- Add the buddy-join section to the frame.
-local function add_buddy_section(frame, player)
+--- Add the "join an existing team" section with one row per team.
+--- Shows team name + leader, and a "Request to join" button per team.
+--- Request is sent to the team leader (they accept/reject).
+local function add_join_team_section(frame, player)
     if not admin_gui.flag("buddy_join_enabled") then return end
-    storage.buddy_requests = storage.buddy_requests or {}
-    local my_request = storage.buddy_requests[player.index]
-    local active = {}
-    for _, p in pairs(game.players) do
-        if p.connected and not landing_pen.is_in_pen(p) then
-            active[#active + 1] = p
+
+    -- Collect all occupied teams with an online leader to route the request to
+    local rows = {}
+    for i = 1, force_utils.max_teams() do
+        local force_name = "team-" .. i
+        if (storage.team_pool or {})[i] == "occupied" then
+            local force = game.forces[force_name]
+            local leader_idx = (storage.team_leader or {})[force_name]
+            local leader = leader_idx and game.get_player(leader_idx)
+            if force and leader then
+                rows[#rows + 1] = {
+                    force_name = force_name,
+                    force      = force,
+                    leader     = leader,
+                }
+            end
         end
     end
-    table.sort(active, function(a, b) return a.name < b.name end)
-    if #active == 0 then return end
 
-    frame.add{type = "line"}.style.top_margin = 4
-    local hdr = frame.add{type = "label", caption = "Join as buddy:"}
-    hdr.style.font        = "default-bold"
-    hdr.style.left_margin = 4
-    hdr.style.top_margin  = 4
+    if #rows == 0 then return end
+
+    -- Prominent "OR join an existing team" divider so the option isn't missed.
+    local or_flow = frame.add{type = "flow", direction = "horizontal"}
+    or_flow.style.horizontal_align         = "center"
+    or_flow.style.horizontally_stretchable = true
+    or_flow.style.top_margin               = 10
+    or_flow.style.bottom_margin            = 2
+    local or_label = or_flow.add{
+        type    = "label",
+        caption = "─────  OR  join an existing team  ─────",
+    }
+    or_label.style.font       = "heading-2"
+    or_label.style.font_color = {1, 0.85, 0.3}
 
     local limit = admin_gui.buddy_team_limit()
-    local limit_note = frame.add{type = "label", caption = "(max " .. limit .. " per team)"}
+    local limit_flow = frame.add{type = "flow", direction = "horizontal"}
+    limit_flow.style.horizontal_align         = "center"
+    limit_flow.style.horizontally_stretchable = true
+    limit_flow.style.bottom_margin            = 4
+    local limit_note = limit_flow.add{
+        type    = "label",
+        caption = "(max " .. limit .. " per team)",
+    }
     limit_note.style.font       = "default-small"
     limit_note.style.font_color = {0.7, 0.7, 0.7}
-    limit_note.style.left_margin = 4
 
-    for _, p in ipairs(active) do
+    storage.buddy_requests = storage.buddy_requests or {}
+    local my_request = storage.buddy_requests[player.index]
+
+    for _, row_info in ipairs(rows) do
         local row = frame.add{type = "flow", direction = "horizontal"}
         row.style.vertical_align           = "center"
         row.style.left_margin              = 4
+        row.style.top_margin               = 2
         row.style.horizontally_stretchable = true
-        local lbl = row.add{type = "label", caption = p.name}
-        lbl.style.font_color    = p.chat_color
-        lbl.style.minimal_width = 100
-        local has_room = landing_pen.team_has_room(p)
-        if my_request == p.index then
+
+        -- Team name (colored) + leader info
+        local team_name_lbl = row.add{
+            type    = "label",
+            caption = helpers.team_tag(row_info.force_name),
+        }
+        team_name_lbl.style.minimal_width = 140
+
+        local leader_text = "(leader: " .. row_info.leader.name
+            .. (row_info.leader.connected and "" or " — offline")
+            .. ")"
+        local leader_lbl = row.add{type = "label", caption = leader_text}
+        leader_lbl.style.font       = "default-small"
+        leader_lbl.style.font_color = row_info.leader.connected
+            and row_info.leader.chat_color
+            or {0.55, 0.55, 0.55}
+
+        -- Spacer
+        local spacer = row.add{type = "empty-widget"}
+        spacer.style.horizontally_stretchable = true
+
+        -- State / action
+        local member_count = #row_info.force.players
+        local has_room = member_count < limit
+
+        if my_request == row_info.leader.index then
+            -- This is the team we requested to join — show a cancel button
+            -- so the requester can withdraw without needing to wait.
             local pending = row.add{type = "label", caption = "Pending..."}
-            pending.style.font       = "default-small"
-            pending.style.font_color = {1, 1, 0.4}
+            pending.style.font         = "default-small"
+            pending.style.font_color   = {1, 1, 0.4}
+            pending.style.right_margin = 4
+            row.add{
+                type    = "button",
+                name    = "sb_buddy_cancel",
+                caption = "Cancel request",
+                style   = "red_button",
+                tooltip = "Withdraw your request to join "
+                    .. helpers.display_name(row_info.force_name),
+            }
         elseif not has_room then
-            local full = row.add{type = "label", caption = "Full"}
+            local full = row.add{type = "label", caption = "Full (" .. member_count .. "/" .. limit .. ")"}
             full.style.font       = "default-small"
             full.style.font_color = {1, 0.4, 0.4}
-        elseif not my_request then
+        elseif not row_info.leader.connected then
+            local off = row.add{type = "label", caption = "Leader offline"}
+            off.style.font       = "default-small"
+            off.style.font_color = {0.55, 0.55, 0.55}
+        elseif my_request then
+            -- Another request is pending — disable this team's join button
+            -- until the requester cancels or gets a response.
+            local btn = row.add{
+                type    = "button",
+                name    = "sb_buddy_request_disabled",
+                caption = "Request to join",
+                style   = "confirm_button",
+                tooltip = "Cancel your pending request first to join a different team.",
+                enabled = false,
+            }
+        else
+            -- confirm_button style gives it the same green emphasis as the
+            -- "Start a new team" button, so both actions feel equally primary.
             row.add{
-                type = "button", name = "sb_buddy_request", caption = "Request to join",
-                style = "button", tags = {sb_target_index = p.index},
-                tooltip = "Ask " .. p.name .. " if you can join their team",
+                type    = "button",
+                name    = "sb_buddy_request",
+                caption = "Request to join",
+                style   = "confirm_button",
+                tags    = {sb_target_index = row_info.leader.index},
+                tooltip = "Ask " .. row_info.leader.name
+                    .. " to join " .. helpers.display_name(row_info.force_name),
             }
         end
     end
+end
+
+--- Count occupied team slots.
+local function occupied_team_count()
+    local n = 0
+    for i = 1, force_utils.max_teams() do
+        if (storage.team_pool or {})[i] == "occupied" then
+            n = n + 1
+        end
+    end
+    return n
 end
 
 function landing_pen.build_pen_gui(player)
     storage.pen_gui_location = storage.pen_gui_location or {}
     local frame = helpers.reuse_or_create_frame(
         player, "sb_pen_frame", storage.pen_gui_location, {x = 5, y = 80})
-    -- reuse_or_create_frame uses clear(), but pen GUI needs destroy+recreate
-    -- because it doesn't have a collapse toggle. Actually it works fine with clear.
 
     helpers.add_title_bar(frame, "Landing Pen")
+    frame.style.minimal_width = 360
+    frame.style.maximal_width = 480
 
-    local sub = frame.add{type = "label", caption = "Wait here, then spawn when ready."}
-    sub.style.top_margin    = 6
-    sub.style.bottom_margin = 4
-    sub.style.left_margin   = 4
-
-    local scroll = frame.add{type = "scroll-pane", direction = "vertical"}
-    scroll.style.maximal_height = 800
-
-    add_pen_player_list(scroll, player)
-    add_spawned_player_list(scroll)
-    add_buddy_section(scroll, player)
-
-    frame.add{type = "line"}.style.top_margin = 6
+    -- Primary action at the top. Disabled while the player has a pending
+    -- request to join another team, so options are mutually exclusive.
+    storage.buddy_requests = storage.buddy_requests or {}
+    local has_pending = storage.buddy_requests[player.index] ~= nil
     local btn = frame.add{
-        type = "button", name = "sb_spawn_btn", caption = "Spawn into game",
-        style = "confirm_button",
+        type    = "button",
+        name    = "sb_spawn_btn",
+        caption = "Start a new team",
+        style   = "confirm_button",
+        enabled = not has_pending,
+        tooltip = has_pending
+            and "Cancel your pending join request first to start a new team."
+            or "Claim a new team slot and spawn into the game.",
     }
-    btn.style.top_margin              = 4
-    btn.style.bottom_margin           = 2
+    btn.style.top_margin               = 4
+    btn.style.bottom_margin            = 2
     btn.style.horizontally_stretchable = true
+
+    -- Only render the "join existing team" section when multi-player teams
+    -- are enabled AND there is at least one occupied team to join.
+    -- This keeps the pen GUI compact when it's the only option anyway.
+    if admin_gui.flag("buddy_join_enabled") and occupied_team_count() > 0 then
+        local scroll = frame.add{
+            type      = "scroll-pane",
+            direction = "vertical",
+            horizontal_scroll_policy = "never",
+            vertical_scroll_policy   = "auto-and-reserve-space",
+        }
+        scroll.style.maximal_height           = 500
+        scroll.style.horizontally_stretchable = true
+
+        add_join_team_section(scroll, player)
+    end
 end
 
 function landing_pen.update_pen_gui_all()
@@ -368,8 +420,8 @@ function landing_pen.return_to_pen(player)
     -- Give the player the standard starting loadout
     landing_pen.grant_starter_items(player)
 
-    -- Force is already set correctly by remove_from_team (may differ from
-    -- "force-{name}" when the force owner leaves and gets swapped).
+    -- Force is already set to spectator by remove_from_team.
+    -- Player will claim a new team slot when they click "Spawn" again.
 
     -- Set spectator permissions (matching fresh pen entry)
     local spec_group = game.permissions.get_group("spectator")
@@ -422,7 +474,7 @@ end
 
 function landing_pen.send_buddy_request(requester, target)
     if not landing_pen.team_has_room(target) then
-        requester.print(helpers.colored_name(target.name, target.chat_color) .. "'s team is full." .. helpers.force_tag(target.force.name))
+        requester.print(helpers.team_tag(target.force.name) .. " is full.")
         landing_pen.build_pen_gui(requester)
         return
     end
@@ -430,6 +482,24 @@ function landing_pen.send_buddy_request(requester, target)
     storage.buddy_requests[requester.index] = target.index
     show_buddy_request_gui(target, requester)
     landing_pen.build_pen_gui(requester)
+
+    -- Announce the request:
+    --   • requester gets confirmation
+    --   • all members of the target team see it, clarifying that only the
+    --     leader (the popup target) can approve.
+    local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
+    local leader_tag    = helpers.colored_name(target.name, target.chat_color)
+    local team_tag      = helpers.team_tag(target.force.name)
+
+    requester.print("You requested to join " .. team_tag
+        .. ". Waiting for " .. leader_tag .. " (leader) to approve.")
+
+    for _, member in pairs(target.force.players) do
+        if member.valid and member.connected and member.index ~= target.index then
+            member.print(requester_tag .. " wants to join " .. team_tag
+                .. ". Only " .. leader_tag .. " (leader) can approve.")
+        end
+    end
 end
 
 function landing_pen.accept_buddy_request(target, requester_index)
@@ -490,6 +560,36 @@ function landing_pen.accept_buddy_request(target, requester_index)
     target.print(helpers.colored_name(requester.name, requester.chat_color) .. " has joined your team." .. ft)
     if requester.connected then
         requester.print("You joined " .. helpers.colored_name(target.name, target.chat_color) .. "'s team." .. ft)
+    end
+end
+
+--- Withdraw a pending buddy request initiated by the requester themselves.
+--- Announces to the target team so they know the request was cancelled.
+function landing_pen.cancel_buddy_request(requester)
+    storage.buddy_requests = storage.buddy_requests or {}
+    local target_idx = storage.buddy_requests[requester.index]
+    if not target_idx then return end
+    storage.buddy_requests[requester.index] = nil
+
+    local target = game.get_player(target_idx)
+    if target and target.valid then
+        -- Close the accept/reject popup on the leader's screen
+        if target.gui.screen.sb_buddy_req_frame then
+            target.gui.screen.sb_buddy_req_frame.destroy()
+        end
+
+        local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
+        local team_tag      = helpers.team_tag(target.force.name)
+        for _, member in pairs(target.force.players) do
+            if member.valid and member.connected then
+                member.print(requester_tag .. " cancelled their request to join " .. team_tag .. ".")
+            end
+        end
+    end
+
+    if requester.connected then
+        requester.print("You cancelled your join request.")
+        landing_pen.build_pen_gui(requester)
     end
 end
 
