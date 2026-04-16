@@ -104,20 +104,22 @@ end
 function planet_map.apply_force_locks(force)
     if not is_team_force(force.name) then return end
 
-    -- Always hide the default nauvis surface from team forces. Teams have
-    -- either a cloned surface (base 2.0) or a planet variant (Space Age);
-    -- they never play on the shared default nauvis.
-    local default_nauvis = game.surfaces["nauvis"]
-    if default_nauvis and default_nauvis.valid then
-        force.set_surface_hidden(default_nauvis, true)
-    end
-
+    -- Only hide base planet surfaces when Space Age is active (teams then
+    -- use variant planets and should never see the stock bases).
+    --
+    -- In base 2.0 / Platformer mode, DO NOT hide the default nauvis: doing
+    -- so desyncs Factorio's internal surface-list indexing (SurfaceList.cpp
+    -- "Surface list picked index N" errors) and the engine falls back to
+    -- teleporting the player onto the landing-pen surface. Teams on base 2.0
+    -- already have their own team-N-nauvis clone — the stock nauvis remaining
+    -- visible just means it's an extra (unused) entry in the surface list.
     if not space_age.is_active() then return end
 
     -- Lock and hide all base planets (Space Age only).
     -- Use game.planets[base].surface rather than game.surfaces[base] because
     -- in Space Age planet surfaces are created lazily; the canonical access
     -- for a planet's surface goes through LuaPlanet. (This matches Team Starts.)
+    -- This loop also covers the base "nauvis" planet.
     for _, base in ipairs(space_age.BASE_PLANETS) do
         pcall(function() force.lock_space_location(base) end)
         local planet = game.planets and game.planets[base]
