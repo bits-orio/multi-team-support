@@ -294,11 +294,21 @@ function spectator.exit(player)
     restore_player_state(player)
 
     -- Restore to saved location, or fall back to home surface origin.
+    -- Defensive: never restore a spawned player onto the landing-pen surface,
+    -- even if that's what was saved (e.g. stale save from when they were a
+    -- pen player). If the saved surface is landing-pen AND the player is
+    -- marked as spawned, fall through to the home-surface lookup instead.
     local saved = storage.spectator_saved_location[player.index]
+    local is_spawned = (storage.spawned_players or {})[player.index] == true
     local target_surface, target_pos
     if saved then
-        target_surface = game.surfaces[saved.surface_name]
-        target_pos     = saved.position
+        if not (is_spawned and saved.surface_name == "landing-pen") then
+            target_surface = game.surfaces[saved.surface_name]
+            target_pos     = saved.position
+        else
+            log("[multi-team-support:spectator] exit: ignoring stale landing-pen"
+                .. " saved_location for spawned player " .. player.name)
+        end
     end
     if not target_surface then
         target_surface = surface_utils.get_home_surface(player.force, player.index)
@@ -408,13 +418,29 @@ function spectator.on_controller_changed(player, old_controller_type)
         return
     end
 
-    -- Case 2: Player exited remote view.
+    -- Case 2: Player exited remote view while on the spectator force.
     if old_controller_type == defines.controllers.remote
        and player.controller_type ~= defines.controllers.remote
        and spectator.is_spectating(player) then
         log("[multi-team-support:spectator] on_controller_changed: " .. player.name
             .. " exited remote view, restoring force")
         spectator.exit(player)
+        return
+    end
+
+    -- Case 3: Player exited a friend-view remote view (no force swap).
+    -- Friend-view leaves the character in place, but we still saved a
+    -- spectator_saved_location in case they chain into a real spectate next.
+    -- Clear the stale saved_location so a subsequent spectate->exit doesn't
+    -- accidentally teleport to an outdated surface (e.g. the landing-pen
+    -- from a previous friend-view while unspawned).
+    if old_controller_type == defines.controllers.remote
+       and player.controller_type ~= defines.controllers.remote
+       and storage.spectator_saved_location
+       and storage.spectator_saved_location[player.index] then
+        log("[multi-team-support:spectator] on_controller_changed: " .. player.name
+            .. " exited friend-view; clearing stale saved_location")
+        storage.spectator_saved_location[player.index] = nil
     end
 end
 
