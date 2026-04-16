@@ -11,6 +11,10 @@ permissions:
 jobs:
   package:
     runs-on: ubuntu-latest
+    env:
+      # Hoisted to job scope so step-level `if:` conditions can see it.
+      # (Step-level env is not available in the same step's if expression.)
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -120,14 +124,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.info.outputs.folder }}.zip
+          # Curated notes from changelog.txt. We don't use
+          # generate_release_notes here because combining it with body in v2
+          # has inconsistent behavior; the curated changelog is the canonical
+          # release notes for this mod anyway.
           body: ${{ steps.notes.outputs.notes }}
-          append_body: true            # append our notes AFTER GitHub auto-gen
-          generate_release_notes: true # auto-gen commit/PR list
 
       - name: Post release announcement to Discord
         if: ${{ env.DISCORD_WEBHOOK != '' }}
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           VERSION="${{ steps.info.outputs.version }}"
           RELEASE_URL="${{ steps.release.outputs.url }}"
