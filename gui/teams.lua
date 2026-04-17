@@ -653,9 +653,11 @@ function teams_gui.on_player_created(player)
         sprite  = "utility/gps_map_icon",
         tooltip = "Teams",
     })
-    nav.on_click("sb_platforms_btn", function(e)
-        teams_gui.toggle(e.player)
-    end)
 end
+
+-- Register click handler at module load (desync-safe, fires on every script load).
+nav.on_click("sb_platforms_btn", function(e)
+    teams_gui.toggle(e.player)
+end)
 
 return teams_gui

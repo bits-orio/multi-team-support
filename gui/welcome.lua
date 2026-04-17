@@ -255,16 +255,18 @@ function welcome_gui.on_player_created(player)
         sprite  = "virtual-signal/signal-info",
         tooltip = "About Multi-Team Support / Discord",
     })
-    nav.on_click(NAV_BTN, toggle)
-    nav.on_click("sb_welcome_close", function(e)
-        local frame = e.player.gui.screen[FRAME_NAME]
-        if frame then frame.destroy() end
-    end)
 
     -- Auto-open welcome screen for brand-new players only
     if player.online_time == 0 then
         draw_frame(player)
     end
 end
+
+-- Register click handlers at module load (desync-safe, fires on every script load).
+nav.on_click(NAV_BTN, toggle)
+nav.on_click("sb_welcome_close", function(e)
+    local frame = e.player.gui.screen[FRAME_NAME]
+    if frame then frame.destroy() end
+end)
 
 return welcome_gui

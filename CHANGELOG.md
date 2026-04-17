@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5
+
+- Fix top-bar buttons (Teams, Stats, Research, Welcome) not working in saves
+  loaded from older versions — click handlers were registered inside
+  on_player_created, which never fires for existing players
+
 ## 0.3.4
 
 - Fix landing pen GUI not refreshing after a team is disbanded

@@ -551,9 +551,11 @@ function stats_gui.on_player_created(player)
         sprite  = "item/production-science-pack",
         tooltip = "Production Stats",
     })
-    nav.on_click("sb_stats_btn", function(e)
-        stats_gui.toggle(e.player)
-    end)
 end
+
+-- Register click handler at module load (desync-safe, fires on every script load).
+nav.on_click("sb_stats_btn", function(e)
+    stats_gui.toggle(e.player)
+end)
 
 return stats_gui

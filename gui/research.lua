@@ -469,9 +469,11 @@ function research_gui.on_player_created(player)
         sprite  = "item/lab",
         tooltip = "Research Comparison",
     })
-    nav.on_click(NAV_BTN, function(e)
-        research_gui.toggle(e.player)
-    end)
 end
+
+-- Register click handler at module load (desync-safe, fires on every script load).
+nav.on_click(NAV_BTN, function(e)
+    research_gui.toggle(e.player)
+end)
 
 return research_gui
