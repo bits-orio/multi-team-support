@@ -145,7 +145,7 @@ function force_utils.claim_team_slot(player)
     storage.team_leader[force_name] = player.index
     storage.team_pool[slot] = "occupied"
 
-    -- Start team clock on first claim (never reset after that)
+    -- Start team clock on first claim (reset when slot is released)
     storage.team_clock_start = storage.team_clock_start or {}
     if not storage.team_clock_start[force_name] then
         storage.team_clock_start[force_name] = game.tick
@@ -171,9 +171,11 @@ function force_utils.release_team_slot(force_name)
     storage.team_pool = storage.team_pool or {}
     storage.team_pool[slot] = "available"
 
-    -- Clear leadership
+    -- Clear leadership and team clock
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = nil
+    storage.team_clock_start = storage.team_clock_start or {}
+    storage.team_clock_start[force_name] = nil
 
     -- Reset tech tree to prevent stale research leaking to next occupant
     local force = game.forces[force_name]
@@ -217,7 +219,7 @@ end
 -- ─── Surface Cleanup ──────────────────────────────────────────────────
 
 --- Delete all surfaces owned by a force and clean up related storage.
-local function cleanup_force_surfaces(force_name)
+function force_utils.cleanup_force_surfaces(force_name)
     local deleted = {}
     -- Delete surfaces matching "{force_name}-{planet}" pattern
     for _, surface in pairs(game.surfaces) do
@@ -280,7 +282,7 @@ function force_utils.remove_from_team(player)
 
     if member_count <= 1 then
         -- Solo player leaving: clean up surfaces and release the team slot.
-        local deleted = cleanup_force_surfaces(old_force_name)
+        local deleted = force_utils.cleanup_force_surfaces(old_force_name)
 
         -- Move player to spectator force (they'll be placed in pen by caller)
         local spec_force = game.forces["spectator"]
