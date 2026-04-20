@@ -125,31 +125,59 @@ function friendship.on_toggle(event)
     return true
 end
 
+--- Break mutual friendship between two forces (if any) and notify the
+--- spectator + visibility subsystems. Returns true if anything was broken.
+local function break_pair(force_a, force_b)
+    if not (force_a.get_friend(force_b) or force_b.get_friend(force_a)) then
+        return false
+    end
+    force_a.set_friend(force_b, false)
+    force_b.set_friend(force_a, false)
+    spectator.on_friend_changed(force_a, force_b, false)
+    spectator.on_friend_changed(force_b, force_a, false)
+    surface_utils.update_visibility(force_a, force_b, false)
+    return true
+end
+
 --- Break all existing friendships and clear all intents.
 --- Called when the friendship admin flag is disabled mid-session.
 function friendship.break_all()
     storage.friend_intents = storage.friend_intents or {}
-    local broken = {}
+    local any_broken = false
     for _, force_a in pairs(game.forces) do
         if force_a.name:find("^team%-") then
             for _, force_b in pairs(game.forces) do
                 if force_b.name:find("^team%-") and force_a.index < force_b.index then
-                    if force_a.get_friend(force_b) or force_b.get_friend(force_a) then
-                        force_a.set_friend(force_b, false)
-                        force_b.set_friend(force_a, false)
-                        spectator.on_friend_changed(force_a, force_b, false)
-                        spectator.on_friend_changed(force_b, force_a, false)
-                        surface_utils.update_visibility(force_a, force_b, false)
-                        broken[#broken + 1] = helpers.display_name(force_a.name)
-                            .. " & " .. helpers.display_name(force_b.name)
+                    if break_pair(force_a, force_b) then
+                        any_broken = true
                     end
                 end
             end
         end
     end
     storage.friend_intents = {}
-    if #broken > 0 then
+    if any_broken then
         helpers.broadcast("[Admin] All friendships have been dissolved.")
+    end
+end
+
+--- Break every friendship involving `force_name` and drop intents to/from it.
+--- Called when a team slot is released so the next occupant doesn't inherit
+--- the previous team's trust relationships.
+function friendship.break_all_for(force_name)
+    local force = game.forces[force_name]
+    if not force then return end
+
+    for _, other in pairs(game.forces) do
+        if other ~= force and other.name:find("^team%-") then
+            break_pair(force, other)
+        end
+    end
+
+    storage.friend_intents = storage.friend_intents or {}
+    storage.friend_intents[force_name] = nil
+    for _, intents in pairs(storage.friend_intents) do
+        intents[force_name] = nil
     end
 end
 

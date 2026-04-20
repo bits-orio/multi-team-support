@@ -13,6 +13,7 @@ local helpers       = require("scripts.helpers")
 local spectator     = require("scripts.spectator")
 local surface_utils = require("scripts.surface_utils")
 local planet_map    = require("scripts.planet_map")
+local friendship    = require("gui.friendship")
 
 local force_utils = {}
 
@@ -24,7 +25,9 @@ local function copy_force_state(source, target)
     for name, tech in pairs(source.technologies) do
         if tech.researched then
             local t = target.technologies[name]
-            if t then t.researched = true end
+            -- Guard against re-writing an already-researched flag in case
+            -- Factorio ever fires on_research_finished on a redundant set.
+            if t and not t.researched then t.researched = true end
         end
     end
     for _, quality in pairs({"uncommon", "rare", "epic", "legendary"}) do
@@ -42,12 +45,26 @@ end
 --- Reset a force's tech tree back to unresearched state.
 --- Used when recycling a team slot so stale research doesn't leak
 --- to the next occupant.
+---
+--- Team forces are pre-created ("team-1"..."team-N") and the same
+--- LuaForce object is recycled across occupants. Engine-level state on
+--- that object — including per-force research-trigger progress (e.g.
+--- "craft 50 iron plates toward steam-power") and tech modifiers —
+--- survives a naive `tech.researched = false` loop. `LuaForce.reset()`
+--- is the nuclear reset that zeroes all of it.
+---
+--- `reset()` also wipes diplomacy, so we re-apply the baseline cease-fire
+--- with all non-enemy forces and restore spectator-force integration.
 local function reset_force_state(force)
-    for _, tech in pairs(force.technologies) do
-        if tech.researched then
-            tech.researched = false
+    force.reset()
+
+    for _, other in pairs(game.forces) do
+        if other.name ~= "enemy" and other ~= force then
+            force.set_cease_fire(other, true)
+            other.set_cease_fire(force, true)
         end
     end
+    spectator.setup_force(force)
 end
 
 -- ─── Team Pool Management ─────────────────────────────────────────────
@@ -162,27 +179,98 @@ function force_utils.claim_team_slot(player)
     return force_name
 end
 
+--- Strip a released team from a records table.
+--- Records are keyed by tech/milestone, each with first/fastest holders.
+--- When the released team held both positions, the entry is deleted.
+--- When they held only one position, the remaining other team is promoted
+--- into both slots so a fresh team doesn't immediately "beat its own
+--- ghost" after reclaiming the slot.
+local function strip_team_from_records(records_table, team)
+    if not records_table then return end
+    for key, entry in pairs(records_table) do
+        local first_is_mine   = entry.first   and entry.first.team   == team
+        local fastest_is_mine = entry.fastest and entry.fastest.team == team
+        if first_is_mine and fastest_is_mine then
+            records_table[key] = nil
+        elseif first_is_mine then
+            entry.first = entry.fastest
+        elseif fastest_is_mine then
+            entry.fastest = entry.first
+        end
+    end
+end
+
+--- Clear every per-slot storage entry + break engine friendship ties for
+--- a team slot. Shared between `release_team_slot` (full release flow)
+--- and the `on_configuration_changed` migration, which retroactively
+--- cleans slots that were left "available" under pre-0.3.7 code.
+---
+--- Does NOT touch the force object's tech state, the slot pool entry,
+--- the leader, or the team clock — those are lifecycle concerns handled
+--- by the caller.
+function force_utils.wipe_slot_state(force_name)
+    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    if not slot then return end
+
+    -- Reset display name in case a previous occupant used /mts-rename
+    storage.team_names = storage.team_names or {}
+    storage.team_names[force_name] = string.format("Team %02d", slot)
+
+    -- Strip this team from record holders so a fresh clock on reclaim
+    -- doesn't produce tiny elapsed values that instantly beat the
+    -- previous incarnation's records.
+    strip_team_from_records(storage.tech_records,      force_name)
+    strip_team_from_records(storage.milestone_records, force_name)
+
+    -- Clear per-force milestone-threshold gate and research timeline
+    if storage.milestone_reached   then storage.milestone_reached[force_name]   = nil end
+    if storage.tech_research_ticks then storage.tech_research_ticks[force_name] = nil end
+
+    -- Drop "player previously left this team" markers so former members
+    -- aren't treated as rejoiners (stripped of inventory) when the slot's
+    -- next occupant invites them.
+    if storage.left_teams then
+        for _, teams in pairs(storage.left_teams) do
+            teams[force_name] = nil
+        end
+    end
+
+    -- Break engine friendship and clear friend_intents to/from this
+    -- team. Must run BEFORE reset_force_state: break_pair consults
+    -- engine `get_friend` flags to decide whether to notify the
+    -- spectator + visibility subsystems, and `force.reset()` wipes those
+    -- flags silently.
+    friendship.break_all_for(force_name)
+end
+
 --- Release a team slot back to the pool.
---- Resets the force's tech tree so stale research doesn't leak.
+--- Wipes every per-force/per-slot storage entry and resets the force
+--- object so the next occupant starts on a clean slate with no state
+--- leaking from the previous incarnation.
 function force_utils.release_team_slot(force_name)
     local slot = tonumber(force_name:match("^team%-(%d+)$"))
     if not slot then return end
 
+    -- Slot lifecycle state
     storage.team_pool = storage.team_pool or {}
     storage.team_pool[slot] = "available"
-
-    -- Clear leadership and team clock
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = nil
     storage.team_clock_start = storage.team_clock_start or {}
     storage.team_clock_start[force_name] = nil
 
-    -- Reset tech tree to prevent stale research leaking to next occupant
+    -- Per-slot storage + engine-friendship cleanup (shared with migration)
+    force_utils.wipe_slot_state(force_name)
+
+    -- Reset the force object itself. force.reset() clears researched
+    -- flags, trigger-progress counters, tech modifiers, and the research
+    -- queue — everything keyed inside the engine on the force object,
+    -- which is reused across release/reclaim because team forces are
+    -- pre-created and recycled. Diplomacy is re-applied inside.
     local force = game.forces[force_name]
     if force then
         reset_force_state(force)
         copy_force_state(game.forces.player, force)
-        -- Space Age: re-lock all non-home variants
         planet_map.apply_force_locks(force)
     end
 
