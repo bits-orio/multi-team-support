@@ -82,6 +82,22 @@ function helpers.display_name(force_name)
     return force_name
 end
 
+--- Player-facing name for a surface, stripping per-team prefixes and
+--- capitalising the planet. Space platforms keep their literal name.
+---   "mts-nauvis-1"   → "Nauvis"     (Space Age per-team variant)
+---   "team-2-vulcanus" → "Vulcanus"  (legacy cloned surface)
+---   "landing-pen"    → "landing-pen"
+---   "my platform 3"  → "my platform 3"
+function helpers.display_surface_name(surface_name)
+    if not surface_name then return "?" end
+    local base = surface_name:match("^mts%-(.+)%-%d+$")
+        or surface_name:match("^team%-%d+%-(.+)$")
+    if base then
+        return base:sub(1, 1):upper() .. base:sub(2)
+    end
+    return surface_name
+end
+
 --- Get the team name for use in chat announcements. Always prefixed with
 --- "Team " when the display name doesn't already start with "Team".
 ---   "team-1" with default name "Team 01" → "Team 01"

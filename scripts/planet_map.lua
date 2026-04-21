@@ -94,15 +94,17 @@ end
 
 -- ─── Force Setup ─────────────────────────────────────────────────────
 
---- Apply Space Age space-location locks for a team force:
----   - Lock all base planets so they can't travel there
----   - Hide the base planet surfaces from this force's map
----   - Lock all of this team's non-home variants (clean slate on recycle)
----   - Unlock only the team's nauvis variant as their starting location
---- Call once per team force at on_init, on_configuration_changed, and
---- whenever a team slot is recycled (so a new occupant starts with a
---- clean tech+location state).
-function planet_map.apply_force_locks(force)
+--- Hide + lock vanilla base planets for a team force. Safe to call at any
+--- time — it doesn't touch per-team variant locks, so it can run after
+--- every surface-creation event without clobbering planet-discovery
+--- research the team has already completed.
+---
+--- Reasons to call this:
+---   - Space Age lazily creates a base planet's surface when something
+---     first touches it. We re-hide on on_surface_created so the newly-
+---     created surface stays invisible to teams.
+---   - Defensive top-up: base planets should always be locked for teams.
+function planet_map.hide_base_planets_for(force)
     if not is_team_force(force.name) then return end
 
     -- Always hide the default nauvis surface from team forces. Teams have
@@ -132,6 +134,35 @@ function planet_map.apply_force_locks(force)
             helpers.set_surface_hidden(force, planet.surface, true)
         end
     end
+end
+
+--- Hide base planets for every force.
+function planet_map.hide_base_planets_for_all()
+    for _, force in pairs(game.forces) do
+        planet_map.hide_base_planets_for(force)
+    end
+end
+
+--- Full reset of a team force's space-location locks:
+---   - Hide + lock all base planets
+---   - LOCK all of this team's non-home variants (clean slate — wipes any
+---     planet-discovery research the previous slot occupant completed)
+---   - UNLOCK the team's home (nauvis) variant
+---
+--- ONLY call this in situations where wiping unlocked variants is the
+--- intended behavior:
+---   - on_init / on_configuration_changed (fresh world)
+---   - Slot recycle (new occupant gets a clean map)
+---   - on_force_reset / on_technology_effects_reset (engine wiped research)
+---
+--- Do NOT call from periodic events (on_surface_created, etc.) — it will
+--- repeatedly clobber planet-discovery unlocks and make the "space map"
+--- button vanish every time a space platform is built.
+function planet_map.apply_force_locks(force)
+    if not is_team_force(force.name) then return end
+
+    planet_map.hide_base_planets_for(force)
+    if not space_age.is_active() then return end
 
     local home = planet_map.get_home_planet(force.name)
 
@@ -150,7 +181,7 @@ function planet_map.apply_force_locks(force)
     end
 end
 
---- Apply locks for all team forces.
+--- Apply locks for all team forces. Same caveat as apply_force_locks.
 function planet_map.apply_all_force_locks()
     for _, force in pairs(game.forces) do
         planet_map.apply_force_locks(force)

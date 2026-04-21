@@ -28,6 +28,8 @@ local confirm_gui     = require("gui.confirm")
 local follow_cam      = require("gui.follow_cam")
 local planet_map      = require("scripts.planet_map")
 local space_age       = require("scripts.space_age")
+local force_pause     = require("scripts.force_pause")
+local team_settings   = require("gui.team_settings")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -49,6 +51,9 @@ local function register_nav_buttons(player)
     stats_gui.on_player_created(player)
     research_gui.on_player_created(player)
     admin_gui.on_player_created(player)
+    team_settings.on_player_created(player)
+    -- Team Settings button is gated on team membership, so refresh it now.
+    team_settings.refresh_nav_button(player)
 end
 
 --- Rebuild stats GUI for all connected players who have it open.
@@ -95,9 +100,13 @@ local function init_events()
         local surface = game.surfaces[event.surface_index]
         if surface then
             surface_utils.on_surface_created(surface)
-            -- Space Age: when a base planet's surface is lazily created,
-            -- re-apply locks so all team forces hide it.
-            planet_map.apply_all_force_locks()
+            -- Space Age: re-hide base planets for all team forces. We
+            -- deliberately DON'T use apply_all_force_locks here — that
+            -- would re-lock per-team planet variants and wipe any
+            -- planet-discovery research the team has completed, causing
+            -- the "space map" button to vanish every time a space platform
+            -- is built.
+            planet_map.hide_base_planets_for_all()
             -- dangOreus: build resource_table for new team surfaces.
             if dangoreus.is_active() then
                 dangoreus.setup_surface(surface)
@@ -135,6 +144,11 @@ local function init_events()
     -- Update follow cams every 2 ticks (~30 FPS). Server cost is just
     -- per-camera position/surface property writes; rendering is client-side.
     script.on_nth_tick(2, function() follow_cam.tick() end)
+
+    -- Drive pending force-pause / force-resume sweeps. Entity-budget is
+    -- enforced inside force_pause.tick(); this interval just gives it
+    -- a predictable cadence.
+    script.on_nth_tick(10, function() force_pause.tick() end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
@@ -199,6 +213,8 @@ script.on_init(function()
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
+    force_pause.init_storage()
+    team_settings.init_storage()
 
     -- Pre-create all team forces ("team-1" through "team-N")
     force_utils.create_team_pool()
@@ -230,6 +246,8 @@ end)
 
 script.on_configuration_changed(function()
     log("[multi-team-support] on_configuration_changed fired")
+    force_pause.init_storage()
+    team_settings.init_storage()
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}
@@ -315,6 +333,7 @@ script.on_event(defines.events.on_player_joined_game, function(event)
         landing_pen.place_player(player)
     end
     if player then register_nav_buttons(player) end
+    if player then force_pause.on_player_joined(player) end
     storage.pending_admin_check = storage.pending_admin_check or {}
     storage.pending_admin_check[event.player_index] = game.tick + 30
     rebuild_for_connectivity(nil)
@@ -325,8 +344,26 @@ script.on_event(defines.events.on_player_left_game, function(event)
     if player then
         spectator.on_player_left(player)
         follow_cam.on_player_left(player)
+        force_pause.on_player_left(player)
     end
     rebuild_for_connectivity(event.player_index)
+end)
+
+-- When a player changes force (e.g. claims a team slot from the pen), the
+-- destination team may have been paused because it had no online players.
+-- Kick off a resume sweep so production starts back up for the newcomer,
+-- and refresh the Team Settings nav button since membership just changed.
+script.on_event(defines.events.on_player_changed_force, function(event)
+    local player = game.get_player(event.player_index)
+    if player and player.connected then
+        force_pause.on_force_changed(player)
+        team_settings.refresh_nav_button(player)
+        -- Rebuild any open settings panel — it's now backed by a different
+        -- force (or should close if the player went back to spectator).
+        if player.gui.screen.sb_team_settings_frame then
+            team_settings.build_gui(player)
+        end
+    end
 end)
 
 script.on_event(defines.events.on_player_promoted, function(event)
@@ -500,8 +537,13 @@ script.on_event(defines.events.on_gui_click, function(event)
 
     if research_gui.on_gui_click(event) then return end
     if admin_gui.on_gui_click(event) then return end
+    if team_settings.on_gui_click(event) then return end
     if stats_gui.on_gui_click(event) then return end
     teams_gui.on_gui_click(event)
+end)
+
+script.on_event(defines.events.on_gui_confirmed, function(event)
+    team_settings.on_gui_confirmed(event)
 end)
 
 script.on_event(defines.events.on_gui_selection_state_changed, function(event)
@@ -542,6 +584,8 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         end
         return
     end
+
+    if team_settings.on_gui_checked_state_changed(event) then return end
 
     local changed_flag = admin_gui.on_gui_checked_state_changed(event)
     if changed_flag then

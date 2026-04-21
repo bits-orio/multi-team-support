@@ -12,8 +12,9 @@
 --
 -- Storage shape:
 --   storage.follow_cam[viewer_index] = {
---     targets = {[target_index] = true, ...},  -- set of player indices to track
---     cameras = {[target_index] = LuaGuiElement, ...},  -- rebuilt on changes
+--     targets     = {[target_index] = true, ...},  -- player indices to track
+--     cameras     = {[target_index] = LuaGuiElement, ...},  -- rebuilt on changes
+--     zoom_levels = {[target_index] = number, ...},  -- per-camera zoom, survives rebuilds
 --   }
 
 local helpers   = require("scripts.helpers")
@@ -27,6 +28,11 @@ local FRAME_NAME    = "sb_follow_cam_frame"
 local CAMERA_WIDTH  = 320
 local CAMERA_HEIGHT = 200
 local CAMERA_ZOOM   = 0.5
+-- Default is also the max: zooming in any closer gives an uncomfortably
+-- tight view, so the + button only restores zoom after a zoom-out.
+local CAMERA_ZOOM_MIN  = 0.05
+local CAMERA_ZOOM_MAX  = 0.75
+local CAMERA_ZOOM_STEP = 1.25
 
 -- ─── Storage ──────────────────────────────────────────────────────────
 
@@ -43,8 +49,10 @@ end
 local function ensure_state(viewer_index)
     storage.follow_cam = storage.follow_cam or {}
     if not storage.follow_cam[viewer_index] then
-        storage.follow_cam[viewer_index] = {targets = {}, cameras = {}}
+        storage.follow_cam[viewer_index] = {targets = {}, cameras = {}, zoom_levels = {}}
     end
+    storage.follow_cam[viewer_index].zoom_levels =
+        storage.follow_cam[viewer_index].zoom_levels or {}
     return storage.follow_cam[viewer_index]
 end
 
@@ -85,8 +93,9 @@ local function rebuild_frame(viewer, state)
         if viewer.gui.screen[FRAME_NAME] then
             viewer.gui.screen[FRAME_NAME].destroy()
         end
-        state.cameras = {}
-        state.targets = {}
+        state.cameras     = {}
+        state.targets     = {}
+        state.zoom_levels = {}
         return
     end
 
@@ -156,13 +165,46 @@ local function rebuild_frame(viewer, state)
             tooltip = "Expand to full spectator view (Esc to return here)",
         }
 
-        -- Camera widget inside a deep frame for a nice border
+        -- Per-camera zoom controls (− / +).
+        local zoom_out = name_row.add{
+            type    = "button",
+            caption = "−",
+            tags    = {sb_follow_cam_zoom_out = true, target_idx = target.index},
+            tooltip = "Zoom out",
+        }
+        zoom_out.style.width   = 22
+        zoom_out.style.height  = 22
+        zoom_out.style.padding = 0
+        zoom_out.style.font    = "default-bold"
+
+        local zoom_in = name_row.add{
+            type    = "button",
+            caption = "+",
+            tags    = {sb_follow_cam_zoom_in = true, target_idx = target.index},
+            tooltip = "Zoom in",
+        }
+        zoom_in.style.width   = 22
+        zoom_in.style.height  = 22
+        zoom_in.style.padding = 0
+        zoom_in.style.font    = "default-bold"
+
+        -- Per-camera close: removes just this target from the grid.
+        name_row.add{
+            type    = "sprite-button",
+            sprite  = "utility/close",
+            style   = "mini_button",
+            tags    = {sb_follow_cam_remove = true, target_idx = target.index},
+            tooltip = "Remove from Follow Cam",
+        }
+
+        -- Camera widget inside a deep frame for a nice border.
+        local zoom = state.zoom_levels[target.index] or CAMERA_ZOOM
         local cam_frame = cell.add{type = "frame", style = "inside_deep_frame"}
         local camera = cam_frame.add{
             type          = "camera",
             position      = target.position,
             surface_index = target.surface and target.surface.index or 1,
-            zoom          = CAMERA_ZOOM,
+            zoom          = zoom,
         }
         camera.style.width  = CAMERA_WIDTH
         camera.style.height = CAMERA_HEIGHT
@@ -181,7 +223,8 @@ function follow_cam.toggle_target(viewer, target_index)
     if viewer.index == target_index then return end  -- can't follow yourself
     local state = ensure_state(viewer.index)
     if state.targets[target_index] then
-        state.targets[target_index] = nil
+        state.targets[target_index]     = nil
+        state.zoom_levels[target_index] = nil
     else
         state.targets[target_index] = true
     end
@@ -232,6 +275,22 @@ function follow_cam.tick()
     end
 end
 
+-- ─── Zoom ─────────────────────────────────────────────────────────────
+
+--- Adjust a single camera's zoom by multiplying by `factor`, clamped to
+--- [CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX]. Persists the zoom so it survives
+--- rebuild_frame (e.g. when another target is added or removed).
+local function adjust_zoom(viewer_index, target_idx, factor)
+    local state = storage.follow_cam and storage.follow_cam[viewer_index]
+    if not (state and target_idx) then return end
+    state.zoom_levels = state.zoom_levels or {}
+    local current = state.zoom_levels[target_idx] or CAMERA_ZOOM
+    local new_zoom = math.max(CAMERA_ZOOM_MIN, math.min(current * factor, CAMERA_ZOOM_MAX))
+    state.zoom_levels[target_idx] = new_zoom
+    local cam = state.cameras and state.cameras[target_idx]
+    if cam and cam.valid then cam.zoom = new_zoom end
+end
+
 -- ─── Click Handler ────────────────────────────────────────────────────
 
 --- Handle GUI clicks. Returns true if consumed.
@@ -245,10 +304,29 @@ function follow_cam.on_gui_click(event)
         return true
     end
 
-    -- Expand a single follow-cam cell into full spectator mode
-    if el.tags and el.tags.sb_follow_cam_spectate then
+    local tags = el.tags
+    if not tags then return false end
+
+    if tags.sb_follow_cam_zoom_in then
+        adjust_zoom(event.player_index, tags.target_idx, CAMERA_ZOOM_STEP)
+        return true
+    end
+
+    if tags.sb_follow_cam_zoom_out then
+        adjust_zoom(event.player_index, tags.target_idx, 1 / CAMERA_ZOOM_STEP)
+        return true
+    end
+
+    if tags.sb_follow_cam_remove then
         local player = game.get_player(event.player_index)
-        local target = el.tags.target_idx and game.get_player(el.tags.target_idx)
+        if player then follow_cam.toggle_target(player, tags.target_idx) end
+        return true
+    end
+
+    -- Expand a single follow-cam cell into full spectator mode
+    if tags.sb_follow_cam_spectate then
+        local player = game.get_player(event.player_index)
+        local target = tags.target_idx and game.get_player(tags.target_idx)
         if not (player and player.valid and target and target.valid
                 and target.connected and target.surface) then
             return true
@@ -261,14 +339,15 @@ function follow_cam.on_gui_click(event)
         local position = target.position
 
         -- Use friend-view if the two teams are friends; otherwise spectator mode.
+        -- `target` is passed through so the broadcast can name the watched player.
         if spectator.needs_spectator_mode(viewer_force, target_force) then
             if spectator.is_spectating(player) then
-                spectator.switch_target(player, target_force, surface, position)
+                spectator.switch_target(player, target_force, surface, position, target)
             else
-                spectator.enter(player, target_force, surface, position)
+                spectator.enter(player, target_force, surface, position, target)
             end
         else
-            spectator.enter_friend_view(player, surface, position)
+            spectator.enter_friend_view(player, surface, position, target_force, target)
         end
         return true
     end

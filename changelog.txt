@@ -1,4 +1,35 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.8
+Date: 2026-04-20
+  Features:
+    - Team Settings GUI (new top-bar button): team leaders can rename their
+      team and toggle offline auto-pause. Non-leaders see all options in a
+      read-only state with an "only your team leader can change these
+      settings" notice. Any change is broadcast to all players.
+    - Offline auto-pause (opt-in per team): when enabled and every team
+      member is offline, all entities on the team's surfaces are set to
+      active = false, freezing production. They resume on reconnect. Work
+      is amortized chunk-by-chunk across ticks (500-entity budget per
+      tick) so large bases don't stutter.
+    - Follow Cam per-camera controls: each tracked player now has its own
+      zoom-out / zoom-in / close buttons. Zoom levels persist across
+      rebuilds (default 0.5, range 0.05 - 0.5).
+    - Spectator announcements include surface name: "Pirion is now
+      spectating Avengers (Nauvis)" instead of "spectating Avengers".
+      Works for start, stop, and follow-cam "expand" paths (which also
+      include the target player's name).
+    - Space Age: each team's Aquilo variant now has its own connection to
+      the shared solar-system-edge, and the vanilla edge → shattered-planet
+      connection remains shared. Every team can now reach the endgame.
+  Bugfixes:
+    - Space map button no longer disappears when a space platform is
+      built. Root cause was on_surface_created re-running the full force-
+      lock reset, which clobbered planet-discovery unlocks every time.
+      Split into a narrow "hide-only" path for surface events vs the full
+      reset for init / slot recycle / force reset.
+    - Fix state leak between team-slot occupants on release/reclaim.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.3.2
 Date: 2026-04-16
   Other:

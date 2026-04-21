@@ -85,20 +85,38 @@ local function update_spectator_surfaces()
 end
 
 --- Announce spectation start/stop to all players (if notifications enabled).
-local function announce_spectation(viewer, target_force, is_entering)
+--- `target_player` (optional): names the specific player being watched (used
+--- by the follow-cam "expand" click). `surface` (optional): prepends the
+--- human-readable surface name in parens so viewers know which planet.
+local function announce_spectation(viewer, target_force, is_entering, target_player, surface)
     if not admin_gui.flag("spectate_notifications_enabled") then return end
 
-    local target_name = helpers.display_name(target_force.name)
-    local action      = is_entering and "is now spectating" or "stopped spectating"
+    local target_name  = helpers.display_name(target_force.name)
+    local action       = is_entering and "is now spectating" or "stopped spectating"
     local target_color = helpers.force_color(target_force)
+    local team_tag     = helpers.colored_name(target_name, target_color)
+
+    local surface_suffix = ""
+    if surface and surface.valid then
+        surface_suffix = " (" .. helpers.display_surface_name(surface.name) .. ")"
+    end
+
+    local target_text
+    if target_player and target_player.valid then
+        target_text = helpers.colored_name(target_player.name, target_player.chat_color)
+            .. " (" .. team_tag .. ")" .. surface_suffix
+    else
+        target_text = team_tag .. surface_suffix
+    end
 
     local msg = helpers.colored_name(viewer.name, viewer.chat_color)
-        .. " " .. action .. " "
-        .. helpers.colored_name(target_name, target_color)
+        .. " " .. action .. " " .. target_text
 
     helpers.broadcast(msg)
     log("[multi-team-support:spectator] announcement: " .. viewer.name .. " " .. action
-        .. " " .. target_name)
+        .. " " .. (surface and surface.valid and (surface.name .. " / ") or "")
+        .. (target_player and target_player.valid and (target_player.name .. " / ") or "")
+        .. target_name)
 end
 
 --- Open a remote view on a target surface.
@@ -257,7 +275,9 @@ end
 -- ─── Core Operations ───────────────────────────────────────────────────
 
 --- Begin spectating a target force's surface.
-function spectator.enter(player, target_force, surface, position)
+--- `target_player` is optional; when given, the broadcast names them explicitly
+--- (used by the follow-cam expand button to say who the viewer is watching).
+function spectator.enter(player, target_force, surface, position, target_player)
     log("[multi-team-support:spectator] enter: " .. player.name
         .. " → " .. target_force.name
         .. " on " .. surface.name
@@ -277,7 +297,7 @@ function spectator.enter(player, target_force, surface, position)
     storage.spectating_target[player.index] = target_force.name
     apply_spectator_state(player)
     open_remote_view(player, surface, position)
-    announce_spectation(player, target_force, true)
+    announce_spectation(player, target_force, true, target_player, surface)
     update_spectator_surfaces()
 
     log("[multi-team-support:spectator] enter: done, force=" .. player.force.name)
@@ -291,6 +311,9 @@ function spectator.exit(player)
     log("[multi-team-support:spectator] exit: " .. player.name)
 
     local target_fn = storage.spectating_target[player.index]
+    -- Grab the spectated surface before restore_player_state repoints the
+    -- player back to their real surface — we want the one they were viewing.
+    local spectated_surface = player.surface
     restore_player_state(player)
 
     -- Restore to saved location, or fall back to home surface origin.
@@ -324,7 +347,9 @@ function spectator.exit(player)
 
     if target_fn then
         local target_force = game.forces[target_fn]
-        if target_force then announce_spectation(player, target_force, false) end
+        if target_force then
+            announce_spectation(player, target_force, false, nil, spectated_surface)
+        end
     end
 
     clear_spectator_storage(player.index)
@@ -333,13 +358,14 @@ function spectator.exit(player)
 end
 
 --- Switch spectation target without leaving spectator force.
-function spectator.switch_target(player, target_force, surface, position)
+--- `target_player` is optional; see spectator.enter().
+function spectator.switch_target(player, target_force, surface, position, target_player)
     log("[multi-team-support:spectator] switch_target: " .. player.name
         .. " → " .. target_force.name .. " on " .. surface.name)
 
     storage.spectating_target[player.index] = target_force.name
     open_remote_view(player, surface, position)
-    announce_spectation(player, target_force, true)
+    announce_spectation(player, target_force, true, target_player, surface)
     update_spectator_surfaces()
 end
 
@@ -361,14 +387,17 @@ function spectator.enter_from_remote(player, target_force, surface, position)
 
     storage.spectating_target[player.index] = target_force.name
     apply_spectator_state(player)
-    announce_spectation(player, target_force, true)
+    announce_spectation(player, target_force, true, nil, surface)
     update_spectator_surfaces()
 
     log("[multi-team-support:spectator] enter_from_remote: done, force=" .. player.force.name)
 end
 
 --- Open a friend-view: direct remote view without spectator force swap.
-function spectator.enter_friend_view(player, surface, position)
+--- When both target_force and target_player are given (follow-cam expand),
+--- broadcasts the spectation announcement. Other callers pass neither and
+--- suppress the announcement (chart access is implicit for friends).
+function spectator.enter_friend_view(player, surface, position, target_force, target_player)
     log("[multi-team-support:spectator] enter_friend_view: " .. player.name
         .. " on " .. surface.name)
     -- Save pre-view location so "return to base" restores it.
@@ -382,6 +411,9 @@ function spectator.enter_friend_view(player, surface, position)
         }
     end
     open_remote_view(player, surface, position)
+    if target_force and target_player then
+        announce_spectation(player, target_force, true, target_player, surface)
+    end
 end
 
 -- ─── Event Handlers ────────────────────────────────────────────────────
