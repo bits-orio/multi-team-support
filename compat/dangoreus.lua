@@ -52,6 +52,27 @@ local RELATIVE_COVERAGE = {
     ["uranium-ore"] = 0.06,
 }
 
+-- Deepwater hole placed near origin on every team surface. Guarantees
+-- offshore-pump access even when the user shrinks dangOreus's
+-- starting-radius so far that vanilla's starter lake ends up buried
+-- under ore. The hole is offset diagonally from spawn (0,0) so players
+-- don't land on water and drown, and kept entirely within the origin
+-- chunk (tiles 0..31) so it's placed atomically during that chunk's
+-- generation event.
+local ORIGIN_WATER_TILE_NAME  = "deepwater"
+local ORIGIN_WATER_HOLE_SIZE  = 4            -- N × N tile square
+local ORIGIN_WATER_HOLE_ORIGIN = {x = 3, y = 3}  -- top-left tile (offset from spawn)
+
+local ORIGIN_WATER_TILE_POSITIONS = {}
+for dy = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
+    for dx = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
+        ORIGIN_WATER_TILE_POSITIONS[#ORIGIN_WATER_TILE_POSITIONS + 1] = {
+            ORIGIN_WATER_HOLE_ORIGIN.x + dx,
+            ORIGIN_WATER_HOLE_ORIGIN.y + dy,
+        }
+    end
+end
+
 local DANGORE_EXCEPTIONS = {
     ["mining-drill"]     = true,
     ["car"]              = true,
@@ -431,6 +452,22 @@ function dangoreus.init()
     end
 end
 
+-- ─── Origin water hole ────────────────────────────────────────────────
+
+--- Drop a 2x2 deepwater patch at origin. Called only for the chunk that
+--- contains origin; placed BEFORE the ore loop so dangOreus's own tile
+--- collision check (`tile.collides_with("resource")`) naturally skips
+--- the water tiles and no ore is generated on top of them.
+local function place_origin_water_hole(surface)
+    local tiles = {}
+    for _, pos in ipairs(ORIGIN_WATER_TILE_POSITIONS) do
+        tiles[#tiles + 1] = {name = ORIGIN_WATER_TILE_NAME, position = pos}
+    end
+    -- correct_tiles=true keeps transitions clean at the water/land edge;
+    -- remove_colliding_entities clears any stray entities on these tiles.
+    surface.set_tiles(tiles, true, true, true, false)
+end
+
 -- ─── Chunk generation (ported from dangOreus gOre) ─────────────────────
 
 function dangoreus.on_chunk_generated(event)
@@ -443,6 +480,12 @@ function dangoreus.on_chunk_generated(event)
         dangoreus.setup_surface(surface)
         rtable = storage.dangoreus.resource_table[surface.name]
         if not rtable then return end
+    end
+
+    -- Carve the origin water hole before the ore loop runs so dangOreus's
+    -- tile-collision check skips these tiles without us having to special-case.
+    if event.area.left_top.x == 0 and event.area.left_top.y == 0 then
+        place_origin_water_hole(surface)
     end
 
     local mgs = surface.map_gen_settings

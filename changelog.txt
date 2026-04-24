@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.3.9
+Date: 2026-04-24
+  Features:
+    - Team Awards GUI (new top-bar button): leaderboard window with
+      Research, Science, and Resources tabs, each showing the top 3
+      teams per achievement ranked by elapsed time since team birth.
+      Gold / silver / bronze rows, team tag with current leader's name.
+    - Follow Cam now charts a box around the tracked player every tick
+      so the camera widget always has map data to render. Previously,
+      non-friend viewers saw a black cell until the chart data happened
+      to already exist for their force.
+    - Follow Cam / Spectate on a player who is themselves spectating
+      another team now shows that player's body (their physical
+      surface/position) instead of chain-following whatever they're
+      watching.
+    - dangOreus compat: a small deepwater patch is now carved at the
+      origin of every team surface during chunk generation, so
+      offshore pumps still have water access when the dangOreus
+      starting radius is shrunk far enough to bury vanilla's starter
+      lake in ore.
+  Changes:
+    - Milestone announcements now render the item as an icon in the
+      quantity text ("produce 100 [item=landfill]") instead of a
+      plain word. The per-tracker `label` field is no longer used.
+    - Spectate surface button now uses the map icon, visually
+      distinct from the radar icon used by Follow Cam.
+    - Team rename (/mts-rename or Team Settings) refreshes any open
+      Awards windows so the new name appears immediately.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.3.8
 Date: 2026-04-20
   Features:

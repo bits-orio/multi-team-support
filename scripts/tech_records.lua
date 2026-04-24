@@ -23,12 +23,13 @@ end
 
 --- Handler for on_research_finished.
 --- Records the research tick and checks for first/fastest records.
+--- Returns true when a team record was updated (caller can refresh GUIs).
 function tech_records.on_research_finished(event)
     local tech  = event.research
     local force = tech.force
 
     -- Only track team forces (skip player/enemy/neutral/spectator)
-    if not force_utils.is_team_force(force.name) then return end
+    if not force_utils.is_team_force(force.name) then return false end
 
     tech_records.init_storage()
 
@@ -63,6 +64,7 @@ function tech_records.on_research_finished(event)
             helpers.format_elapsed(prev.elapsed)
         ))
     end
+    return true
 end
 
 return tech_records

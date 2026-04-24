@@ -214,9 +214,9 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
     name_lbl.style.font_color = member.chat_color
 
     -- Follow Cam toggle button, after the name (for any player except self).
-    -- Uses the radar icon to visually separate from the magnifying-glass
-    -- Spectate button on surface rows (Spectate teleports your view;
-    -- Follow Cam opens a passive mini-camera).
+    -- Uses the radar icon to visually separate from the map Spectate button
+    -- on surface rows (Spectate teleports your view; Follow Cam opens a
+    -- passive mini-camera).
     if member.index ~= viewer.index then
         local already = follow_cam.is_following(viewer.index, member.index)
         local cam_btn = row.add{
@@ -322,7 +322,7 @@ local function add_surfaces_section(card, force, surfaces, is_own_team, is_curre
             row.add{type = "empty-widget"}.style.horizontally_stretchable = true
             row.add{
                 type    = "sprite-button",
-                sprite  = "utility/search_icon",
+                sprite  = "utility/map",
                 tags    = {
                     sb_spectate     = true,
                     sb_target_force = force.name,

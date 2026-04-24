@@ -28,6 +28,10 @@ local FRAME_NAME    = "sb_follow_cam_frame"
 local CAMERA_WIDTH  = 320
 local CAMERA_HEIGHT = 200
 local CAMERA_ZOOM   = 0.5
+-- Tile radius we chart around the tracked player each tick so the camera
+-- widget always has chart data to render (otherwise non-friend viewers see
+-- a black cell). Generous enough to cover the widest zoom-out.
+local CHART_RADIUS  = 200
 -- Default is also the max: zooming in any closer gives an uncomfortably
 -- tight view, so the + button only restores zoom after a zoom-out.
 local CAMERA_ZOOM_MIN  = 0.05
@@ -252,8 +256,11 @@ end
 -- ─── Tick Update ──────────────────────────────────────────────────────
 
 --- Update all active follow cams. Called from on_nth_tick(2) in control.lua.
---- Server cost per camera: two property assignments (position + surface_index).
---- Rendering is client-side (GPU), so server load scales with viewers × cameras.
+--- Per camera: resolves the target's view (avoiding chain-spectate when the
+--- target is itself mts-spectating), writes position + surface_index, and
+--- charts a box around the target for the viewer's force so the camera
+--- widget has chart data and never renders as a black cell. `force.chart`
+--- is idempotent on already-charted areas, so the repeat cost is minimal.
 function follow_cam.tick()
     if not storage.follow_cam then return end
     for viewer_idx, state in pairs(storage.follow_cam) do
@@ -261,13 +268,26 @@ function follow_cam.tick()
         if not (viewer and viewer.connected and viewer.gui.screen[FRAME_NAME]) then
             storage.follow_cam[viewer_idx] = nil
         else
+            local viewer_force = viewer.force
             for target_idx, camera in pairs(state.cameras) do
                 if camera.valid then
                     local target = game.get_player(target_idx)
                     if target and target.valid then
-                        camera.position      = target.position
-                        camera.surface_index = target.surface and target.surface.index
-                            or camera.surface_index
+                        local _, surface, position = spectator.resolve_view_for(target)
+                        if surface and surface.valid and position then
+                            camera.position      = position
+                            camera.surface_index = surface.index
+                            -- Reveal a box around the target for the viewer's
+                            -- force so the camera always has chart data. Per
+                            -- design decision: spectating is read-only and
+                            -- unrestricted, so we don't gate this on friendship.
+                            if viewer_force and viewer_force.valid then
+                                viewer_force.chart(surface, {
+                                    {position.x - CHART_RADIUS, position.y - CHART_RADIUS},
+                                    {position.x + CHART_RADIUS, position.y + CHART_RADIUS},
+                                })
+                            end
+                        end
                     end
                 end
             end
@@ -328,15 +348,17 @@ function follow_cam.on_gui_click(event)
         local player = game.get_player(event.player_index)
         local target = tags.target_idx and game.get_player(tags.target_idx)
         if not (player and player.valid and target and target.valid
-                and target.connected and target.surface) then
+                and target.connected) then
             return true
         end
-        local target_force = target.force
+        -- Resolve the target's true team and actual view (see
+        -- spectator.resolve_view_for for the chain-spectate rule).
+        local target_force, surface, position = spectator.resolve_view_for(target)
         local viewer_force = game.forces[spectator.get_effective_force(player)]
-        if not (viewer_force and target_force) then return true end
-
-        local surface  = target.surface
-        local position = target.position
+        if not (viewer_force and target_force
+                and surface and surface.valid and position) then
+            return true
+        end
 
         -- Use friend-view if the two teams are friends; otherwise spectator mode.
         -- `target` is passed through so the broadcast can name the watched player.

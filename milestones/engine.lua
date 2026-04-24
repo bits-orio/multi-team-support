@@ -42,12 +42,12 @@ end
 
 --- Build the description of what was achieved.
 ---   first threshold + science → "produce their first [item=automation-science-pack]"
----   100 threshold + landfill  → "produce 100 landfill"
+---   100 threshold + landfill  → "produce 100 [item=landfill]"
 local function build_achievement_desc(tracker, item_name, threshold)
     if threshold == FIRST_THRESHOLD then
         return "produce their first " .. helpers.item_rich_name(item_name)
     end
-    return string.format("produce %d %s", threshold, tracker.label)
+    return string.format("produce %d %s", threshold, helpers.item_rich_name(item_name))
 end
 
 --- Announce a "first to X" milestone.
@@ -76,13 +76,14 @@ end
 ---   - Mark as reached (prevents re-announcing)
 ---   - Update records (first/fastest)
 ---   - Announce as appropriate
+--- Returns true if a new milestone was recorded, false if already reached.
 local function check_milestone(tracker, item_name, force, threshold)
     local key = tracker.category .. ":" .. item_name
 
     -- Track per-team "reached" state so we only announce each crossing once
     storage.milestone_reached[force.name] = storage.milestone_reached[force.name] or {}
     storage.milestone_reached[force.name][key] = storage.milestone_reached[force.name][key] or {}
-    if storage.milestone_reached[force.name][key][threshold] then return end
+    if storage.milestone_reached[force.name][key][threshold] then return false end
 
     storage.milestone_reached[force.name][key][threshold] = true
 
@@ -105,44 +106,60 @@ local function check_milestone(tracker, item_name, force, threshold)
             prev.elapsed
         )
     end
+    return true
 end
 
 --- Check all thresholds for a single (tracker, item, force).
+--- Returns true if any milestone was newly recorded.
 local function check_all_thresholds(tracker, item_name, force)
     local count = tracker.get_count(force, item_name)
-    if count < 1 then return end
+    if count < 1 then return false end
+
+    local changed = false
 
     -- "First to produce" milestone (threshold 0 marker)
     if tracker.announce_first then
-        check_milestone(tracker, item_name, force, FIRST_THRESHOLD)
+        if check_milestone(tracker, item_name, force, FIRST_THRESHOLD) then
+            changed = true
+        end
     end
 
     -- Numeric thresholds
     for _, threshold in ipairs(tracker.thresholds) do
         if count >= threshold then
-            check_milestone(tracker, item_name, force, threshold)
+            if check_milestone(tracker, item_name, force, threshold) then
+                changed = true
+            end
         end
     end
+
+    return changed
 end
 
 -- ─── Tick Handler ─────────────────────────────────────────────────────
 
 --- Called every 300 ticks (5 seconds) from control.lua's on_nth_tick.
 --- Iterates all trackers × items × occupied teams and checks thresholds.
+--- Returns true if any new milestone was recorded this tick (so the caller
+--- can refresh dependent GUIs without re-polling storage).
 function engine.tick()
     engine.init_storage()
 
+    local changed = false
     for _, tracker in ipairs(config.trackers) do
         local items = storage.milestone_items[tracker.category] or {}
         for item_name in pairs(items) do
             for _, force in pairs(game.forces) do
                 -- Only check occupied team forces
                 if force_utils.is_team_force(force.name) and #force.players > 0 then
-                    check_all_thresholds(tracker, item_name, force)
+                    if check_all_thresholds(tracker, item_name, force) then
+                        changed = true
+                    end
                 end
             end
         end
     end
+    return changed
 end
 
 return engine

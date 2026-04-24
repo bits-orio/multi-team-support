@@ -13,6 +13,7 @@ local surface_utils   = require("scripts.surface_utils")
 local commands_mod    = require("scripts.commands")
 local teams_gui       = require("gui.teams")
 local stats_gui       = require("gui.stats")
+local awards_gui      = require("gui.awards")
 local landing_pen     = require("gui.landing_pen")
 local admin_gui       = require("gui.admin")
 local welcome_gui     = require("gui.welcome")
@@ -49,6 +50,7 @@ local function register_nav_buttons(player)
     welcome_gui.on_player_created(player)
     teams_gui.on_player_created(player)
     stats_gui.on_player_created(player)
+    awards_gui.on_player_created(player)
     research_gui.on_player_created(player)
     admin_gui.on_player_created(player)
     team_settings.on_player_created(player)
@@ -82,6 +84,9 @@ local function rebuild_for_connectivity(leaving_index)
     refresh_stats(leaving_index)
     -- Follow cam panels list team members; connectivity changes may remove them
     follow_cam.rebuild_all()
+    -- Leader may have changed (auto-election on leave) — awards GUI surfaces
+    -- the leader's name, so it needs a rebuild too.
+    awards_gui.update_all()
 end
 
 -- ─── Tick Events ───────────────────────────────────────────────────────
@@ -139,7 +144,14 @@ local function init_events()
 
     -- Poll milestones every 300 ticks (5 seconds).
     -- Lightweight check across all trackers × items × occupied teams.
-    script.on_nth_tick(300, function() milestones.tick() end)
+    -- When a new record is recorded, refresh the Awards GUI for anyone
+    -- viewing it (piggy-backs on the existing milestone detection event
+    -- rather than introducing a separate poll).
+    script.on_nth_tick(300, function()
+        if milestones.tick() then
+            awards_gui.update_all()
+        end
+    end)
 
     -- Update follow cams every 2 ticks (~30 FPS). Server cost is just
     -- per-camera position/surface property writes; rendering is client-side.
@@ -186,6 +198,8 @@ script.on_init(function()
     storage.stats_gui_state          = {}
     storage.stats_gui_location       = {}
     storage.stats_category_items     = {}
+    storage.awards_gui_state         = {}
+    storage.awards_gui_location      = {}
     storage.spawned_players          = {}
     storage.pen_slots                = {}
     storage.pen_gui_location         = {}
@@ -261,6 +275,8 @@ script.on_configuration_changed(function()
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
     storage.show_offline_players     = storage.show_offline_players     or {}
+    storage.awards_gui_state         = storage.awards_gui_state         or {}
+    storage.awards_gui_location      = storage.awards_gui_location      or {}
     storage.team_leader              = storage.team_leader              or {}
     storage.team_pool                = storage.team_pool                or {}
     storage.team_names               = storage.team_names               or {}
@@ -452,10 +468,13 @@ end)
 
 script.on_event(defines.events.on_research_finished, function(event)
     -- Handle tech records (first/fastest tracking + announcements)
-    tech_records.on_research_finished(event)
+    local records_changed = tech_records.on_research_finished(event)
     -- Sync quality and refresh research GUI
     force_utils.sync_quality_all_forces()
     research_gui.update_all()
+    if records_changed then
+        awards_gui.update_all()
+    end
 end)
 
 -- ─── GUI Events ────────────────────────────────────────────────────────
@@ -539,6 +558,7 @@ script.on_event(defines.events.on_gui_click, function(event)
     if admin_gui.on_gui_click(event) then return end
     if team_settings.on_gui_click(event) then return end
     if stats_gui.on_gui_click(event) then return end
+    if awards_gui.on_gui_click(event) then return end
     teams_gui.on_gui_click(event)
 end)
 

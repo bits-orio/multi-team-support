@@ -7,7 +7,6 @@
 --
 -- Each tracker has:
 --   category       - unique key for this tracker (e.g. "science", "landfill")
---   label          - human-readable label used in announcements
 --   announce_first - whether to announce "first to produce" at count >= 1
 --   thresholds     - array of count milestones (e.g. {100, 500, 1000})
 --   discover_items - function returning a set of item names to track
@@ -37,7 +36,6 @@ config.trackers = {
     -- announce_first = true means we announce first team to produce any science.
     {
         category       = "science",
-        label          = "science pack",
         announce_first = true,
         thresholds     = { 100, 500, 1000, 5000, 20000 },
         discover_items = function()
@@ -54,7 +52,6 @@ config.trackers = {
     -- Tracks only the basic "landfill" item; too trivial to announce first-ever.
     {
         category       = "landfill",
-        label          = "landfill",
         announce_first = false,
         thresholds     = { 100, 500, 2000, 10000 },
         discover_items = function() return { ["landfill"] = true } end,
@@ -65,7 +62,6 @@ config.trackers = {
     -- Only relevant with Space Age. Skipped at runtime if prototype missing.
     {
         category       = "space_platform",
-        label          = "space platform tile",
         announce_first = false,
         thresholds     = { 50, 200, 1000 },
         discover_items = function()

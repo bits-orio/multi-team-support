@@ -272,6 +272,37 @@ function spectator.needs_spectator_mode(viewer_force, target_force)
     return not target_force.get_friend(viewer_force)
 end
 
+--- Resolve where to aim a follow-cam / spectator view for a target player.
+--- Returns (force, surface, position) where `force` is the target's REAL
+--- team (never "spectator"), and surface/position are what the viewer
+--- should actually see:
+---
+---   • If the target is currently mts-spectating another team
+---     (is_spectating() = true), we fall back to their physical
+---     surface/position so the viewer sees the target's body — not
+---     whatever surface the target is watching (avoids chain-spectating).
+---
+---   • Otherwise, we use player.surface/position directly. That correctly
+---     gives the target's current view: their character when walking,
+---     or whatever planet/platform they're remoting into from their own
+---     team (the common "managing my space platform" pattern).
+---
+--- Returns nil values for any field that can't be resolved — callers
+--- should guard.
+function spectator.resolve_view_for(target)
+    if not (target and target.valid) then return nil, nil, nil end
+    local force = game.forces[spectator.get_effective_force(target)]
+    local surface, position
+    if spectator.is_spectating(target) then
+        surface  = target.physical_surface
+        position = target.physical_position
+    else
+        surface  = target.surface
+        position = target.position
+    end
+    return force, surface, position
+end
+
 -- ─── Core Operations ───────────────────────────────────────────────────
 
 --- Begin spectating a target force's surface.

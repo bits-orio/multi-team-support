@@ -16,6 +16,7 @@ local force_utils   = require("scripts.force_utils")
 local landing_pen   = require("gui.landing_pen")
 local spectator     = require("scripts.spectator")
 local confirm       = require("gui.confirm")
+local awards_gui    = require("gui.awards")
 
 local commands_mod = {}
 
@@ -219,6 +220,7 @@ function commands_mod.register()
         helpers.broadcast("[Team] " .. helpers.colored_name(caller.name, caller.chat_color)
             .. " renamed their team to " .. helpers.team_tag(caller.force.name))
         teams_gui.update_all()
+        awards_gui.update_all()
     end)
 
     commands.add_command("mts-teams", "List all teams with their members and status", function(cmd)

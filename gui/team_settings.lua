@@ -22,6 +22,7 @@ local helpers     = require("scripts.helpers")
 local nav         = require("gui.nav")
 local force_utils = require("scripts.force_utils")
 local teams_gui   = require("gui.teams")
+local awards_gui  = require("gui.awards")
 
 local team_settings = {}
 
@@ -268,6 +269,7 @@ local function try_rename(player, raw_text)
     team_settings.update_all_for_force(force_name)
     -- Teams panel caches team names, so refresh any open copies.
     teams_gui.update_all()
+    awards_gui.update_all()
 end
 
 --- Handle auto-pause checkbox change.

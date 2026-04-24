@@ -9,10 +9,13 @@
 --   records[key] = {
 --     first   = { team = force_name, tick = game.tick, elapsed = ticks },
 --     fastest = { team = force_name, tick = game.tick, elapsed = ticks },
+--     entries = { [force_name] = { team, tick, elapsed } }   -- every finisher
 --   }
 --
 -- `elapsed` is measured from the team's clock start (team birth), so a team
 -- that joins the game later isn't penalized for absolute time.
+-- `entries` is keyed by force_name so each team is counted once per achievement;
+-- the Awards GUI consumes this to render top-N leaderboards.
 
 local records = {}
 
@@ -35,6 +38,22 @@ function records.update(records_table, key, force_name, tick)
     local elapsed = get_elapsed(force_name, tick)
     if not elapsed then return { is_first = false, is_fastest = false } end
 
+    -- Backfill entries from first/fastest for saves created before the
+    -- leaderboard tracking was added.
+    entry.entries = entry.entries or {}
+    if entry.first and not entry.entries[entry.first.team] then
+        entry.entries[entry.first.team] = entry.first
+    end
+    if entry.fastest and not entry.entries[entry.fastest.team] then
+        entry.entries[entry.fastest.team] = entry.fastest
+    end
+
+    -- Record this team's completion (only the first time — second calls for
+    -- the same team are no-ops; callers already dedupe per-threshold).
+    if not entry.entries[force_name] then
+        entry.entries[force_name] = { team = force_name, tick = tick, elapsed = elapsed }
+    end
+
     -- First record for this key?
     if not entry.first then
         entry.first   = { team = force_name, tick = tick, elapsed = elapsed }
@@ -51,6 +70,16 @@ function records.update(records_table, key, force_name, tick)
     end
 
     return { is_first = false, is_fastest = false }
+end
+
+--- Return an array of all finishers for a record, sorted by elapsed ascending.
+--- Empty array if the record doesn't exist or has no finishers yet.
+function records.sorted_entries(record)
+    local out = {}
+    if not (record and record.entries) then return out end
+    for _, e in pairs(record.entries) do out[#out + 1] = e end
+    table.sort(out, function(a, b) return a.elapsed < b.elapsed end)
+    return out
 end
 
 return records
