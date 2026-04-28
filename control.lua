@@ -31,6 +31,7 @@ local planet_map      = require("scripts.planet_map")
 local space_age       = require("scripts.space_age")
 local force_pause     = require("scripts.force_pause")
 local team_settings   = require("gui.team_settings")
+local chunk_trim      = require("scripts.chunk_trim")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -161,6 +162,10 @@ local function init_events()
     -- enforced inside force_pause.tick(); this interval just gives it
     -- a predictable cadence.
     script.on_nth_tick(10, function() force_pause.tick() end)
+
+    -- Chunk trim runs one surface per interval so the server gets a
+    -- breather between large per-surface deletions.
+    script.on_nth_tick(30, function() chunk_trim.tick() end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
@@ -229,6 +234,7 @@ script.on_init(function()
     spectator.init_storage()
     force_pause.init_storage()
     team_settings.init_storage()
+    chunk_trim.init_storage()
 
     -- Pre-create all team forces ("team-1" through "team-N")
     force_utils.create_team_pool()
@@ -262,6 +268,7 @@ script.on_configuration_changed(function()
     log("[multi-team-support] on_configuration_changed fired")
     force_pause.init_storage()
     team_settings.init_storage()
+    chunk_trim.init_storage()
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}

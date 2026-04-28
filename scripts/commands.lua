@@ -17,6 +17,8 @@ local landing_pen   = require("gui.landing_pen")
 local spectator     = require("scripts.spectator")
 local confirm       = require("gui.confirm")
 local awards_gui    = require("gui.awards")
+local force_pause   = require("scripts.force_pause")
+local chunk_trim    = require("scripts.chunk_trim")
 
 local commands_mod = {}
 
@@ -369,6 +371,133 @@ function commands_mod.register()
             action       = "disband",
             data         = {force_name = force_name},
         })
+    end)
+
+    commands.add_command("mts-resume", "Force-resume a team's entities (admin only). Use when auto-pause leaves machines stuck inactive. Usage: /mts-resume <team-N>", function(cmd)
+        local caller = cmd.player_index and game.get_player(cmd.player_index)
+        if not caller then
+            game.print("This command can only be used by a player.")
+            return
+        end
+
+        if not caller.admin then
+            caller.print("Only admins can force-resume teams.")
+            return
+        end
+
+        local param = cmd.parameter
+        if not param or param == "" then
+            caller.print("Usage: /mts-resume <team-N>  (e.g. /mts-resume team-11)")
+            return
+        end
+        param = param:match("^%s*(.-)%s*$")
+
+        local force_name = param:match("^team%-%d+$") and param
+            or tonumber(param) and ("team-" .. param)
+        if not force_name or not game.forces[force_name] then
+            caller.print("Team '" .. param .. "' does not exist.")
+            return
+        end
+
+        if not force_pause.resume(force_name) then
+            caller.print("Could not resume " .. force_name .. " (not a team force).")
+            return
+        end
+
+        caller.print("Resume sweep started for " .. helpers.team_tag(force_name)
+            .. ". Entities will be re-activated over the next few ticks.")
+    end)
+
+    commands.add_command("mts-pause", "Force-pause a team's entities (admin only). Overrides the team's auto-pause opt-in. Usage: /mts-pause <team-N>", function(cmd)
+        local caller = cmd.player_index and game.get_player(cmd.player_index)
+        if not caller then
+            game.print("This command can only be used by a player.")
+            return
+        end
+
+        if not caller.admin then
+            caller.print("Only admins can force-pause teams.")
+            return
+        end
+
+        local param = cmd.parameter
+        if not param or param == "" then
+            caller.print("Usage: /mts-pause <team-N>  (e.g. /mts-pause team-11)")
+            return
+        end
+        param = param:match("^%s*(.-)%s*$")
+
+        local force_name = param:match("^team%-%d+$") and param
+            or tonumber(param) and ("team-" .. param)
+        if not force_name or not game.forces[force_name] then
+            caller.print("Team '" .. param .. "' does not exist.")
+            return
+        end
+
+        if not force_pause.pause(force_name) then
+            caller.print("Could not pause " .. force_name .. " (not a team force).")
+            return
+        end
+
+        caller.print("Pause sweep started for " .. helpers.team_tag(force_name)
+            .. ". Entities will be deactivated over the next few ticks."
+            .. " Note: a team member reconnecting will trigger an automatic resume.")
+    end)
+
+    commands.add_command("mts-trim", "Trim unused chunks on team nauvis surfaces (admin only). Usage: /mts-trim [team-N] [entity_buffer] [player_buffer]  (defaults: 12, 8)", function(cmd)
+        local caller = cmd.player_index and game.get_player(cmd.player_index)
+        if not caller then
+            game.print("This command can only be used by a player.")
+            return
+        end
+        if not caller.admin then
+            caller.print("Only admins can trim chunks.")
+            return
+        end
+
+        local tokens = {}
+        for tok in (cmd.parameter or ""):gmatch("%S+") do tokens[#tokens + 1] = tok end
+
+        local team_force, i = nil, 1
+        if tokens[1] and tokens[1]:match("^team%-%d+$") then
+            team_force = tokens[1]
+            i = 2
+        end
+
+        local entity_buffer, player_buffer
+        if tokens[i] then
+            entity_buffer = tonumber(tokens[i])
+            if not entity_buffer or entity_buffer < 0 or entity_buffer > 100 then
+                caller.print("entity_buffer must be a number between 0 and 100.")
+                return
+            end
+        end
+        if tokens[i + 1] then
+            player_buffer = tonumber(tokens[i + 1])
+            if not player_buffer or player_buffer < 0 or player_buffer > 100 then
+                caller.print("player_buffer must be a number between 0 and 100.")
+                return
+            end
+        end
+
+        if team_force and not game.forces[team_force] then
+            caller.print("Team '" .. team_force .. "' does not exist.")
+            return
+        end
+
+        local ok, count, err = chunk_trim.start{
+            team_force    = team_force,
+            entity_buffer = entity_buffer,
+            player_buffer = player_buffer,
+            caller_idx    = caller.index,
+        }
+        if not ok then
+            caller.print(err or "Could not start trim.")
+            return
+        end
+
+        caller.print(("Chunk trim queued for %d surface(s). Processing one surface every ~0.5s.")
+            :format(count))
     end)
 end
 

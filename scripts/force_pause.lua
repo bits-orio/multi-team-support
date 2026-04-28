@@ -226,6 +226,29 @@ function force_pause.on_force_changed(player)
     force_pause.on_player_joined(player)
 end
 
+--- Unconditionally start a resume sweep for `force_name`. Used to recover
+--- a team whose entities got stuck `active = false` (e.g. a misbehaving
+--- pause sweep, or paused state that didn't clear on rejoin). Idempotent.
+--- Returns true if a sweep was started, false otherwise.
+function force_pause.resume(force_name)
+    local force = game.forces[force_name]
+    if not (force and force.valid) then return false end
+    if not is_team_force(force) then return false end
+    start_sweep(force, "resume")
+    return true
+end
+
+--- Unconditionally start a pause sweep for `force_name`, ignoring the
+--- team's auto-pause opt-in and online state. Admin override only.
+--- Returns true if a sweep was started, false otherwise.
+function force_pause.pause(force_name)
+    local force = game.forces[force_name]
+    if not (force and force.valid) then return false end
+    if not is_team_force(force) then return false end
+    start_sweep(force, "pause")
+    return true
+end
+
 --- Tick driver. Called from on_nth_tick; walks each active sweep by a
 --- fraction of the per-tick budget so concurrent sweeps can share load.
 function force_pause.tick()
