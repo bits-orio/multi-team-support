@@ -404,7 +404,7 @@ function commands_mod.register()
             return
         end
 
-        caller.print("Resume sweep started for " .. helpers.team_tag(force_name)
+        caller.print("Resume sweep started for " .. helpers.team_tag_with_leader(force_name)
             .. ". Entities will be re-activated over the next few ticks.")
     end)
 
@@ -439,7 +439,7 @@ function commands_mod.register()
             return
         end
 
-        caller.print("Pause sweep started for " .. helpers.team_tag(force_name)
+        caller.print("Pause sweep started for " .. helpers.team_tag_with_leader(force_name)
             .. ". Entities will be deactivated over the next few ticks."
             .. " Note: a team member reconnecting will trigger an automatic resume.")
     end)

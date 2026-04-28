@@ -15,18 +15,6 @@ local nav     = require("gui.nav")
 local helpers = require("scripts.helpers")
 local records = require("scripts.records")
 
---- Team tag with the current leader's player name appended in brackets.
----   "[color=...]Team Pioneers[/color] (Alice)"
-local function team_tag_with_leader(force_name)
-    local tag = helpers.team_tag(force_name)
-    local leader_idx = (storage.team_leader or {})[force_name]
-    local leader = leader_idx and game.get_player(leader_idx) or nil
-    if leader and leader.valid then
-        return tag .. " (" .. leader.name .. ")"
-    end
-    return tag
-end
-
 local awards_gui = {}
 
 local FIRST_THRESHOLD = 0   -- matches milestones/engine.lua FIRST_THRESHOLD
@@ -193,7 +181,7 @@ local function render_rows(parent, rows)
             if e then
                 cell = tbl.add{
                     type    = "label",
-                    caption = team_tag_with_leader(e.team)
+                    caption = helpers.team_tag_with_leader(e.team)
                               .. "  "
                               .. helpers.format_elapsed(e.elapsed),
                 }

@@ -119,6 +119,22 @@ function helpers.team_tag(force_name)
     return helpers.colored_name(helpers.team_display(force_name), color)
 end
 
+--- Team tag plus the current leader's name in dim brackets.
+---   "[color=R,G,B]Team Pioneers[/color] [color=0.7,0.7,0.7][[/color][color=...]Alice[/color][color=0.7,0.7,0.7]][/color]"
+---   No leader: appends " [color=0.7,0.7,0.7][?][/color]"
+function helpers.team_tag_with_leader(force_name)
+    local tag        = helpers.team_tag(force_name)
+    local leader_idx = (storage.team_leader or {})[force_name]
+    local leader     = leader_idx and game.get_player(leader_idx) or nil
+    if leader and leader.valid then
+        return tag
+            .. " [color=0.7,0.7,0.7][[/color]"
+            .. helpers.colored_name(leader.name, leader.chat_color)
+            .. "[color=0.7,0.7,0.7]][/color]"
+    end
+    return tag .. " [color=0.7,0.7,0.7][?][/color]"
+end
+
 --- Return the force's color (set from the team leader's player color).
 --- Prefers custom_color (writable) over color (read-only, may be stale).
 --- Falls back to white if neither is set.
