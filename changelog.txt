@@ -1,4 +1,57 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.0
+Date: 2026-04-29
+  Features:
+    - Public mts-v1 remote interface for third-party mod
+      compatibility. Exposes events (on_team_created,
+      on_team_released, on_player_joined_team, on_player_left_team,
+      on_team_surface_created) and queries (get_team_list,
+      get_team_info, is_team_surface, get_surface_owner,
+      list_team_surfaces). See scripts/remote_api.lua for the full
+      contract and docs/COMPAT.md for integration patterns including
+      examples for chunk-gen mods (dangOreus-style) and stateless
+      surface decorators (VoidBlock-style).
+    - Admin command /mts-replay [--chunks] to re-fire
+      on_surface_created (and optionally on_chunk_generated for
+      every existing chunk) on team surfaces, so a newly-installed
+      third-party mod can apply its setup retroactively without
+      starting a fresh save.
+    - Admin commands /mts-pause, /mts-resume, /mts-trim for runtime
+      team management. /mts-pause sets active=false on all entities
+      owned by a team force; /mts-resume reverses it; /mts-trim
+      deletes unused chunks on team nauvis surfaces, processing one
+      surface per tick interval to avoid stutter.
+    - Gridlocked compatibility. The voidblock compat shim now pre-
+      claims the four chunks containing the starter island when
+      Gridlocked is loaded, preventing the deadlock where landfill
+      can't be placed on unclaimed chunks. The gl_points HUD label
+      is refreshed when a player changes force (stopgap until
+      upstream Gridlocked hooks on_player_changed_force itself).
+  Changes:
+    - Welcome screen About tab rewritten around the team-pool model.
+      Mentions hidden-until-friendly surfaces, lists the actual nav
+      buttons (Teams, Research, Production Stats, Team Awards, Team
+      Settings), and adds a Space Age section that only renders when
+      Space Age is active.
+    - The voidblock compat shim's leftover-entity purge in
+      on_chunk_generated is now restricted to vanilla worldgen types
+      (tree, simple-entity, resource, fish, cliff, unit-spawner,
+      turret, unit) instead of nuking every non-character non-cargo-
+      pod entity. Mod-placed entities like Gridlocked's
+      gl-unclaimed-chunk markers now survive the tile swap.
+    - team_tag_with_leader helper promoted to scripts/helpers and
+      adopted by /mts-pause and /mts-resume admin output for
+      consistent rich-text formatting.
+  Removed:
+    - Per-team offline auto-pause checkbox in Team Settings, and the
+      associated force_pause hooks for on_player_joined,
+      on_player_left, and on_force_changed. /mts-pause and
+      /mts-resume admin commands remain the only pause path. A
+      one-shot migration in on_configuration_changed resumes any
+      legacy paused or mid-pause forces so existing saves don't
+      load with stuck active=false entities.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.3.9
 Date: 2026-04-24
   Features:
