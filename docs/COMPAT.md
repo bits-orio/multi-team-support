@@ -46,9 +46,13 @@ This re-fires `on_surface_created` (and the MTS-specific `on_team_surface_create
 
 ## Layer 2: Light cooperation — `mts-v1` remote interface
 
-**Cost to other authors: ~5 lines of Lua. No source disclosure required.**
+**Cost to other authors: ~5–25 lines of Lua. No source disclosure required.**
 
-MTS exposes a public remote interface, `mts-v1`, with custom events and queries. Closed-source mod authors can subscribe without sharing code. The minimal integration:
+MTS exposes a public remote interface, `mts-v1`, with custom events and queries. Closed-source mod authors can subscribe without sharing code.
+
+### Minimal — per-surface setup mods
+
+Use this if your mod only needs to run a one-time setup function per surface (e.g. building a config table, registering a force entry, scheduling some state) and doesn't have a per-chunk handler:
 
 ```lua
 script.on_init(function()
@@ -63,7 +67,92 @@ script.on_init(function()
 end)
 ```
 
-That's it. The mod author doesn't change their existing per-chunk or per-surface logic; they just register a second entry point that runs their existing setup function on each team surface.
+That's it. You don't touch your existing logic; you just add a second entry point that runs your existing setup function on each team surface.
+
+### Chunk-gen mods (dangOreus-style)
+
+Mods that decorate Nauvis chunks via `on_chunk_generated` need to address a second problem: their handler typically guards with `if surface.name == "nauvis"`, which rejects MTS team surfaces. The fix is a single shared predicate that's vanilla-correct, Space-Age-correct, and MTS-correct, used in *both* the per-surface setup path and the per-chunk decoration path:
+
+```lua
+-- "Is this one of the surfaces I should decorate?"
+local function is_target_surface(surface)
+    if not (surface and surface.valid) then return false end
+    -- Preferred check: works for vanilla nauvis, modded nauvis-planet
+    -- mods, and MTS Space Age team variants (mts-nauvis-N).
+    if surface.planet and surface.planet.name == "nauvis" then
+        return true
+    end
+    -- Non-Space-Age fallback: MTS clones surfaces named "team-N-nauvis".
+    if remote.interfaces["mts-v1"]
+       and remote.call("mts-v1", "is_team_surface", surface.name)
+       and surface.name:find("nauvis") then
+        return true
+    end
+    return false
+end
+
+-- Existing setup function — gated by the same predicate.
+local function setup_surface(surface)
+    if not is_target_surface(surface) then return end
+    -- ... your existing setup_surface body, unchanged ...
+end
+
+-- Wire it up: native event for live surface creation, mts-v1 for any
+-- team surfaces that already exist when this mod is loaded.
+script.on_event(defines.events.on_surface_created, function(e)
+    setup_surface(game.surfaces[e.surface_index])
+end)
+
+script.on_init(function()
+    if remote.interfaces["mts-v1"] then
+        local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
+        script.on_event(id, function(e)
+            setup_surface(game.surfaces[e.surface_name])
+        end)
+    end
+end)
+
+-- Per-chunk handler: same predicate, no name hardcoding.
+script.on_event(defines.events.on_chunk_generated, function(event)
+    if not is_target_surface(event.surface) then return end
+    -- ... your existing on_chunk_generated body, unchanged ...
+end)
+```
+
+The point is that you maintain *one* predicate (`is_target_surface`) and thread it through every entry point. Your decoration logic stays exactly as it is. The only behavioral change is *which surfaces* trigger it — and that's now driven by what each surface actually is, not by a hardcoded name.
+
+If your mod targets a planet other than Nauvis, swap the `surface.planet.name == "nauvis"` literal accordingly. The pattern works the same way for Vulcanus, Gleba, etc.
+
+### Stateless chunk-gen mods (VoidBlock-style)
+
+Some chunk-gen mods are *stateless per surface* — they only react to `on_chunk_generated`, set tiles based on the chunk's coordinates and the event payload, and never need a per-surface init. VoidBlock is the canonical example: each chunk gets a "void ocean" tile fill plus an "island" carve at the origin, with no surface-level config to track.
+
+For mods like this you don't need to subscribe to `on_team_surface_created` at all. The minimum change is just the filter:
+
+```lua
+local function is_target_surface(surface)
+    if not (surface and surface.valid) then return false end
+    if surface.planet and surface.planet.name == "nauvis" then
+        return true
+    end
+    -- Non-Space-Age fallback: MTS clones surfaces named "team-N-nauvis".
+    if remote.interfaces["mts-v1"]
+       and remote.call("mts-v1", "is_team_surface", surface.name)
+       and surface.name:find("nauvis") then
+        return true
+    end
+    return false
+end
+
+script.on_event(defines.events.on_chunk_generated, function(event)
+    if not is_target_surface(event.surface) then return end
+    -- ... your existing tile-fill / decoration body, unchanged ...
+end)
+```
+
+That's the entire diff. No `on_init` block, no `on_team_surface_created` subscription, no second entry point. A stateless chunk-gen mod ports to MTS by replacing one `if surface.name == "nauvis"` line with the predicate above.
+
+One caveat: stateless mods that need the surface to be *created with specific generation settings* (e.g. VoidBlock disables all autoplace controls so vanilla terrain doesn't appear before tiles are overwritten) can't enforce that on team surfaces themselves — MTS owns surface creation. MTS's compat shim for VoidBlock currently handles this by replicating those creation settings; the upstream-friendly fix is for MTS to expose creation hooks in a future `mts-v2`. For now, if your mod has hard requirements on `LuaSurface` creation parameters, file an issue and we'll work out a path together.
 
 The full event and query catalog lives in [`scripts/remote_api.lua`](../scripts/remote_api.lua). The interface name is versioned (`mts-v1`); breaking changes will ship as a parallel `mts-v2` rather than mutating v1.
 
