@@ -64,6 +64,28 @@ function voidblock.setup_player_surface(player)
         -- void-island terrain before the player arrives (next tick).
         surface.request_to_generate_chunks({0, 0}, 3)
         surface.force_generate_chunk_requests()
+
+        -- Pre-claim the four chunks containing the starter island when
+        -- gridlocked is loaded. The void-island spans radius 8 around
+        -- origin, which straddles chunks (-1,-1), (-1,0), (0,-1), (0,0)
+        -- — claiming all four matches the buildable starter area.
+        --
+        -- Without this, gridlocked deadlocks voidblock players: tile
+        -- placement (including landfill) is forbidden on unclaimed
+        -- chunks, but you can't easily chart enough to claim outward
+        -- chunks without first expanding the island, and you can't
+        -- expand without landfill. Destroying the gl-unclaimed-chunk
+        -- entity at each chunk center fires gridlocked's
+        -- on_object_destroyed handler, which clears its claim renders.
+        --
+        -- find_entity returns nil when gridlocked isn't loaded (no
+        -- such entity exists), so the loop is a no-op for voidblock-
+        -- only runs. No script.active_mods check needed.
+        for _, pos in ipairs({{16, 16}, {-16, 16}, {16, -16}, {-16, -16}}) do
+            local marker = surface.find_entity("gl-unclaimed-chunk", pos)
+            if marker and marker.valid then marker.destroy() end
+        end
+
         return surface
     end)
 end
@@ -128,11 +150,23 @@ function voidblock.on_chunk_generated(event)
     surface.set_tiles(ttbl)
     surface.destroy_decoratives({area = area})
 
-    local leftover = surface.find_entities_filtered({type = "character", invert = true, area = area})
+    -- Clean up vanilla worldgen artifacts (trees, rocks, ores, biters,
+    -- cliffs, fish) that survived the tile swap. Earlier versions of
+    -- this code did `type = "character", invert = true` and destroyed
+    -- everything else, which also wiped entities placed by other mods
+    -- — for example gridlocked's `gl-unclaimed-chunk` markers, which
+    -- were destroyed in the same tick they were placed. Allowlisting
+    -- vanilla types preserves mod-placed entities while still clearing
+    -- the terrain artifacts VoidBlock cares about.
+    local leftover = surface.find_entities_filtered({
+        type = {
+            "tree", "simple-entity", "resource", "fish",
+            "cliff", "unit-spawner", "turret", "unit",
+        },
+        area = area,
+    })
     for _, ent in pairs(leftover) do
-        if ent.valid and ent.type ~= "cargo-pod" then
-            ent.destroy()
-        end
+        if ent.valid then ent.destroy() end
     end
 end
 

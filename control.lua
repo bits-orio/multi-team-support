@@ -22,6 +22,7 @@ local platformer      = require("compat.platformer")
 local vanilla         = require("compat.vanilla")
 local voidblock       = require("compat.voidblock")
 local dangoreus       = require("compat.dangoreus")
+local gridlocked      = require("compat.gridlocked")
 local friendship      = require("gui.friendship")
 local tech_records    = require("scripts.tech_records")
 local milestones      = require("milestones.engine")
@@ -407,6 +408,9 @@ script.on_event(defines.events.on_player_changed_force, function(event)
         if player.gui.screen.sb_team_settings_frame then
             team_settings.build_gui(player)
         end
+        -- Stopgap: Gridlocked's HUD doesn't refresh on force change.
+        -- See compat/gridlocked.lua.
+        gridlocked.refresh_hud(player)
     end
 end)
 
