@@ -2,9 +2,9 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Auto-pause a team force when all its players go offline: sets
--- LuaEntity.active = false on every entity owned by the force across all
--- of its surfaces. Resumes on reconnect.
+-- Admin-driven pause/resume of all entities owned by a team force.
+-- Used only by the /mts-pause and /mts-resume commands; there is no
+-- automatic offline-pause behavior.
 --
 -- Work is amortized across ticks: instead of iterating thousands of
 -- entities in one tick (which would stutter the server), we walk the
@@ -23,7 +23,6 @@
 --   storage.paused_forces[force_name] = true  -- set once pause sweep completes
 
 local surface_utils = require("scripts.surface_utils")
-local team_settings = require("gui.team_settings")
 
 local force_pause = {}
 
@@ -39,13 +38,7 @@ local CHUNK_SIZE = 32
 
 -- ─── Helpers ──────────────────────────────────────────────────────────
 
---- Return true iff no player on the force is currently connected.
-local function force_is_empty(force)
-    if not (force and force.valid) then return true end
-    return #force.connected_players == 0
-end
-
---- Return true iff this force should participate in auto-pause.
+--- Return true iff this force should participate in pause/resume.
 --- Only team forces are affected — never the spectator/enemy/player force.
 local function is_team_force(force)
     return force and force.valid and force.name:find("^team%-") ~= nil
@@ -188,47 +181,9 @@ function force_pause.init_storage()
     storage.paused_forces  = storage.paused_forces  or {}
 end
 
---- Called from on_player_left_game. If the player's force has no remaining
---- connected players AND the team has opted in to auto-pause, start a
---- pause sweep. The opt-in is controlled by the Team Settings GUI.
-function force_pause.on_player_left(player)
-    if not (player and player.valid) then return end
-    local force = player.force
-    log("[multi-team-support:force_pause] on_player_left: "
-        .. player.name .. " force=" .. (force and force.name or "?")
-        .. " remaining=" .. (force and #force.connected_players or -1)
-        .. " auto_pause=" .. tostring(force and team_settings.get_auto_pause(force.name)))
-    if not is_team_force(force) then return end
-    if not force_is_empty(force) then return end
-    if not team_settings.get_auto_pause(force.name) then return end
-
-    start_sweep(force, "pause")
-end
-
---- Called from on_player_joined_game. If the player's force is paused or
---- mid-pause-sweep, kick off a resume sweep (overwrites any pending pause).
-function force_pause.on_player_joined(player)
-    if not (player and player.valid) then return end
-    local force = player.force
-    if not is_team_force(force) then return end
-
-    local is_paused = storage.paused_forces and storage.paused_forces[force.name]
-    local mid_sweep = storage.pause_sweep   and storage.pause_sweep[force.name]
-    if is_paused or mid_sweep then
-        start_sweep(force, "resume")
-    end
-end
-
---- Called when a player's effective force changes (e.g. team slot
---- claimed from the landing pen). Makes sure their new force is not
---- stuck in a paused state just because no one else was online.
-function force_pause.on_force_changed(player)
-    force_pause.on_player_joined(player)
-end
-
---- Unconditionally start a resume sweep for `force_name`. Used to recover
---- a team whose entities got stuck `active = false` (e.g. a misbehaving
---- pause sweep, or paused state that didn't clear on rejoin). Idempotent.
+--- Unconditionally start a resume sweep for `force_name`. Used by the
+--- /mts-resume command and by the upgrade migration that clears any
+--- legacy auto-pause state. Idempotent.
 --- Returns true if a sweep was started, false otherwise.
 function force_pause.resume(force_name)
     local force = game.forces[force_name]
@@ -238,9 +193,9 @@ function force_pause.resume(force_name)
     return true
 end
 
---- Unconditionally start a pause sweep for `force_name`, ignoring the
---- team's auto-pause opt-in and online state. Admin override only.
---- Returns true if a sweep was started, false otherwise.
+--- Unconditionally start a pause sweep for `force_name`. Used by the
+--- /mts-pause admin command. Returns true if a sweep was started, false
+--- otherwise.
 function force_pause.pause(force_name)
     local force = game.forces[force_name]
     if not (force and force.valid) then return false end

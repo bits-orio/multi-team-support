@@ -433,22 +433,7 @@ function teams_gui.build_gui(player)
     frame.style.maximal_width  = 560
 
     local show_offline = helpers.show_offline(player)
-
-    -- "Show offline" toggle (keeps teams with offline leaders visible)
-    local offline_flow = frame.add{type = "flow", direction = "horizontal"}
-    offline_flow.style.horizontal_align = "right"
-    offline_flow.style.horizontally_stretchable = true
-    offline_flow.style.bottom_margin = 2
-    local offline_label = offline_flow.add{type = "label", caption = "show offline"}
-    offline_label.style.font         = "default-small"
-    offline_label.style.font_color   = {0.6, 0.6, 0.6}
-    offline_label.style.right_margin = 4
-    offline_flow.add{
-        type    = "checkbox",
-        name    = "sb_show_offline_toggle",
-        state   = show_offline,
-        tooltip = show_offline and "Hide offline teams" or "Show offline teams",
-    }
+    helpers.add_show_offline_checkbox(frame, player)
 
     local scroll = frame.add{
         type = "scroll-pane",
@@ -478,25 +463,10 @@ function teams_gui.build_gui(player)
         return a.name < b.name
     end)
 
-    -- A team is considered "online" if ANY member is connected (not just the
-    -- leader), so teams stay visible while the leader is offline if at least
-    -- one other member is online.
-    local function team_has_online_member(force)
-        -- Use effective force so spectating members still count as online
-        for _, p in pairs(game.players) do
-            if p.valid and p.connected then
-                local real_fn = (storage.spectator_real_force or {})[p.index]
-                                or p.force.name
-                if real_fn == force.name then return true end
-            end
-        end
-        return false
-    end
-
     local visible_count = 0
     for _, force in ipairs(team_forces) do
         local is_own = (force.name == viewer_force_name)
-        local online = team_has_online_member(force)
+        local online = helpers.team_has_online_member(force.name)
         if online or is_own or show_offline then
             visible_count = visible_count + 1
             build_team_card(scroll, force, player, viewer_force_name, current_target)

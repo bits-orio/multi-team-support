@@ -4,19 +4,10 @@
 --
 -- Per-team settings panel. Everyone on a team can open it; only the team
 -- leader can change values. Any change is broadcast to all players so the
--- rest of the server knows when a leader renames or toggles auto-pause.
+-- rest of the server knows when a leader renames their team.
 --
 -- Settings:
 --   • Team name   — textfield (shares storage.team_names with /mts-rename)
---   • Auto-pause  — when enabled, entities on the team's surfaces are
---     deactivated once every team member goes offline and reactivated on
---     reconnect. Driven by scripts/force_pause.lua, which reads
---     team_settings.get_auto_pause() to decide whether to start a sweep.
---
--- Storage shape:
---   storage.team_settings[force_name] = {
---       auto_pause = boolean,    -- default false
---   }
 
 local helpers     = require("scripts.helpers")
 local nav         = require("gui.nav")
@@ -35,24 +26,7 @@ local MAX_TEAM_NAME_LEN = 32
 -- ─── Storage ──────────────────────────────────────────────────────────
 
 function team_settings.init_storage()
-    storage.team_settings         = storage.team_settings         or {}
     storage.team_settings_location = storage.team_settings_location or {}
-end
-
---- Fetch (or lazily create) the settings table for a force.
-local function get_settings(force_name)
-    storage.team_settings = storage.team_settings or {}
-    if not storage.team_settings[force_name] then
-        storage.team_settings[force_name] = {auto_pause = false}
-    end
-    return storage.team_settings[force_name]
-end
-
---- Public accessor used by scripts/force_pause.lua.
-function team_settings.get_auto_pause(force_name)
-    if not force_name then return false end
-    local s = storage.team_settings and storage.team_settings[force_name]
-    return s and s.auto_pause == true
 end
 
 -- ─── Eligibility ──────────────────────────────────────────────────────
@@ -76,7 +50,6 @@ function team_settings.build_gui(player)
     storage.team_settings_location = storage.team_settings_location or {}
 
     local force_name = player.force.name
-    local settings   = get_settings(force_name)
     local leader     = is_leader(player)
     local team_tag   = helpers.team_tag(force_name)
 
@@ -144,29 +117,6 @@ function team_settings.build_gui(player)
         tooltip = "Rename the team (leader only, max " .. MAX_TEAM_NAME_LEN .. " chars)",
     }
     save_btn.enabled = leader
-
-    -- ─── Auto-pause toggle ───────────────────────────────────────────
-    local pause_row = content.add{type = "flow", direction = "horizontal"}
-    pause_row.style.vertical_align     = "center"
-    pause_row.style.horizontal_spacing = 8
-
-    local pause_chk = pause_row.add{
-        type    = "checkbox",
-        name    = "sb_team_settings_auto_pause",
-        state   = settings.auto_pause == true,
-        tooltip = "When enabled, all entities on this team's surfaces stop running"
-            .. " once every member is offline, and resume when anyone reconnects."
-            .. " Useful if the team doesn't want idle production while everyone is away.",
-    }
-    pause_chk.enabled = leader
-
-    local pause_lbl = pause_row.add{
-        type    = "label",
-        caption = "Pause production while entire team is offline",
-        tooltip = pause_chk.tooltip,
-    }
-    pause_lbl.style.single_line   = false
-    pause_lbl.style.maximal_width = 260
 end
 
 --- Close this player's settings frame (if any). Saves frame location.
@@ -272,29 +222,6 @@ local function try_rename(player, raw_text)
     awards_gui.update_all()
 end
 
---- Handle auto-pause checkbox change.
-local function toggle_auto_pause(player, new_state)
-    if not is_leader(player) then
-        -- Revert the checkbox visually — build_gui rereads storage.
-        team_settings.build_gui(player)
-        player.print("Only the team leader can change team settings.")
-        return
-    end
-    local force_name = player.force.name
-    local settings   = get_settings(force_name)
-    if settings.auto_pause == new_state then return end  -- no-op
-    settings.auto_pause = new_state
-    log("[multi-team-support:team_settings] auto_pause " .. tostring(new_state)
-        .. " for " .. force_name .. " by " .. player.name)
-
-    local action = new_state and "enabled" or "disabled"
-    helpers.broadcast("[Team] " .. helpers.colored_name(player.name, player.chat_color)
-        .. " " .. action .. " offline-auto-pause for "
-        .. helpers.team_tag(force_name))
-
-    team_settings.update_all_for_force(force_name)
-end
-
 --- Handle GUI clicks. Returns true if consumed.
 function team_settings.on_gui_click(event)
     local el = event.element
@@ -327,16 +254,6 @@ function team_settings.on_gui_confirmed(event)
     local player = game.get_player(event.player_index)
     if not (player and is_on_team(player)) then return true end
     try_rename(player, el.text)
-    return true
-end
-
---- Handle checkbox change.
-function team_settings.on_gui_checked_state_changed(event)
-    local el = event.element
-    if not (el and el.valid and el.name == "sb_team_settings_auto_pause") then return false end
-    local player = game.get_player(event.player_index)
-    if not (player and is_on_team(player)) then return true end
-    toggle_auto_pause(player, el.state)
     return true
 end
 

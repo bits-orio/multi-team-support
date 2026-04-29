@@ -119,6 +119,19 @@ function helpers.team_tag(force_name)
     return helpers.colored_name(helpers.team_display(force_name), color)
 end
 
+--- True if any player on this team force is currently connected.
+--- Accounts for members spectating other teams (their effective force changes
+--- to "spectator" but spectator_real_force tracks their actual team).
+function helpers.team_has_online_member(force_name)
+    for _, p in pairs(game.players) do
+        if p.valid and p.connected then
+            local real_fn = (storage.spectator_real_force or {})[p.index] or p.force.name
+            if real_fn == force_name then return true end
+        end
+    end
+    return false
+end
+
 --- Team tag plus the current leader's name in dim brackets.
 ---   "[color=R,G,B]Team Pioneers[/color] [color=0.7,0.7,0.7][[/color][color=...]Alice[/color][color=0.7,0.7,0.7]][/color]"
 ---   No leader: appends " [color=0.7,0.7,0.7][?][/color]"
@@ -258,6 +271,29 @@ end
 function helpers.toggle_show_offline(player)
     storage.show_offline_players = storage.show_offline_players or {}
     storage.show_offline_players[player.index] = not helpers.show_offline(player)
+end
+
+--- Build the "show offline" checkbox flow used in Teams / Stats / Research /
+--- Awards GUIs. The checkbox is named "sb_show_offline_toggle" so a single
+--- on_gui_checked_state_changed handler in control.lua catches clicks from
+--- any of the GUIs.
+function helpers.add_show_offline_checkbox(parent, player)
+    local show_offline = helpers.show_offline(player)
+    local flow = parent.add{type = "flow", direction = "horizontal"}
+    flow.style.horizontal_align         = "right"
+    flow.style.horizontally_stretchable = true
+    flow.style.bottom_margin            = 2
+    local label = flow.add{type = "label", caption = "show offline"}
+    label.style.font         = "default-small"
+    label.style.font_color   = {0.6, 0.6, 0.6}
+    label.style.right_margin = 4
+    flow.add{
+        type    = "checkbox",
+        name    = "sb_show_offline_toggle",
+        state   = show_offline,
+        tooltip = show_offline and "Hide offline teams" or "Show offline teams",
+    }
+    return flow
 end
 
 return helpers

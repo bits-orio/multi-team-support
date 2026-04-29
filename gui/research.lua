@@ -310,6 +310,8 @@ local function build_frame(player, diff_target)
         tooltip = "Close",
     }
 
+    helpers.add_show_offline_checkbox(frame, player)
+
     -- Scroll pane for content
     local scroll = frame.add{
         type = "scroll-pane",

@@ -373,7 +373,7 @@ function commands_mod.register()
         })
     end)
 
-    commands.add_command("mts-resume", "Force-resume a team's entities (admin only). Use when auto-pause leaves machines stuck inactive. Usage: /mts-resume <team-N>", function(cmd)
+    commands.add_command("mts-resume", "Resume a team's entities after /mts-pause (admin only). Usage: /mts-resume <team-N>", function(cmd)
         local caller = cmd.player_index and game.get_player(cmd.player_index)
         if not caller then
             game.print("This command can only be used by a player.")
@@ -408,7 +408,7 @@ function commands_mod.register()
             .. ". Entities will be re-activated over the next few ticks.")
     end)
 
-    commands.add_command("mts-pause", "Force-pause a team's entities (admin only). Overrides the team's auto-pause opt-in. Usage: /mts-pause <team-N>", function(cmd)
+    commands.add_command("mts-pause", "Pause a team's entities (admin only). Stops production AND defenses. Usage: /mts-pause <team-N>", function(cmd)
         local caller = cmd.player_index and game.get_player(cmd.player_index)
         if not caller then
             game.print("This command can only be used by a player.")
@@ -441,7 +441,7 @@ function commands_mod.register()
 
         caller.print("Pause sweep started for " .. helpers.team_tag_with_leader(force_name)
             .. ". Entities will be deactivated over the next few ticks."
-            .. " Note: a team member reconnecting will trigger an automatic resume.")
+            .. " Run /mts-resume " .. force_name .. " to undo.")
     end)
 
     commands.add_command("mts-trim", "Trim unused chunks on team nauvis surfaces (admin only). Usage: /mts-trim [team-N] [entity_buffer] [player_buffer]  (defaults: 12, 8)", function(cmd)

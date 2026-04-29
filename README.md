@@ -56,6 +56,30 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - **dangOreus** — optional; when loaded, dangOreus's ore-flooding behavior (all modes: pie, random, voronoi, perlin, spiral) is applied to each team's nauvis surface instead of just the shared default. The default nauvis is disabled for dangOreus since no team plays there.
 - Factorio supports up to 64 forces (20 teams + built-ins leaves plenty of headroom)
 
+## 🔌 For Mod Authors
+
+Multi-Team Support exposes a public remote interface (`mts-v1`) and custom events so other mods can integrate cleanly without per-mod compatibility shims.
+
+```lua
+-- Subscribe to a custom event
+if remote.interfaces["mts-v1"] then
+    local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
+    script.on_event(id, function(event)
+        -- event.surface_name, event.force_name
+    end)
+end
+
+-- Query state
+local owner = remote.call("mts-v1", "get_surface_owner", "team-3-nauvis")
+-- → "team-3" or nil
+```
+
+**Events:** `on_team_created`, `on_team_released`, `on_player_joined_team`, `on_player_left_team`, `on_team_surface_created`.
+
+**Queries:** `get_team_list`, `get_team_info`, `is_team_surface`, `get_surface_owner`, `list_team_surfaces`.
+
+The interface name is versioned (`mts-v1`); breaking changes will ship as a parallel `mts-v2` rather than mutating v1. See [`scripts/remote_api.lua`](scripts/remote_api.lua) for the full contract and payload shapes. If you maintain a chunk-gen or surface-modifying mod and need an extension point, open an issue.
+
 ## 📄 License
 
 [MIT](LICENSE)

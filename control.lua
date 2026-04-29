@@ -32,6 +32,7 @@ local space_age       = require("scripts.space_age")
 local force_pause     = require("scripts.force_pause")
 local team_settings   = require("gui.team_settings")
 local chunk_trim      = require("scripts.chunk_trim")
+local remote_api      = require("scripts.remote_api")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -106,6 +107,14 @@ local function init_events()
         local surface = game.surfaces[event.surface_index]
         if surface then
             surface_utils.on_surface_created(surface)
+            -- Public mts-v1: notify subscribers when a team-owned surface
+            -- comes online. Resolved here (not inside surface_utils) so
+            -- the raise sits in control.lua and avoids a circular require
+            -- with remote_api.
+            local owner = surface_utils.get_owner(surface)
+            if owner then
+                remote_api.raise_team_surface_created(surface.name, owner)
+            end
             -- Space Age: re-hide base planets for all team forces. We
             -- deliberately DON'T use apply_all_force_locks here — that
             -- would re-lock per-team planet variants and wipe any
@@ -269,6 +278,18 @@ script.on_configuration_changed(function()
     force_pause.init_storage()
     team_settings.init_storage()
     chunk_trim.init_storage()
+
+    -- One-shot migration: auto-pause was removed, so resume any team that's
+    -- currently in a paused or mid-pause state. Otherwise legacy entities
+    -- stay stuck active=false with no event to wake them up.
+    local to_resume = {}
+    for fn in pairs(storage.paused_forces or {}) do to_resume[fn] = true end
+    for fn, state in pairs(storage.pause_sweep or {}) do
+        if state.direction == "pause" then to_resume[fn] = true end
+    end
+    for fn in pairs(to_resume) do force_pause.resume(fn) end
+    -- The auto_pause checkbox is gone; drop its storage table.
+    storage.team_settings = nil
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}
@@ -356,7 +377,6 @@ script.on_event(defines.events.on_player_joined_game, function(event)
         landing_pen.place_player(player)
     end
     if player then register_nav_buttons(player) end
-    if player then force_pause.on_player_joined(player) end
     storage.pending_admin_check = storage.pending_admin_check or {}
     storage.pending_admin_check[event.player_index] = game.tick + 30
     rebuild_for_connectivity(nil)
@@ -367,19 +387,20 @@ script.on_event(defines.events.on_player_left_game, function(event)
     if player then
         spectator.on_player_left(player)
         follow_cam.on_player_left(player)
-        force_pause.on_player_left(player)
     end
     rebuild_for_connectivity(event.player_index)
 end)
 
--- When a player changes force (e.g. claims a team slot from the pen), the
--- destination team may have been paused because it had no online players.
--- Kick off a resume sweep so production starts back up for the newcomer,
--- and refresh the Team Settings nav button since membership just changed.
+-- Refresh the Team Settings nav button when membership changes (e.g. a
+-- player claims or leaves a team slot from the pen).
 script.on_event(defines.events.on_player_changed_force, function(event)
+    -- Public mts-v1: translate force changes into player_joined_team /
+    -- player_left_team events. Done before our own handlers so subscribers
+    -- can react first.
+    remote_api.on_player_changed_force(event)
+
     local player = game.get_player(event.player_index)
     if player and player.connected then
-        force_pause.on_force_changed(player)
         team_settings.refresh_nav_button(player)
         -- Rebuild any open settings panel — it's now backed by a different
         -- force (or should close if the player went back to spectator).
@@ -601,18 +622,23 @@ script.on_event(defines.events.on_gui_checked_state_changed, function(event)
         local player = game.get_player(event.player_index)
         if player then
             helpers.toggle_show_offline(player)
-            teams_gui.build_gui(player)
+            -- Rebuild every GUI this player has open so the toggle and any
+            -- offline-filtered rows update in lockstep.
+            if player.gui.screen.sb_platforms_frame then
+                teams_gui.build_gui(player)
+            end
             if player.gui.screen.sb_research_frame then
                 research_gui.update_all()
             end
             if player.gui.screen.sb_stats_frame then
                 stats_gui.build_stats_gui(player)
             end
+            if player.gui.screen.sb_awards_frame then
+                awards_gui.build(player)
+            end
         end
         return
     end
-
-    if team_settings.on_gui_checked_state_changed(event) then return end
 
     local changed_flag = admin_gui.on_gui_checked_state_changed(event)
     if changed_flag then

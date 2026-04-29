@@ -14,6 +14,7 @@ local spectator     = require("scripts.spectator")
 local surface_utils = require("scripts.surface_utils")
 local planet_map    = require("scripts.planet_map")
 local friendship    = require("gui.friendship")
+local remote_api    = require("scripts.remote_api")
 
 local force_utils = {}
 
@@ -176,6 +177,13 @@ function force_utils.claim_team_slot(player)
 
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
         .. " (" .. force_name .. ")")
+
+    -- Public event: a team transitioned available → occupied. Fired AFTER
+    -- the slot is fully wired so subscribers see consistent state. The
+    -- companion on_player_joined_team event fires automatically via
+    -- on_player_changed_force when player.force was set above.
+    remote_api.raise_team_created(force_name, player.index)
+
     return force_name
 end
 
@@ -275,6 +283,10 @@ function force_utils.release_team_slot(force_name)
     end
 
     log("[multi-team-support] released team slot: " .. force_name)
+
+    -- Public event: slot is back in the pool. Fired last so subscribers
+    -- querying mts-v1 see the cleared state.
+    remote_api.raise_team_released(force_name)
 end
 
 -- ─── Team Leader ──────────────────────────────────────────────────────

@@ -391,6 +391,8 @@ function stats_gui.build_stats_gui(player, leaving_index)
         }
     end
 
+    helpers.add_show_offline_checkbox(frame, player)
+
     -- ── Scroll pane + table ───────────────────────────────────────────────────
     local scroll = frame.add{
         type                     = "scroll-pane",
