@@ -17,9 +17,9 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - 🤝 **Friendship** — Two-sided requests between teams; mutual friendship shares chart and grants friend-view spectation.
 
 ### 🌌 Space Age Integration *(auto-detected)*
-- 🪐 **Per-team planet variants** — When Space Age is active, each team gets their own full solar system (Nauvis/Vulcanus/Gleba/Fulgora/Aquilo variants). No more collisions on shared planets.
-- 🛸 **Per-team space connections** — Vanilla topology mirrored for each team so rocket launches and space platforms work per-team.
-- 🔒 **Base planets locked** — Team forces only see/reach their own variants. Discovery techs unlock the team's variant, not the base.
+- 🪐 **Per-team planet variants** — When Space Age is active, each team gets their own full solar system. The vanilla 5 (Nauvis, Vulcanus, Gleba, Fulgora, Aquilo) plus any modded planets registered via `data:extend` or planet libraries like PlanetsLib (Maraxsis, Lignumis, Muluna, etc.) all get per-team variants automatically. No collisions on shared planets.
+- 🛸 **Per-team space connections** — Whatever topology exists in the loaded mod stack is mirrored per team, so rocket launches and space platforms work per-team across vanilla and modded planets alike.
+- 🔒 **Base planets locked** — Team forces only see/reach their own variants. Discovery techs unlock the team's variant, not the base. Detection scans for `unlock-space-location` effects on every loaded technology, so modded discovery techs route correctly regardless of naming convention.
 - 📦 Falls back to surface-cloning when Space Age isn't installed — same experience, just no orbits.
 
 ### 🏆 Records & Announcements
