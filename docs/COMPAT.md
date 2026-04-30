@@ -1,79 +1,86 @@
 # Mod Compatibility Strategy
 
-This document explains how Multi-Team Support (MTS) integrates with other mods, especially chunk-generation and surface-decorator mods that traditionally assume a single shared Nauvis. It's both a guide for **MTS admins** trying to make a third-party mod work on team surfaces, and a reference for **third-party mod authors** who want their mod to play well with MTS.
+This is the short version of how Multi-Team Support (MTS) integrates with other mods, especially mods that decorate Nauvis or modify worldgen. Audience: third-party mod authors checking whether they need to do anything for MTS, and MTS admins triaging combos that misbehave.
 
-## The core problem
+## The default: it just works
 
-MTS gives every team its own copy of Nauvis (e.g. `team-3-nauvis` or, on Space Age, `mts-nauvis-3`). Mods that decorate Nauvis — dangOreus's ore flooding, VoidBlock's void terrain, terrain overhauls, resource modifiers — typically hook `on_chunk_generated` or `on_surface_created` and filter with:
+MTS gives every team its own copy of Nauvis (`team-N-nauvis` or, on Space Age, `mts-nauvis-N`). When a chunk is generated on any team surface, MTS automatically:
+
+1. Generates the matching chunk on the real `nauvis` surface, synchronously firing every third-party mod's `on_chunk_generated` handler. Their `surface.name == "nauvis"` filters accept, their decoration runs.
+2. Clones the resulting tiles, entities, and decoratives from `nauvis` to the team surface via `LuaSurface.clone_area`.
+
+The mechanism lives in [`compat/clone_mirror.lua`](../compat/clone_mirror.lua). Net effect: whatever your mod puts on `nauvis`, every team surface gets the same. No remote interface to wire up, no surface-name predicate to update, no MTS-aware code path.
+
+**Verified working with:** [dangOreus](https://mods.factorio.com/mod/dangOreus), [VoidBlock](https://mods.factorio.com/mod/VoidBlock), [Alien Biomes](https://mods.factorio.com/mod/alien-biomes), [Periodic Madness](https://mods.factorio.com/mod/periodic-madness), and the vanilla worldgen stack.
+
+## When the default isn't enough: runtime gameplay rules
+
+Some mods don't only decorate chunks at generation time. They also have rules that fire *after*, e.g.:
+
+- "Block non-miner buildings from being placed on ore tiles" (`on_built_entity`).
+- "Spill container contents when a chest is destroyed" (`on_entity_died`).
+- "Damage players standing on certain tiles" (`on_nth_tick`).
+
+If those handlers filter by `surface.name == "nauvis"`, they silently no-op on team surfaces. clone_mirror gives you the *map*; it doesn't make these runtime rules fire on the cloned terrain.
+
+Three ways to fix this, ranked by author effort:
+
+### 1. Use `surface.planet.name` instead of `surface.name` (~2 lines)
+
+The smallest and most generic option. Replace this:
 
 ```lua
 if surface.name == "nauvis" then ... end
 ```
 
-That filter rejects every team surface. The mod's logic only runs on the literal `"nauvis"` surface, which in MTS is usually unused or hidden.
+with:
 
-There is no single trick that makes every such mod multi-surface aware. MTS uses three layers of strategy, ranked by how little work they require from third-party authors.
-
-## Layer 0: Zero-cooperation — terrain mirror
-
-**Cost to other authors: nothing.** They don't need to know MTS exists. This is the default for terrain decorators.
-
-For any third-party mod that decorates the real `nauvis` surface via `on_chunk_generated` and filters by hardcoded surface name, MTS automatically mirrors the result onto every team surface. The mechanism lives in [`compat/clone_mirror.lua`](../compat/clone_mirror.lua):
-
-1. When a chunk is generated on `team-N-nauvis` (or `mts-nauvis-N`), MTS ensures the same chunk is generated on the real `nauvis` surface.
-2. That synchronously fires every third-party mod's `on_chunk_generated` handler against `nauvis`, where their `surface.name == "nauvis"` filters accept.
-3. MTS clones the resulting tiles + entities + decoratives from `nauvis` to the team surface via `LuaSurface.clone_area`.
-
-Net effect: whatever the mod stack puts on `nauvis`, every team surface gets the same. Verified working with **dangOreus**, **VoidBlock**, **Alien Biomes**, and any mod that follows the same pattern.
-
-Trade-off: every team gets the **same** map. Per-team randomization (different ore patterns per team) is sacrificed for "no per-mod compat code." For competitive race servers where fairness matters this is usually a feature; for variety-driven servers it's a regression.
-
-The "same map" observation extends to vanilla worldgen too — all teams see the same iron/copper/coal positions, biome layouts, biter base placements, etc., because everything is cloned from a single `nauvis` source-of-truth.
-
-When per-mod compat is still needed:
-- **Runtime gameplay rules** that fire after chunk generation (e.g. dangOreus's "block non-miners on ore" handler) still need a small per-mod shim because the mod's runtime handlers also filter by name. Those shims live in `compat/<modname>.lua` and are typically 100–200 lines of just-the-rules.
-- **Surface creation parameters** (e.g. VoidBlock disabling autoplace to skip vanilla worldgen that would be overwritten by clone) are set by the per-mod shim's `setup_player_surface`.
-- **Discoverability or HUD glitches** (e.g. Gridlocked's stale chunk-points label after force change) are fixed by the per-mod shim's hooks.
-
-## Layer 1: Zero-cooperation — event replay
-
-**Cost to other authors: nothing.** They don't need to know MTS exists.
-
-When an admin installs a new chunk-gen mod on a save that already has team surfaces, the new mod's `on_init` runs but it never sees those surfaces. To trigger its setup retroactively, run:
-
-```
-/mts-replay
+```lua
+if surface.planet and surface.planet.name == "nauvis" then ... end
 ```
 
-This re-fires `on_surface_created` (and the MTS-specific `on_team_surface_created`) for every existing team surface. To also re-fire `on_chunk_generated` for every existing chunk:
+This is correct for vanilla Nauvis, modded planet variants (Maraxsis, Muluna, etc.), MTS team surfaces (each team's Nauvis variant carries `planet="nauvis"`), and skips space platforms (whose `planet` is nil). It's a generic correctness improvement that benefits planet mods even without MTS in the picture. Frame it that way when pitching it.
 
+Use this when: your runtime rule is naturally expressible as "act on this kind of planet."
+
+### 2. Expose your runtime rules as `remote` functions (~10–30 lines)
+
+The cleanest option for runtime rules that don't fit a planet predicate (e.g. spill-on-death — there's no surface check that captures "spill the contents"). Refactor your handler body into a named function and expose it:
+
+```lua
+-- Your existing handler, lightly refactored:
+local function apply_no_build_rule(entity)
+    -- existing body
+end
+
+script.on_event(defines.events.on_built_entity, function(event)
+    local entity = event.created_entity or event.entity
+    if entity.surface.name ~= "nauvis" then return end
+    apply_no_build_rule(entity)
+end)
+
+-- Expose for multi-surface mods to reuse:
+remote.add_interface("your_mod_name", {
+    apply_no_build_rule = apply_no_build_rule,
+    apply_container_spill = apply_container_spill,
+    apply_floor_is_lava = apply_floor_is_lava,
+})
 ```
-/mts-replay --chunks
+
+That's it. Your existing behavior is untouched. MTS (and any other multi-surface mod, like Cargo Ships) can now invoke your runtime rule on its own surfaces:
+
+```lua
+-- In MTS's compat shim:
+if remote.interfaces["your_mod_name"] then
+    remote.call("your_mod_name", "apply_no_build_rule", entity)
+end
 ```
 
-`--chunks` is heavy (one event per chunk per surface) but is the right call if the new mod's logic lives in its `on_chunk_generated` handler.
+Use this when: your rule is genuinely behavioral (not a simple predicate) and you'd like multi-surface mods to reuse your exact logic without re-implementing it. Closed-source-friendly: you're exposing your existing logic, not sharing code.
 
-### What replay can and cannot do
+### 3. Subscribe to `mts-v1` events (~5 lines)
 
-**Helps when** the mod's handler doesn't filter by hardcoded surface name — for example, mods keyed off `surface.planet`, off `map_gen_settings`, off prototypes, or off "any surface with biters". These act on whatever surface the event delivers.
-
-**Does not help when** the mod's handler filters with `surface.name == "nauvis"`. The replayed event carries the real team surface, and `surface.name` is `"team-3-nauvis"`, not `"nauvis"`. There is no way to spoof `surface.name` from outside the mod — `LuaSurface` is not proxyable. For these mods you need Layer 2 or 3.
-
-### When NOT to run replay
-
-- **Right after a normal MTS-only update.** The mod ecosystem hasn't changed; replay would just double-fire handlers that already saw the surfaces. Reserve replay for "I just installed a new chunk-gen mod" situations.
-- **If the new mod is already MTS-aware** (subscribes to `mts-v1`'s `on_team_surface_created`). Its setup is already running on every team surface; replay would double-apply it.
-- **For mods whose setup is non-idempotent.** If their handler spawns entities or grants items per chunk, replay duplicates them. Test on a backup save first.
-
-## Layer 2: Light cooperation — `mts-v1` remote interface
-
-**Cost to other authors: ~5–25 lines of Lua. No source disclosure required.**
-
-MTS exposes a public remote interface, `mts-v1`, with custom events and queries. Closed-source mod authors can subscribe without sharing code.
-
-### Minimal — per-surface setup mods
-
-Use this if your mod only needs to run a one-time setup function per surface (e.g. building a config table, registering a force entry, scheduling some state) and doesn't have a per-chunk handler:
+The most explicit option, for cases where you want MTS-specific awareness (e.g. "do per-team setup when a team is created"):
 
 ```lua
 script.on_init(function()
@@ -81,140 +88,28 @@ script.on_init(function()
         local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
         script.on_event(id, function(event)
             -- event.surface_name, event.force_name
-            local surface = game.surfaces[event.surface_name]
-            my_mod.setup_surface(surface)  -- the function you already have
+            my_mod.setup_surface(game.surfaces[event.surface_name])
         end)
     end
 end)
 ```
 
-That's it. You don't touch your existing logic; you just add a second entry point that runs your existing setup function on each team surface.
+The full event and query catalog lives in [`scripts/remote_api.lua`](../scripts/remote_api.lua). Versioned (`mts-v1`); breaking changes ship as a parallel `mts-v2` rather than mutating v1.
 
-### Chunk-gen mods (dangOreus-style)
+Use this when: you want first-class awareness of MTS lifecycle (team created, team released, player joined team), or your setup needs to run exactly once per team rather than per-chunk.
 
-Mods that decorate Nauvis chunks via `on_chunk_generated` need to address a second problem: their handler typically guards with `if surface.name == "nauvis"`, which rejects MTS team surfaces. The fix is a single shared predicate that's vanilla-correct, Space-Age-correct, and MTS-correct, used in *both* the per-surface setup path and the per-chunk decoration path:
+## Retroactive compat: `/mts-replay`
 
-```lua
--- "Is this one of the surfaces I should decorate?"
-local function is_target_surface(surface)
-    if not (surface and surface.valid) then return false end
-    -- Preferred check: works for vanilla nauvis, modded nauvis-planet
-    -- mods, and MTS Space Age team variants (mts-nauvis-N).
-    if surface.planet and surface.planet.name == "nauvis" then
-        return true
-    end
-    -- Non-Space-Age fallback: MTS clones surfaces named "team-N-nauvis".
-    if remote.interfaces["mts-v1"]
-       and remote.call("mts-v1", "is_team_surface", surface.name)
-       and surface.name:find("nauvis") then
-        return true
-    end
-    return false
-end
+If you install a new chunk-gen mod into a save that already has team surfaces, that mod's `on_init` runs but it never sees the existing surfaces. Run `/mts-replay` (admin only) to re-fire `on_surface_created` (and optionally `on_chunk_generated` per existing chunk via `--chunks`) on every team surface. The new mod's handlers get the chance to set up retroactively.
 
--- Existing setup function — gated by the same predicate.
-local function setup_surface(surface)
-    if not is_target_surface(surface) then return end
-    -- ... your existing setup_surface body, unchanged ...
-end
+Replay only helps mods whose handlers actually do something useful when delivered the event. Mods that filter by `surface.name == "nauvis"` will reject the replayed event the same way they reject the natural one — no event trick can spoof `LuaSurface.name`. For those mods you need option 1 or 2 above (or accept that they don't apply to team surfaces).
 
--- Wire it up: native event for live surface creation, mts-v1 for any
--- team surfaces that already exist when this mod is loaded.
-script.on_event(defines.events.on_surface_created, function(e)
-    setup_surface(game.surfaces[e.surface_index])
-end)
+## What MTS will not do
 
-script.on_init(function()
-    if remote.interfaces["mts-v1"] then
-        local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
-        script.on_event(id, function(e)
-            setup_surface(game.surfaces[e.surface_name])
-        end)
-    end
-end)
-
--- Per-chunk handler: same predicate, no name hardcoding.
-script.on_event(defines.events.on_chunk_generated, function(event)
-    if not is_target_surface(event.surface) then return end
-    -- ... your existing on_chunk_generated body, unchanged ...
-end)
-```
-
-The point is that you maintain *one* predicate (`is_target_surface`) and thread it through every entry point. Your decoration logic stays exactly as it is. The only behavioral change is *which surfaces* trigger it — and that's now driven by what each surface actually is, not by a hardcoded name.
-
-If your mod targets a planet other than Nauvis, swap the `surface.planet.name == "nauvis"` literal accordingly. The pattern works the same way for Vulcanus, Gleba, etc.
-
-### Stateless chunk-gen mods (VoidBlock-style)
-
-Some chunk-gen mods are *stateless per surface* — they only react to `on_chunk_generated`, set tiles based on the chunk's coordinates and the event payload, and never need a per-surface init. VoidBlock is the canonical example: each chunk gets a "void ocean" tile fill plus an "island" carve at the origin, with no surface-level config to track.
-
-For mods like this you don't need to subscribe to `on_team_surface_created` at all. The minimum change is just the filter:
-
-```lua
-local function is_target_surface(surface)
-    if not (surface and surface.valid) then return false end
-    if surface.planet and surface.planet.name == "nauvis" then
-        return true
-    end
-    -- Non-Space-Age fallback: MTS clones surfaces named "team-N-nauvis".
-    if remote.interfaces["mts-v1"]
-       and remote.call("mts-v1", "is_team_surface", surface.name)
-       and surface.name:find("nauvis") then
-        return true
-    end
-    return false
-end
-
-script.on_event(defines.events.on_chunk_generated, function(event)
-    if not is_target_surface(event.surface) then return end
-    -- ... your existing tile-fill / decoration body, unchanged ...
-end)
-```
-
-That's the entire diff. No `on_init` block, no `on_team_surface_created` subscription, no second entry point. A stateless chunk-gen mod ports to MTS by replacing one `if surface.name == "nauvis"` line with the predicate above.
-
-One caveat: stateless mods that need the surface to be *created with specific generation settings* (e.g. VoidBlock disables all autoplace controls so vanilla terrain doesn't appear before tiles are overwritten) can't enforce that on team surfaces themselves — MTS owns surface creation. MTS's compat shim for VoidBlock currently handles this by replicating those creation settings; the upstream-friendly fix is for MTS to expose creation hooks in a future `mts-v2`. For now, if your mod has hard requirements on `LuaSurface` creation parameters, file an issue and we'll work out a path together.
-
-The full event and query catalog lives in [`scripts/remote_api.lua`](../scripts/remote_api.lua). The interface name is versioned (`mts-v1`); breaking changes will ship as a parallel `mts-v2` rather than mutating v1.
-
-## Layer 3: Upstream — `surface.planet.name`
-
-**Cost to other authors: 2 lines of Lua. Doesn't even mention MTS.**
-
-This is the right long-term fix and the easiest pitch to a closed-source mod author, because it is framed as a generic correctness improvement rather than an MTS-specific accommodation.
-
-Most chunk-gen mods filter their `on_chunk_generated` handler with:
-
-```lua
-if surface.name == "nauvis" then ... end
-```
-
-This is wrong even without MTS. In Factorio 2.0 with Space Age, modded planets ("Maraxsis", "Muluna", etc.) have surfaces whose `surface.name` is *not* `"nauvis"` but whose `surface.planet.name` is. The filter should be:
-
-```lua
-if surface.planet and surface.planet.name == "nauvis" then ... end
-```
-
-This is correct for vanilla Nauvis, correct for modded planets, correct for space platforms (whose `planet` is `nil`), and **correct for MTS team surfaces**, because each team's Nauvis variant carries `planet="nauvis"`. No MTS-specific code needed.
-
-When pitching this change to a third-party author, frame it as: *"Your mod targets the Nauvis planet, not specifically the surface called 'nauvis'. Filtering by `surface.planet.name` makes the mod compatible with planet mods generally."* MTS compatibility is a free side effect.
-
-## Strategy summary
-
-| Layer | Tool                          | Cost to other author | Works for surface-name filters? |
-| :---- | :---------------------------- | :------------------- | :------------------------------ |
-| 1     | `/mts-replay` event replay    | Nothing              | No                              |
-| 2     | `mts-v1` remote interface     | ~5 lines             | Yes                             |
-| 3     | `surface.planet.name` upstream | ~2 lines             | Yes                             |
-
-The layers stack. Run replay to catch what it can, file an upstream PR or feature request for what it can't, and document the remaining gaps.
-
-## What MTS will *not* do
-
-- **Reverse-engineer or monkey-patch closed-source mods.** The pattern is fragile, version-coupled, and breaks silently when the upstream mod updates. We use it nowhere in the codebase.
-- **Spoof `surface.name`.** It's not technically possible, and even if it were, it would lie to every other mod on the server.
-- **Bundle compat shims for arbitrary chunk-gen mods.** The repo currently carries shims for [`compat/dangoreus.lua`](../compat/dangoreus.lua) and [`compat/voidblock.lua`](../compat/voidblock.lua) because those mods are widely used and don't yet support multi-surface. Each shim is tracked as technical debt; the long-term plan is to delete them as upstream support lands.
+- **Reverse-engineer or monkey-patch closed-source mods.** Fragile, version-coupled, breaks silently when upstream updates.
+- **Spoof `surface.name`.** Not technically possible, and would lie to every other mod on the server.
+- **Maintain compat shims for every mod that decorates Nauvis.** clone_mirror handles the chunk-gen layer generically. Per-mod shims exist only for runtime rules that the upstream author hasn't yet exposed via predicate or remote interface (and we'd rather delete them as upstream support lands).
 
 ## Reporting compat issues
 
-If you maintain a chunk-gen or surface-modifying mod and want to integrate cleanly with MTS, open an issue at https://github.com/bits-orio/multi-team-support/issues and we'll help you pick the right layer. If you're an admin trying to make a specific combo work, the same applies — a brief description of what doesn't work plus the mod combo is enough to triage.
+If you maintain a mod and want to flag a specific gap, open an issue at https://github.com/bits-orio/multi-team-support/issues with the mod name and a brief description of which handler isn't firing on team surfaces. If you're an admin trying to make a specific combo work, the mod combo plus what doesn't work is enough to triage.
