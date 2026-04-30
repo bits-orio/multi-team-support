@@ -4,6 +4,8 @@
 
 A Factorio 2.0 mod for cooperative and competitive multiplayer where each team races on their own copy of the world. Research independently, compare progress, watch your rivals, form alliances — all from one server.
 
+> **Note on tooling:** This mod is developed with AI coding assistants alongside human review and in-game testing. Bug reports, feature requests, and contributions are welcome from everyone. If AI-assisted development isn't your thing, that's fine — but please keep the hate off this mod's threads. And a gentle request: please don't be rude or disrespectful to the author on other platforms either. There's a human on the other side, don't be anti-human by being rude to them.
+
 ## 💬 Community
 
 Join the Discord: **https://discord.gg/tWz4FT74pH**
