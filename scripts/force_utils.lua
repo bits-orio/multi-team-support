@@ -457,9 +457,21 @@ function force_utils.on_foreign_surface(player)
     if not my_force then return false end
     local my_force_name = my_force.name
 
-    -- Check surface name pattern: "team-N-planet"
+    -- Surface naming scheme #1 (non-Space-Age): "team-N-planet" cloned
+    -- surface. Owning force is the prefix.
     local owner_force = surface.name:match("^(team%-%d+)%-%w+$")
     if owner_force and owner_force ~= my_force_name then return true end
+
+    -- Surface naming scheme #2 (Space Age): "mts-{planet}-{slot}" per-team
+    -- planet variant. Ownership is keyed by the slot, not the surface name —
+    -- planet_map maintains the variant→force mapping. This case used to
+    -- be missed; players who ended up on someone else's mts-nauvis-N
+    -- (typically by exiting spectator from editor mode, where the
+    -- exit returns them to their pre-spectator position) were not
+    -- bounced home. They'd appear stuck on the foreign team's
+    -- surface until they manually used "return to base".
+    local variant_owner = planet_map.get_force_by_planet(surface.name)
+    if variant_owner and variant_owner ~= my_force_name then return true end
 
     -- Check space platforms owned by other team forces
     for _, force in pairs(game.forces) do

@@ -269,6 +269,16 @@ function spectator.get_target(player)
 end
 
 function spectator.needs_spectator_mode(viewer_force, target_force)
+    -- Viewing your own team's surfaces never requires spectator mode.
+    -- A LuaForce isn't its own friend by default, so without this
+    -- short-circuit `target_force.get_friend(viewer_force)` returns
+    -- false for same-team and the function would falsely demand a
+    -- force swap. That trapped clicks on own-team surfaces (which we
+    -- now show in the Teams GUI) into the full spectator path,
+    -- including spectator-force assignment and crafting pause —
+    -- neither of which makes sense when you're already on the
+    -- target team.
+    if viewer_force == target_force then return false end
     return not target_force.get_friend(viewer_force)
 end
 
@@ -322,12 +332,30 @@ function spectator.enter(player, target_force, surface, position, target_player)
         storage.spectator_saved_location[player.index] = {
             surface_name = player.physical_surface.name,
             position     = {x = player.physical_position.x, y = player.physical_position.y},
+            -- Capture the pre-spectate controller so we can restore it
+            -- on exit. This matters for players who were already in
+            -- remote view before clicking spectate (e.g. sitting in a
+            -- space platform hub, looking at their own platform).
+            -- Without this, exit always reverts to character, which
+            -- yanks them out of the hub view they intentionally opened
+            -- before starting to spectate.
+            controller_type = player.controller_type,
+            -- LuaControl.hub is non-nil when the player is currently
+            -- sitting in a space platform hub. The proper way to put
+            -- them back is LuaPlayer.enter_space_platform(platform)
+            -- — set_controller alone preserves the camera but not the
+            -- hub-pilot relationship that drives "Drop to a planet"
+            -- and the platform schedule UI.
+            was_in_hub = player.hub ~= nil,
         }
     end
 
+    helpers.diag("spectator.enter: BEFORE state changes", player)
     storage.spectating_target[player.index] = target_force.name
     apply_spectator_state(player)
+    helpers.diag("spectator.enter: AFTER apply_spectator_state", player)
     open_remote_view(player, surface, position)
+    helpers.diag("spectator.enter: AFTER open_remote_view", player)
     announce_spectation(player, target_force, true, target_player, surface)
     update_spectator_surfaces()
 
@@ -340,12 +368,14 @@ end
 function spectator.exit(player)
     if not spectator.is_spectating(player) then return end
     log("[multi-team-support:spectator] exit: " .. player.name)
+    helpers.diag("spectator.exit: BEFORE restore_player_state", player)
 
     local target_fn = storage.spectating_target[player.index]
     -- Grab the spectated surface before restore_player_state repoints the
     -- player back to their real surface — we want the one they were viewing.
     local spectated_surface = player.surface
     restore_player_state(player)
+    helpers.diag("spectator.exit: AFTER restore_player_state", player)
 
     -- Restore to saved location, or fall back to home surface origin.
     local saved = storage.spectator_saved_location[player.index]
@@ -373,6 +403,97 @@ function spectator.exit(player)
             .. " at " .. string.format("(%.1f,%.1f)", target_pos.x, target_pos.y),
             player)
         player.teleport(target_pos, target_surface)
+
+        -- Restore the player to remote view in two cases:
+        --
+        --   1. Pre-spectate they were already in remote view (e.g.
+        --      they were sitting in a hub on a platform, or remote-
+        --      viewing a planet). Without this, spectator.exit would
+        --      drop them back to character mode and yank them out of
+        --      whatever view they had open before clicking spectate.
+        --
+        --   2. They're on a space platform, regardless of how they
+        --      entered spectator. The natural state on a platform is
+        --      sitting in the hub looking at the platform from above
+        --      (remote view), because there's almost nothing to do as
+        --      a character on the platform tiles directly. Even if
+        --      they clicked spectate while standing as a character,
+        --      they expect to land in hub-view after exiting. Detect
+        --      via LuaSurface.platform — non-nil if and only if the
+        --      surface IS a space platform.
+        --
+        -- For character-mode-on-a-planet (the common case), neither
+        -- branch fires; Factorio's default character attachment
+        -- after teleport is correct.
+        local restore_remote = false
+        if saved and saved.controller_type == defines.controllers.remote then
+            restore_remote = true
+        end
+        if target_surface.platform then
+            restore_remote = true
+        end
+        if restore_remote then
+            -- Two flavors of remote view exist in Factorio 2.0 and we
+            -- have to pick the right one to preserve the player's
+            -- pre-spectate UX:
+            --
+            -- (a) Position-based remote:
+            --       set_controller{type=remote, surface=X, position=Y}
+            --     A free-floating camera at coordinates Y on surface X.
+            --     No hub-specific UI.
+            --
+            -- (b) Platform-bound remote:
+            --       set_controller{type=remote, space_platform=P}
+            --     The "sitting in the hub" state. Camera shows the
+            --     platform from above AND Factorio shows the hub
+            --     actions ("Drop to a planet", platform schedule, etc.)
+            --     in the side panel. This is what a player who was
+            --     riding the hub before spectating expects on exit.
+            --
+            -- LuaSurface.platform returns the LuaSpacePlatform when
+            -- the surface IS that platform's surface, nil otherwise.
+            -- Use (b) when we have a platform, fall through to (a) for
+            -- non-platform surfaces (e.g. returning to a planet
+            -- variant in remote view).
+            -- Restore in priority order:
+            --
+            -- 1. If the player was sitting in a space platform hub
+            --    pre-spectate, use LuaPlayer.enter_space_platform(P).
+            --    That's the documented Factorio API for hub-piloting:
+            --    it re-establishes the player as the hub's pilot and
+            --    binds the remote view to the platform, including the
+            --    "Drop to a planet" / platform schedule UI. Setting
+            --    set_controller alone (with surface + position) only
+            --    moves the camera; it doesn't restore the pilot
+            --    relationship.
+            --
+            -- 2. If the saved surface IS a space platform but the
+            --    player wasn't in the hub (e.g. they were standing as
+            --    a character on the platform tiles), enter the hub
+            --    anyway since hub-view is the natural state on a
+            --    platform. This avoids leaving them in a confusing
+            --    free-floating remote view over an empty platform.
+            --
+            -- 3. Otherwise (planet variant, etc.), fall back to the
+            --    position-based remote camera.
+            local platform = target_surface.platform
+            local hub_entered = false
+            if platform and platform.valid
+               and (saved and saved.was_in_hub or target_surface.platform) then
+                -- enter_space_platform returns false if the engine
+                -- refuses (e.g. the player isn't a member of the
+                -- platform's force). Fall through to the camera
+                -- variant in that case.
+                hub_entered = player.enter_space_platform(platform)
+            end
+            if not hub_entered then
+                player.set_controller{
+                    type     = defines.controllers.remote,
+                    surface  = target_surface,
+                    position = target_pos,
+                }
+            end
+        end
     end
     storage.spectator_saved_location[player.index] = nil
 
@@ -413,6 +534,8 @@ function spectator.enter_from_remote(player, target_force, surface, position)
         storage.spectator_saved_location[player.index] = {
             surface_name = player.physical_surface.name,
             position     = {x = player.physical_position.x, y = player.physical_position.y},
+            controller_type = player.controller_type,
+            was_in_hub = player.hub ~= nil,
         }
     end
 
@@ -439,6 +562,8 @@ function spectator.enter_friend_view(player, surface, position, target_force, ta
         storage.spectator_saved_location[player.index] = {
             surface_name = player.physical_surface.name,
             position     = {x = player.physical_position.x, y = player.physical_position.y},
+            controller_type = player.controller_type,
+            was_in_hub = player.hub ~= nil,
         }
     end
     open_remote_view(player, surface, position)
@@ -484,12 +609,56 @@ function spectator.on_controller_changed(player, old_controller_type)
     end
 end
 
+--- Detect when the spectated camera moves off the targeted team's
+--- surfaces and auto-exit. This handles the case where pressing escape
+--- on a space platform spectator session reverts the camera to the
+--- player's own physical surface (without firing
+--- on_player_controller_changed or on_gui_closed). When that happens,
+--- the user is effectively "back home" but Factorio leaves them in
+--- remote view + spectator force — and the user can't tell they're
+--- still in spectator mode without trying to interact.
+---
+--- Heuristic: while spectating force F, if the camera surface is no
+--- longer owned by F, the user has navigated away from F's territory
+--- and we treat that as an implicit exit.
+---
+--- Edge cases covered:
+---   • Multi-surface targets: team F has both `mts-nauvis-F` and
+---     `platform-X` (their platform). Both are owned by F. Navigating
+---     between them keeps us in spectator. Only when the camera lands
+---     on a surface NOT owned by F do we exit.
+---   • Initial spectator.enter: the first surface_changed event fires
+---     with the camera on the target's surface, which IS owned by F,
+---     so we don't immediately exit.
+---   • Shared/neutral surfaces (default nauvis, landing pen): owner is
+---     nil, treated as "not owned by F", auto-exit.
+function spectator.on_player_changed_surface(player)
+    if not (player and player.valid) then return end
+    if not spectator.is_spectating(player) then return end
+
+    local target_force_name = storage.spectating_target[player.index]
+    if not target_force_name then return end
+
+    local owner = surface_utils.get_owner(player.surface)
+    if owner == target_force_name then return end
+
+    log("[multi-team-support:spectator] on_player_changed_surface: "
+        .. player.name .. " camera left target force territory ("
+        .. target_force_name .. " → "
+        .. (owner or "<unowned>")
+        .. " on " .. player.surface.name .. "), auto-exiting spectator")
+    spectator.exit(player)
+end
+
 --- Upgrade a spectator to friend-view (restore force, keep remote view).
 local function upgrade_to_friend_view(p, idx)
     restore_player_state(p)
     clear_spectator_storage(idx)
     update_spectator_surfaces()
-    if p.crafting_queue_size > 0 then
+    -- crafting_queue_size errors when the player isn't in a controller
+    -- that has one (god/spectator/remote). Guard on character even
+    -- though restore_player_state above usually puts them back in one.
+    if p.character and p.crafting_queue_size > 0 then
         p.print("[multi-team-support] You are now viewing as a friend. Crafting resumed.")
     else
         p.print("[multi-team-support] You are now viewing as a friend.")
@@ -507,7 +676,11 @@ local function downgrade_to_spectator(p, player_force)
     update_spectator_surfaces()
 
     local unfriender = helpers.display_name(player_force.name)
-    if p.crafting_queue_size > 0 then
+    -- Same crafting_queue_size guard as upgrade_to_friend_view above:
+    -- the call errors when the player isn't in a controller that has
+    -- a crafting queue, which is exactly where this code path puts
+    -- them (apply_spectator_state switches them to remote).
+    if p.character and p.crafting_queue_size > 0 then
         p.print("[multi-team-support] " .. unfriender .. " unfriended you. Now spectating (crafting paused).")
     else
         p.print("[multi-team-support] " .. unfriender .. " unfriended you. Now spectating.")

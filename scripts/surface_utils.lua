@@ -43,33 +43,68 @@ function surface_utils.get_owner(surface)
     return nil
 end
 
---- Find a player's home surface: first space platform, then vanilla surface.
---- Accepts a force object (the player's effective force).
---- Falls back to searching all surfaces by name pattern for the force,
---- which handles buddies who don't have their own player_surfaces entry.
+--- Find a player's home surface, preferring their actual primary
+--- surface (planet variant or cloned nauvis) over any incidental
+--- space platform the team might own.
+---
+--- Lookup order:
+---   1. storage.player_surfaces[player_index]: the surface the player
+---      spawned on. This is their canonical home for vanilla, voidblock,
+---      Space Age (mts-nauvis-N), and Platformer (platform-N) — every
+---      mode populates this entry during setup_player_surface.
+---   2. Space Age home planet variant via map_force_to_planets: covers
+---      buddies who joined an existing team and don't have their own
+---      player_surfaces entry but should land on the team's nauvis
+---      variant.
+---   3. Surface-name search for any surface owned by this force: another
+---      buddy fallback for non-Space-Age modes.
+---   4. Any space platform owned by the force: last-resort fallback for
+---      the rare case where a team has launched a platform but somehow
+---      has no other surface (e.g. all planet surfaces deleted, or a
+---      legacy save state we didn't anticipate).
+---
+--- Why platforms are now last
+--- ──────────────────────────
+--- Earlier versions returned a space platform first if any existed.
+--- That made sense for Platformer mode (where the platform IS the
+--- primary base) but broke for Space Age: any team that had ever
+--- launched a rocket would have "return to base" send the player to
+--- the platform instead of their planet. The Platformer case is still
+--- handled correctly by step 1, because Platformer's setup_player_surface
+--- populates player_surfaces with the platform's surface name.
 function surface_utils.get_home_surface(force, player_index)
-    for _, plat in pairs(force.platforms) do
-        if plat.surface and plat.surface.valid then return plat.surface end
-    end
-    -- Try the player's own storage entry first
+    -- 1. Player's stored home surface (set during setup_player_surface
+    -- in vanilla / voidblock / platformer / Space Age compat).
     local ps = storage.player_surfaces and storage.player_surfaces[player_index]
     if ps then
         local s = game.surfaces[ps.name]
         if s and s.valid then return s end
     end
-    -- Space Age: look up the team's home planet variant
+
+    -- 2. Space Age home planet variant: handles buddies on a team
+    -- whose player_surfaces entry was never populated.
     local map_entry = (storage.map_force_to_planets or {})[force.name]
     if map_entry and map_entry.nauvis then
         local s = game.surfaces[map_entry.nauvis]
         if s and s.valid then return s end
     end
-    -- Fallback: search for any surface owned by this force
-    -- (e.g. buddy joined a team but has no player_surfaces entry)
+
+    -- 3. Surface-name search for any surface owned by this force.
+    -- Catches non-Space-Age buddy joins.
     for _, surface in pairs(game.surfaces) do
         if surface.valid and surface.name:find("^" .. force.name:gsub("%-", "%%-") .. "%-") then
             return surface
         end
     end
+
+    -- 4. Last resort: any space platform owned by the force. Reached
+    -- only when the team has no planet surface and no cloned surface
+    -- but somehow has a platform — uncommon, but the original behavior
+    -- did this so we keep it as a fallback to avoid regressions.
+    for _, plat in pairs(force.platforms) do
+        if plat.surface and plat.surface.valid then return plat.surface end
+    end
+
     return nil
 end
 

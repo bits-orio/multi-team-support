@@ -5,11 +5,11 @@
 -- Data-stage (final-fixes): creates per-team space-connection prototypes
 -- by mirroring the vanilla connection topology for each team slot.
 --
--- For every vanilla space-connection, we classify the endpoints:
+-- For every existing space-connection prototype we classify the endpoints:
 --
---   base  ↔ base  (e.g. "nauvis-vulcanus")
---       Generate N variants, each between the team's per-team planet
---       variants: team 1: mts-nauvis-1 ↔ mts-vulcanus-1, etc.
+--   base  ↔ base  (e.g. "nauvis-vulcanus", "lignumis-vulcanus")
+--       Generate N variants, each between the team's planet variants:
+--       team 1: mts-nauvis-1 ↔ mts-vulcanus-1, etc.
 --
 --   base  ↔ shared (e.g. "aquilo-solar-system-edge")
 --       The shared endpoint (solar-system-edge, shattered-planet) is NOT
@@ -23,8 +23,16 @@
 --       No per-team variants needed — the vanilla prototype is already
 --       team-agnostic. Every team uses the same connection.
 --
---   anything else (modded planets, etc.)
---       Skipped.
+--   anything else (a connection where neither endpoint is a known
+--   planet or shared location — possible if a mod registers a
+--   connection to a custom space-location prototype we don't know
+--   about): skipped. The base connection still exists for everyone.
+--
+-- Modded planet connections work automatically: we iterate every
+-- connection in `data.raw["space-connection"]` and classify by endpoint.
+-- A planet mod that adds Lignumis with a connection to Nauvis will
+-- have both endpoints recognized (lignumis is in data.raw.planet,
+-- nauvis is in data.raw.planet) and generate per-team variants.
 
 local space_age = require("scripts.space_age")
 
@@ -32,9 +40,14 @@ assert(data.raw["space-connection"], "connections.lua: no space-connection proto
 
 local max_teams = settings.startup["mts_max_teams"].value
 
--- Build a set for quick membership check
+-- Build a set of base-planet names for quick membership check. Uses the
+-- same enumeration as planets.lua so the variant set and the connection
+-- variant set stay in sync — a planet that gets variants always also
+-- gets connection variants (and vice versa).
 local base_set = {}
-for _, name in ipairs(space_age.BASE_PLANETS) do base_set[name] = true end
+for _, name in ipairs(space_age.list_base_planets_data()) do
+    base_set[name] = true
+end
 
 -- Space Age endgame locations that are shared across all teams. They
 -- appear as connection endpoints but are never duplicated per team.

@@ -38,8 +38,20 @@ end
 
 --- Return a comprehensive state string for a player, including:
 ---   name, force, surface, position, physical_surface, physical_position,
----   controller_type (useful for detecting remote vs character view).
---- Used by diagnostic log statements across the mod.
+---   controller_type, character entity, opened entity (if any), and
+---   character_inside_entity if the engine reports it. Used by
+---   diagnostic log statements across the mod.
+---
+--- The extra fields beyond controller/position help diagnose
+--- spectator-related issues:
+---   • character: nil when the player has no character (god mode,
+---     spectator force, etc.); a LuaEntity otherwise.
+---   • opened: the entity whose GUI is currently open (e.g. a space
+---     platform hub the player is interacting with). Spectator
+---     transitions can drop this.
+---   • character_inside_entity: present when the character is "inside"
+---     a vehicle / hub. Helps pinpoint when MTS-induced state changes
+---     dismount a player from a hub.
 function helpers.player_state(player)
     if not (player and player.valid) then return "?" end
     local ctrl = player.controller_type
@@ -49,15 +61,63 @@ function helpers.player_state(player)
     end
     local ps = player.physical_surface
     local s  = player.surface
+
+    local char = player.character
+    local char_str = "nil"
+    if char and char.valid then
+        char_str = string.format("%s@%s", char.name, fmt_pos(char.position))
+    end
+
+    local opened = player.opened
+    local opened_str = "nil"
+    if opened then
+        -- player.opened can be a LuaEntity, LuaEquipmentGrid, or other
+        -- types; we only really care about the entity case for
+        -- spectator diagnostics, but show whatever we get.
+        if type(opened) == "userdata" and opened.valid and opened.name then
+            opened_str = opened.name
+        else
+            opened_str = tostring(opened)
+        end
+    end
+
+    -- character_inside_entity may not exist on older Factorio versions;
+    -- guard it via pcall to avoid crashing the diagnostic itself.
+    local inside_str = "nil"
+    pcall(function()
+        local inside = char and char.valid and char.surface
+            and char.surface.find_entities_filtered{
+                position = char.position, radius = 0.1,
+                invert = true,
+                name = char.name,
+            }
+        if inside and inside[1] then
+            inside_str = inside[1].name
+        end
+    end)
+
+    -- LuaControl.hub returns the space platform hub the player is
+    -- currently sitting in, or nil otherwise. Critical for diagnosing
+    -- spectator transitions on platforms.
+    local hub_str = "nil"
+    local hub = player.hub
+    if hub and hub.valid then
+        hub_str = string.format("%s@%s", hub.name, fmt_pos(hub.position))
+    end
+
     return string.format(
-        "%s force=%s surface=%s pos=%s phys_surface=%s phys_pos=%s ctrl=%s",
+        "%s force=%s surface=%s pos=%s phys_surface=%s phys_pos=%s ctrl=%s char=%s opened=%s near=%s hub=%s",
         player.name,
         player.force and player.force.name or "?",
         (s and s.valid) and s.name or "?",
         fmt_pos(player.position),
         (ps and ps.valid) and ps.name or "?",
         fmt_pos(player.physical_position),
-        ctrl_name
+        ctrl_name,
+        char_str,
+        opened_str,
+        inside_str,
+        hub_str
     )
 end
 

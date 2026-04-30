@@ -316,10 +316,37 @@ local function add_surfaces_section(card, force, surfaces, is_own_team, is_curre
         loc_lbl.style.font       = "default-small"
         loc_lbl.style.font_color = {0.6, 0.6, 0.6}
 
-        -- Spectate button for other teams' surfaces.
-        -- Allowed for pen players too (they're already on spectator force).
-        if not is_own_team and not is_current_target and info.surface_name then
+        -- Spectate button: shown for any surface the viewer isn't
+        -- currently on, regardless of which team owns it.
+        --
+        -- Use cases:
+        --   • Foreign team's surface — full MTS spectator mode (force
+        --     swap + remote view + crafting paused). Click handler
+        --     routes via spectator.enter / switch_target.
+        --   • Own team's surface (e.g. viewing your own planet from
+        --     your platform) — friend-view-style remote view (no
+        --     force change, no crafting pause). Click handler routes
+        --     via spectator.enter_friend_view because
+        --     needs_spectator_mode returns false for same-team views.
+        --
+        -- Excluded only when the viewer is physically on this surface,
+        -- where "spectate this" is nonsensical (they're already here).
+        --
+        -- Allowed for pen players too — they're on the spectator
+        -- force and can use spectate buttons normally.
+        local viewer_phys_surface = viewer_player.physical_surface
+            and viewer_player.physical_surface.valid
+            and viewer_player.physical_surface.name
+        if info.surface_name and info.surface_name ~= viewer_phys_surface then
             row.add{type = "empty-widget"}.style.horizontally_stretchable = true
+            -- Tooltip phrasing varies by ownership: foreign teams need
+            -- the crafting-pause warning; own-team views don't.
+            local tip
+            if is_own_team then
+                tip = "View this surface in remote view"
+            else
+                tip = "Spectate this surface (opens remote view; pauses your crafting while active)"
+            end
             row.add{
                 type    = "sprite-button",
                 sprite  = "utility/map",
@@ -330,7 +357,7 @@ local function add_surfaces_section(card, force, surfaces, is_own_team, is_curre
                     sb_position     = info.position,
                 },
                 style   = "mini_button",
-                tooltip = "Spectate this surface (opens remote view; pauses your crafting while active)",
+                tooltip = tip,
             }
         end
     end
@@ -378,23 +405,61 @@ local function add_footer(frame, player, viewer_force)
         if not is_spec then return end
     else
         if not viewer_force then return end
+
+        -- Spectator gets the button regardless of where the camera is —
+        -- it doubles as "Stop spectating".
+        --
+        -- Non-spectator players get the button only when they're on a
+        -- surface NOT owned by their own team. Specifically:
+        --   • On their planet variant (mts-nauvis-N) — hide.
+        --   • On a cloned non-Space-Age nauvis (team-N-nauvis) — hide.
+        --   • On any of their team's platforms — hide.
+        --     (Even though the platform isn't "home", it's still THEIR
+        --     surface; offering a magic teleport from platform → planet
+        --     would let players bypass cargo-pod travel, which is the
+        --     intended Space Age mechanic for descending from orbit.)
+        --   • On a foreign team's surface — show. The button bounces
+        --     them back to their home surface via the shared force-utils
+        --     bounce path.
+        --   • On a shared/neutral surface (default nauvis, landing pen) —
+        --     show. The button gets them home from places they shouldn't
+        --     normally be.
+        if not is_spec then
+            local owner = surface_utils.get_owner(player.surface)
+            if owner == viewer_force.name then return end
+        end
+
+        -- Compute the destination for the click handler. We do this
+        -- after the visibility check so we don't waste work on a
+        -- button that won't render.
         local return_surface = get_home_surface(viewer_force, player.index)
         if not return_surface then return end
-        if not is_spec and player.surface.index == return_surface.index then return end
     end
 
-    local crafting = is_spec and player.crafting_queue_size > 0
-    local caption
-    if is_spec then
-        caption = crafting and "Stop spectating (crafting paused)" or "Stop spectating"
-    else
-        caption = "Return to my base"
+    -- player.crafting_queue_size errors with "No crafting queue" when
+    -- the player isn't in a controller that has one (god, spectator,
+    -- remote view). is_spec means we're already in remote/spectator,
+    -- so guard on player.character before reading it.
+    local crafting = is_spec and player.character
+        and player.crafting_queue_size > 0
+
+    -- Single label "Exit remote view" covers both cases:
+    --   • Spectator: actually exits remote view back to character.
+    --   • Non-spectator on a foreign or shared surface: teleports home,
+    --     conceptually "exiting" the wrong-place state. Same word fits
+    --     even though no remote view is involved, because to the player
+    --     the button feels like "get me back to where I belong".
+    -- Append the crafting-paused note only when relevant.
+    local caption = "Exit remote view"
+    if is_spec and crafting then
+        caption = "Exit remote view (crafting paused)"
     end
+
     local tooltip
     if in_pen then
-        tooltip = "Stop spectating and return to the Landing Pen"
+        tooltip = "Exit remote view and return to the Landing Pen"
     elseif is_spec then
-        tooltip = "Stop spectating and return to your base"
+        tooltip = "Exit remote view and return to your base"
     else
         tooltip = "Teleport back to your base"
     end
@@ -496,6 +561,18 @@ end
 local function on_return_to_base(player)
     if spectator.is_spectating(player) then
         spectator.exit(player)
+        -- Rebuild the panel so the button hides (or relabels) immediately.
+        -- Without this, the button stays rendered with its spectator-mode
+        -- caption even though spectator.exit already restored the player's
+        -- force/controller. A second click would then fall through to the
+        -- non-spectator branch below and teleport them home — confusing
+        -- because to the user "first click did nothing, second click
+        -- magically warped me to Nauvis." The visible disappearance of
+        -- the button on the first click is the user's confirmation that
+        -- spectator.exit actually worked, especially when their pre-
+        -- spectator physical location was already what the camera was
+        -- showing (which makes the underlying teleport invisible).
+        teams_gui.build_gui(player)
         return
     end
     local saved = storage.spectator_saved_location

@@ -1,4 +1,77 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.3
+Date: 2026-04-30
+  Features:
+    - Dynamic planet enumeration. MTS now iterates data.raw.planet
+      at data-final-fixes (and game.planets at runtime) instead of
+      hardcoding the vanilla 5 base planets. Modded planets — those
+      registered via data:extend or via planet libraries like
+      PlanetsLib — get per-team variants, per-team space connections,
+      force locks, and discovery-tech routing automatically.
+      info.json declares ? PlanetsLib so its data stages run before
+      MTS's, ensuring modded planets are present at enumeration time.
+    - Generalized clone_mirror: any mts-{planet}-{N} surface mirrors
+      from the matching {planet} surface, not just nauvis. Mods that
+      decorate Vulcanus, Gleba, Fulgora, Aquilo, or any modded
+      planet now reach team variants automatically.
+    - Discovery tech detection scans every loaded technology for
+      unlock-space-location effects rather than matching tech names.
+      Works for vanilla planet-discovery-* techs and for custom
+      naming schemes used by planet mods.
+    - Teams GUI shows spectate buttons for own-team surfaces too
+      (previously foreign-team only). Use case: viewing your own
+      planet from your space platform without leaving the hub.
+      Friend-view path (no force change, no crafting pause) for
+      same-team views; full spectator path for foreign teams.
+    - Teams GUI rebuilds automatically on on_surface_created when
+      the new surface is team-owned (rocket launches a new platform,
+      a new modded planet variant is instantiated, etc.).
+    - Lignumis compat placeholder at compat/lignumis.lua: pure-comments
+      brief documenting the three runtime hardcoded "lignumis" filters
+      that break per-team variants and how to fix them upstream. No
+      active code; revisit when actually playing Lignumis.
+  Fixes:
+    - Spectator: pre-spectate "sitting in a space platform hub" state
+      is now correctly restored on exit. Uses the documented
+      LuaPlayer.enter_space_platform(platform) API to re-establish
+      the hub-pilot relationship — set_controller alone restored the
+      camera but not the "Drop to a planet" / platform schedule UI.
+    - Spectator: pressing escape in a platform-targeting spectator
+      session no longer leaves the user silently stuck. The camera
+      reverts to phys_surface (Factorio's escape behavior on
+      platforms doesn't fire on_player_controller_changed); a new
+      on_player_changed_surface check auto-exits the spectator when
+      the camera leaves the target team's territory.
+    - Spectator: viewing an own-team surface no longer forces the
+      player into spectator force. needs_spectator_mode now
+      short-circuits to false when viewer_force == target_force,
+      routing the click through enter_friend_view (no force swap,
+      no crafting pause).
+    - Force-utils: on_foreign_surface now recognizes Space Age
+      mts-{planet}-{N} variants via planet_map.get_force_by_planet.
+      Fixes the case where bouncing-from-foreign-surface didn't
+      trigger after exiting spectator on a team variant.
+    - Surface-utils: get_home_surface preference order corrected.
+      The player's stored player_surfaces entry takes priority over
+      any team platform; platforms are now a last-resort fallback.
+      Fixes the regression where "return to base" sent platform-
+      owning teams to the platform instead of their planet.
+    - vanilla / Space Age compat: pre-generate spawn-area chunks
+      synchronously before teleporting the player. Without this
+      pre-gen, clone_area runs on the chunk containing the player's
+      character and overwrites it, dropping them into god mode.
+    - Spectator: after exiting spectator via the on-screen button,
+      the Teams GUI rebuilds immediately so the button hides on
+      one click instead of the user needing a second click that
+      teleports them home.
+    - Spectator: crafting_queue_size guarded against the "No
+      crafting queue" engine error when called on players in
+      god/spectator/remote controllers.
+    - Diagnostic: helpers.player_state now logs character entity,
+      player.opened, nearby entity, and player.hub for spectator-
+      related debugging.
+
+---------------------------------------------------------------------------------------------------
 Version: 0.4.2
 Date: 2026-04-29
   Changes:

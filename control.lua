@@ -121,6 +121,22 @@ local function init_events()
             local owner = surface_utils.get_owner(surface)
             if owner then
                 remote_api.raise_team_surface_created(surface.name, owner)
+                -- Rebuild the Teams GUI for everyone who has it open so
+                -- the new surface appears immediately. Triggered by
+                -- on_surface_created (per Factorio runtime API), which
+                -- fires for:
+                --   • new space platforms (rocket launch creates a new
+                --     "platform-N" surface),
+                --   • Space Age planet-variant surfaces (created lazily
+                --     when a team first visits that planet — e.g.
+                --     mts-vulcanus-3 appearing when team-3 lands on
+                --     Vulcanus for the first time),
+                --   • non-Space-Age cloned surfaces (team-N-planet).
+                -- collect_team_surfaces in gui/teams.lua reads from
+                -- live state (force.platforms, game.surfaces,
+                -- storage.map_force_to_planets) so a rebuild picks the
+                -- new surface up automatically.
+                teams_gui.update_all()
             end
             -- Space Age: re-hide base planets for all team forces. We
             -- deliberately DON'T use apply_all_force_locks here — that
@@ -253,7 +269,11 @@ script.on_init(function()
 
     -- Build the team↔planet variant maps (Space Age only; no-op otherwise)
     -- and apply space-location locks so teams only see their own planets.
+    -- refresh_discovery_techs scans every loaded tech for
+    -- unlock-space-location effects; the result is used by
+    -- on_research_finished to redirect discovery unlocks to team variants.
     planet_map.build()
+    planet_map.refresh_discovery_techs()
     planet_map.apply_all_force_locks()
 
     -- Initialize records and milestone tracking
@@ -333,9 +353,14 @@ script.on_configuration_changed(function()
     -- Invalidate Space Age detection cache so we re-probe after the mod list changed
     space_age.invalidate_cache()
 
-    -- Rebuild planet mappings + re-apply locks. Handles: max_teams change,
-    -- Space Age added/removed, or variant prototypes changing.
+    -- Rebuild planet mappings + re-apply locks. Handles: max_teams
+    -- change, Space Age added/removed, planet mod added (e.g. Lignumis
+    -- mid-save), or variant prototypes changing.
+    -- refresh_discovery_techs is critical here: a newly-installed
+    -- planet mod brings new "planet-discovery-X" techs that need to
+    -- be detected so on_research_finished routes them to team variants.
     planet_map.build()
+    planet_map.refresh_discovery_techs()
     planet_map.apply_all_force_locks()
 
     -- Re-init dangOreus compat (may be newly added/removed)
@@ -440,6 +465,13 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
            and player.controller_type ~= defines.controllers.remote then
             spectator.exit(player)
         end
+        -- Auto-exit MTS spectator when camera leaves the target team's
+        -- territory. Specifically catches the platform-spectator case
+        -- where pressing escape reverts the camera to the player's own
+        -- physical surface without changing controller, leaving them
+        -- silently stuck in spectator mode. See
+        -- spectator.on_player_changed_surface for the full reasoning.
+        spectator.on_player_changed_surface(player)
         force_utils.bounce_if_foreign(player)
         teams_gui.build_gui(player)
         helpers.diag("on_player_changed_surface (after handlers)", player)
@@ -616,6 +648,35 @@ end)
 script.on_event(defines.events.on_gui_closed, function(event)
     if research_gui.on_gui_closed(event) then return end
     welcome_gui.on_gui_closed(event)
+
+    -- Spectator quality-of-life: when the spectated target is a space
+    -- platform, Factorio opens the platform's hub UI as player.opened
+    -- and pressing escape closes the hub instead of exiting remote view.
+    -- Without this hook, the user has to press escape twice (or click
+    -- the "Exit remote view" button) to actually leave spectator. With
+    -- this hook, the first escape closes the hub AND we detect the
+    -- close, so we call spectator.exit ourselves — one keystroke
+    -- collapses the two-step flow into the user's intuitive "escape
+    -- exits the thing I'm doing".
+    if event.gui_type == defines.gui_type.entity then
+        local entity = event.entity
+        if entity and entity.valid and entity.type == "space-platform-hub" then
+            local p = game.get_player(event.player_index)
+            if p and spectator.is_spectating(p) then
+                spectator.exit(p)
+                -- Rebuild the teams panel so the "Exit remote view"
+                -- button hides immediately. spectator.exit doesn't
+                -- itself trigger a panel rebuild, and the post-exit
+                -- teleport often lands on the same surface the player
+                -- was already on (their physical platform), so
+                -- on_player_changed_surface doesn't fire either.
+                -- Without this explicit rebuild the panel would keep
+                -- showing the spectator-mode button until the next
+                -- unrelated rebuild trigger.
+                teams_gui.build_gui(p)
+            end
+        end
+    end
 end)
 
 script.on_event(defines.events.on_gui_checked_state_changed, function(event)

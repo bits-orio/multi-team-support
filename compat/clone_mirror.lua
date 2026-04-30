@@ -34,47 +34,72 @@ local clone_mirror = {}
 
 local CHUNK_SIZE = 32
 
--- Surface name patterns that should mirror from nauvis. Add patterns
--- here if MTS adds more nauvis-equivalent surface naming schemes.
-local TEAM_NAUVIS_PATTERNS = {
-    "^team%-%d+%-nauvis$",   -- base 2.0 cloned surface
-    "^mts%-nauvis%-%d+$",    -- Space Age per-team variant
-}
-
-local function is_team_nauvis(name)
-    if not name then return false end
-    for _, p in ipairs(TEAM_NAUVIS_PATTERNS) do
-        if name:find(p) then return true end
-    end
-    return false
+--- Identify a team-owned planet variant and return the source planet
+--- name to clone from, or nil if the surface is not a team variant.
+---
+--- Two naming schemes are recognized:
+---   • "mts-<planet>-<N>"     — Space Age per-team variant
+---   • "team-<N>-<planet>"    — base 2.0 cloned surface (no Space Age)
+---
+--- The captured planet name is returned verbatim and is used as the
+--- key into `game.surfaces` to find the source. This works for any
+--- planet — vanilla (nauvis, vulcanus, etc.) and modded (lignumis,
+--- maraxsis, muluna, etc.). The patterns deliberately accept any
+--- non-empty planet name, so a planet mod registered through any
+--- path (data:extend, PlanetsLib:extend, etc.) cascades through the
+--- variant naming and lands here automatically.
+local function source_planet_for(team_surface_name)
+    if not team_surface_name then return nil end
+    -- Space Age variant: mts-<planet>-<N>
+    local planet = team_surface_name:match("^mts%-(.+)%-%d+$")
+    if planet then return planet end
+    -- Non-Space-Age clone: team-<N>-<planet>
+    planet = team_surface_name:match("^team%-%d+%-(.+)$")
+    if planet then return planet end
+    return nil
 end
 
 --- Hook from MTS's on_chunk_generated event. Cheap when the surface
---- isn't a team nauvis (early return). For team nauvis, drives nauvis
---- to generate the matching chunk and clones the result.
+--- isn't a team variant (early return). For team variants, drives the
+--- matching planet's chunk to generate and clones the result.
+---
+--- Generalisation note: this used to be hardcoded to nauvis only. The
+--- generalization to all planets means a chunk-decorating mod that
+--- targets, say, Vulcanus (filtering by `surface.name == "vulcanus"`)
+--- will see its decoration mirrored to every team's Vulcanus variant
+--- with no per-mod compat code. dangOreus, VoidBlock, Alien Biomes,
+--- and (vanilla) modded resource autoplaces all benefit equally.
 function clone_mirror.on_chunk_generated(event)
     local team_surface = event.surface
     if not (team_surface and team_surface.valid) then return end
-    if not is_team_nauvis(team_surface.name) then return end
 
-    local nauvis = game.surfaces["nauvis"]
-    if not (nauvis and nauvis.valid) then return end
+    local source_planet_name = source_planet_for(team_surface.name)
+    if not source_planet_name then return end
+
+    local source = game.surfaces[source_planet_name]
+    if not (source and source.valid) then
+        -- Source planet hasn't been instantiated yet (Factorio creates
+        -- planet surfaces lazily in Space Age). Without the source we
+        -- can't clone; skip silently. The next chunk-gen attempt will
+        -- retry, and by then the source surface should exist.
+        return
+    end
 
     local cx, cy = event.position.x, event.position.y
-    -- Drive nauvis to generate the same chunk if it hasn't already.
-    -- Every mod that listens to on_chunk_generated for nauvis runs
-    -- synchronously inside force_generate_chunk_requests.
-    if not nauvis.is_chunk_generated({cx, cy}) then
-        nauvis.request_to_generate_chunks(
+    -- Drive the source planet to generate the same chunk if it hasn't
+    -- already. Every mod that listens to on_chunk_generated for the
+    -- source planet runs synchronously inside force_generate_chunk_requests.
+    if not source.is_chunk_generated({cx, cy}) then
+        source.request_to_generate_chunks(
             {cx * CHUNK_SIZE + CHUNK_SIZE / 2, cy * CHUNK_SIZE + CHUNK_SIZE / 2}, 0)
-        nauvis.force_generate_chunk_requests()
+        source.force_generate_chunk_requests()
     end
 
     -- Mirror tiles + entities + decoratives. clone_area is synchronous
-    -- and overwrites destination contents, so any vanilla worldgen that
-    -- happened on the team surface a moment ago is replaced by nauvis's
-    -- (post-mod-decoration) state.
-    nauvis.clone_area{
+    -- and overwrites destination contents, so any vanilla worldgen
+    -- that happened on the team surface a moment ago is replaced by
+    -- the source planet's (post-mod-decoration) state.
+    source.clone_area{
         source_area         = event.area,
         destination_area    = event.area,
         destination_surface = team_surface,

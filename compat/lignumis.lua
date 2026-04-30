@@ -1,0 +1,158 @@
+-- Multi-Team Support - compat/lignumis.lua
+-- Author: bits-orio
+-- License: MIT
+--
+-- Status: PLACEHOLDER. No active code.
+--
+-- This file documents the work that would be required to fully support
+-- the Lignumis planet mod (https://mods.factorio.com/mod/lignumis,
+-- https://git.cacklingfiend.info/cacklingfiend/lignumis) under MTS's
+-- per-team planet variants. We deliberately implement nothing today
+-- because the MTS author isn't actively playing Lignumis. When that
+-- changes, open this file, decide which gaps actually impact your
+-- play, and implement only what's needed.
+--
+-- ═══ What already works without per-mod compat ════════════════════════
+--
+-- Lignumis is a "planets work generically" candidate for everything
+-- the data-stage enumeration covers. Specifically, MTS already:
+--
+--   • Creates per-team variants `mts-lignumis-1..N` at data-final-fixes
+--     via prototypes/planets.lua. That file iterates data.raw.planet
+--     dynamically — Lignumis registers its planet through
+--     PlanetsLib:extend, which ultimately writes to data.raw.planet,
+--     so the enumeration picks it up.
+--
+--   • Builds per-team space-connection variants via
+--     prototypes/connections.lua. Any base-to-base or base-to-shared
+--     connection involving lignumis (e.g. nauvis ↔ lignumis) gets N
+--     team-specific copies.
+--
+--   • Routes the planet-discovery-lignumis tech (or any tech with an
+--     `unlock-space-location` effect targeting "lignumis") to each
+--     team's variant via scripts/planet_map.lua's
+--     refresh_discovery_techs() + on_research_finished hook.
+--
+--   • Locks/hides the shared base lignumis surface and non-home
+--     variants from team forces via planet_map.apply_force_locks().
+--
+--   • Mirrors decorated chunks from real `lignumis` to each team's
+--     `mts-lignumis-N` variant via compat/clone_mirror.lua's generic
+--     `mts-<planet>-<N>` pattern. Worldgen, ambient resources, and
+--     any chunk-gen mod targeting lignumis flow through automatically.
+--
+-- ═══ What's broken: three hardcoded surface-name filters ══════════════
+--
+-- Lignumis's runtime control code has three places that filter by
+-- `surface.name == "lignumis"`. Since MTS team players spend their
+-- time on `mts-lignumis-N` (not the shared `lignumis`), each of these
+-- silently no-ops on team surfaces, breaking gameplay:
+--
+-- 1. /home/shobhitg/src/lignumis/lignumis/scripts/wooden-rocket-silo.lua:136
+--    The on_script_trigger_effect handler that registers the
+--    provisional rocket silo only fires when `event.surface_index`
+--    equals the literal lignumis surface. On a team variant, the
+--    silo never registers, so launches from `mts-lignumis-N` don't
+--    work.
+--
+-- 2. /home/shobhitg/src/lignumis/lignumis/scripts/to-nauvis.lua:46
+--    The "return to Nauvis" teleport triggers only when the player's
+--    surface is named exactly "lignumis". A team player on
+--    `mts-lignumis-1` who tries to leave gets stuck — no teleport
+--    fires.
+--
+-- 3. /home/shobhitg/src/lignumis/lignumis/scripts/init.lua:88
+--    The auto-research gift for automation science pack is gated on
+--    `player.physical_surface.name ~= "lignumis"`. Players on
+--    `mts-lignumis-N` either always or never trigger it (depending
+--    on the comparison direction); either way, behavior diverges
+--    from the intended single-planet flow.
+--
+-- ═══ How to fix each issue ════════════════════════════════════════════
+--
+-- The cleanest fix for all three is upstream: change each filter from
+--
+--     surface.name == "lignumis"
+--
+-- to
+--
+--     surface.planet and surface.planet.name == "lignumis"
+--
+-- That predicate accepts both the shared `lignumis` and every team
+-- variant `mts-lignumis-N` (because each variant carries
+-- `planet="lignumis"` from prototypes/planets.lua's deepcopy). It's a
+-- generic correctness fix that benefits any planet-renaming mod, not
+-- just MTS. Same pattern we documented in docs/COMPAT.md.
+--
+-- Lignumis is open-source on git.cacklingfiend.info, so a PR is
+-- realistic. Three small commits, one per file. Cackling Fiend's
+-- Discord (https://discord.gg/ufvFUJtVwk) is the contact point.
+--
+-- If upstream won't accept the change, we'd need to re-implement
+-- each runtime rule on MTS's side, scoped to team surfaces. Concrete
+-- shape (NOT IMPLEMENTED, sketch only):
+--
+--   • For (1): subscribe to on_script_trigger_effect in MTS, filter
+--     to events whose effect_id matches Lignumis's silo trigger,
+--     accept any team-lignumis surface, and replicate the silo
+--     registration logic on the team surface. Requires
+--     reverse-engineering or asking the author what the trigger
+--     does internally.
+--
+--   • For (2): subscribe to whatever event Lignumis listens for to
+--     trigger the to-nauvis teleport (likely a custom-input or
+--     entity-built event), filter to team lignumis surfaces, and
+--     run the teleport ourselves. Likely 30-50 lines and brittle to
+--     Lignumis updates.
+--
+--   • For (3): subscribe to on_player_changed_surface, detect
+--     transitions away from `mts-lignumis-N`, run the auto-research
+--     grant logic. ~10 lines.
+--
+-- All three workarounds are the kind of "re-implement upstream's
+-- logic" code we explicitly avoid (per docs/COMPAT.md "What MTS
+-- will not do"). They're a last resort.
+--
+-- ═══ What's broken (data-stage) ═══════════════════════════════════════
+--
+-- Two more issues that can't be fixed at runtime at all:
+--
+-- 4. Ambient sound prototypes are hardcoded to `planet = "lignumis"`
+--    in /home/shobhitg/src/lignumis/lignumis/prototypes/content/lignumis/planet.lua
+--    around lines 143-182. Each ambient track only plays on the
+--    shared lignumis surface, never on team variants. Players on
+--    `mts-lignumis-N` would get silence instead of the intended
+--    forest ambiance.
+--
+--    Fix would be data-stage: clone each ambient-sound prototype N
+--    times with `planet = "mts-lignumis-<slot>"`. We'd need MTS's
+--    prototypes/planets.lua to also iterate ambient sounds (and any
+--    other prototype types that reference a planet name) for every
+--    base planet. Significant scope creep.
+--
+-- 5. Recipe restrictions are applied via
+--    PlanetsLib.restrict_to_planet(entity, "lignumis") in
+--    /home/shobhitg/src/lignumis/lignumis/scripts/wooden-rocket-silo.lua
+--    around lines 160-162. The restriction only matches the literal
+--    surface name. Recipes that should only craft on lignumis would
+--    refuse to craft on team variants.
+--
+--    Fix is upstream-only — PlanetsLib.restrict_to_planet's
+--    implementation would need to accept a list of surface names or
+--    a planet predicate. Not something MTS can patch from outside.
+--
+-- ═══ When to revisit this file ════════════════════════════════════════
+--
+-- Open this file when:
+--   • The MTS author or a player wants to actively play a Lignumis
+--     run with team support.
+--   • Cackling Fiend has accepted (or rejected) a `surface.planet.name`
+--     PR. If accepted, this file can be deleted entirely. If rejected,
+--     decide whether the runtime workarounds are worth the
+--     maintenance cost.
+--
+-- For now, leave Lignumis support as "planet variants exist, terrain
+-- mirrors correctly, but several runtime mechanics don't fire on
+-- team surfaces." That's good enough for a static screenshot and
+-- bad enough that anyone trying to actually play it will notice
+-- within a few minutes.

@@ -40,6 +40,11 @@ end
 function planet_map.init_storage()
     storage.map_force_to_planets = storage.map_force_to_planets or {}
     storage.map_planet_to_force  = storage.map_planet_to_force  or {}
+    -- Cached map of tech_name -> base_planet_name. Rebuilt on
+    -- on_configuration_changed via refresh_discovery_techs() so that
+    -- adding a planet mod mid-save picks up the new discovery techs
+    -- without requiring a fresh save.
+    storage.discovery_tech_map   = storage.discovery_tech_map   or {}
 end
 
 -- ─── Build Mappings ──────────────────────────────────────────────────
@@ -47,6 +52,21 @@ end
 --- Build the force↔planet bidirectional maps based on team_pool slots.
 --- Call on_init (after create_team_pool) and on_configuration_changed.
 --- Idempotent: rebuilds from scratch each call.
+---
+--- Iteration uses space_age.list_base_planets_runtime(), which reads
+--- game.planets directly. This means:
+---   • Vanilla planets (nauvis, vulcanus, gleba, fulgora, aquilo)
+---     are picked up.
+---   • Modded planets (Lignumis, Maraxsis, Muluna, etc.) registered by
+---     any mod path — data:extend, PlanetsLib:extend, etc. — are also
+---     picked up.
+---   • If a player adds a planet mod to an existing save,
+---     on_configuration_changed re-runs build() and the new modded
+---     planet appears in the map automatically.
+---   • Variants for the new planet have already been created at data
+---     stage by prototypes/planets.lua (which uses the parallel
+---     list_base_planets_data() iterator), so the runtime lookup
+---     always finds them.
 function planet_map.build()
     planet_map.init_storage()
     if not space_age.is_active() then return end
@@ -58,12 +78,12 @@ function planet_map.build()
     for slot = 1, max do
         local force_name = "team-" .. slot
         local per_team = {}
-        for _, base in ipairs(space_age.BASE_PLANETS) do
+        for _, base in ipairs(space_age.list_base_planets_runtime()) do
             local variant = space_age.variant_name(base, slot)
-            -- Only include variants that were actually created at data stage.
-            -- `game.planets` is the canonical runtime accessor for planets in
-            -- Factorio 2.0 (LuaPrototypes has no `planet` key). Team Starts
-            -- uses this same pattern.
+            -- Only include variants that were actually created at data
+            -- stage. game.planets is the canonical runtime accessor —
+            -- LuaPrototypes has no `planet` key. (Team Starts uses
+            -- this same pattern.)
             if game.planets and game.planets[variant] then
                 per_team[base] = variant
                 storage.map_planet_to_force[variant] = force_name
@@ -123,11 +143,17 @@ function planet_map.hide_base_planets_for(force)
 
     if not space_age.is_active() then return end
 
-    -- Lock and hide all base planets (Space Age only).
-    -- Use game.planets[base].surface rather than game.surfaces[base] because
-    -- in Space Age planet surfaces are created lazily; the canonical access
-    -- for a planet's surface goes through LuaPlanet. (This matches Team Starts.)
-    for _, base in ipairs(space_age.BASE_PLANETS) do
+    -- Lock and hide every base planet currently registered, including
+    -- modded planets. The iterator returns whatever's in game.planets,
+    -- so a modded planet added to the save (with a fresh /reload or
+    -- on_configuration_changed) will be locked alongside the vanilla
+    -- ones automatically.
+    --
+    -- Use game.planets[base].surface rather than game.surfaces[base]
+    -- because in Space Age planet surfaces are created lazily; the
+    -- canonical access for a planet's surface goes through LuaPlanet.
+    -- (This matches Team Starts.)
+    for _, base in ipairs(space_age.list_base_planets_runtime()) do
         pcall(function() force.lock_space_location(base) end)
         local planet = game.planets and game.planets[base]
         if planet and planet.surface and planet.surface.valid then
@@ -191,6 +217,23 @@ end
 -- ─── Surface Creation ────────────────────────────────────────────────
 
 --- Get or create the surface for a planet by name. Returns nil on failure.
+---
+--- Synchronously pre-generates a 3-chunk radius around origin before
+--- returning. This is critical for clone_mirror compatibility: when a
+--- chunk is generated on a team variant, clone_mirror runs clone_area
+--- on that chunk, which overwrites destination contents — including
+--- any character entity present in the destination. If chunk
+--- generation is deferred (queued via request_to_generate_chunks but
+--- not forced), the player teleports onto an ungenerated chunk,
+--- Factorio auto-generates it under their feet, clone_mirror
+--- destroys their character, and the player drops into god mode.
+---
+--- force_generate_chunk_requests blocks until all queued chunks
+--- generate. By the time we return, clone_mirror has run on every
+--- chunk in the spawn area; the player teleports onto already-cloned
+--- terrain and their character survives.
+---
+--- Mirrors the same fix in compat/vanilla.lua's setup_player_surface.
 function planet_map.get_or_create_planet_surface(planet_name)
     local planet = game.planets and game.planets[planet_name]
     if not (planet and planet.valid) then return nil end
@@ -200,27 +243,80 @@ function planet_map.get_or_create_planet_surface(planet_name)
         surface = planet.create_surface()
     end
     if surface and surface.valid then
-        surface.request_to_generate_chunks({0, 0}, 1)
+        surface.request_to_generate_chunks({0, 0}, 3)
+        surface.force_generate_chunk_requests()
     end
     return surface
 end
 
 -- ─── Discovery Tech Hook ─────────────────────────────────────────────
+--
+-- A "discovery tech" is any technology whose effect list contains an
+-- `unlock-space-location` modifier. Researching it normally unlocks
+-- the linked space location (e.g. vulcanus). For team forces we
+-- redirect that unlock to the team's *variant* of that location so
+-- discovery research never reveals the shared base planet — only the
+-- team's private copy.
+--
+-- We detect discovery techs by inspecting the technology prototype's
+-- effects rather than matching on name, because:
+--   • Vanilla uses "planet-discovery-{vulcanus,gleba,fulgora,aquilo}".
+--   • Modded planets often follow the same naming convention but not
+--     always (Lignumis uses "planet-discovery-lignumis", Maraxsis
+--     might use a different scheme, etc.).
+--   • Some modpacks rename existing techs.
+--
+-- Looking at effects directly is robust against any naming.
 
--- Map of "planet-discovery-X" tech names to their base planet name.
-local DISCOVERY_TECHS = {
-    ["planet-discovery-vulcanus"] = "vulcanus",
-    ["planet-discovery-gleba"]    = "gleba",
-    ["planet-discovery-fulgora"]  = "fulgora",
-    ["planet-discovery-aquilo"]   = "aquilo",
-}
+--- Build the discovery-tech map at runtime by scanning every technology
+--- for an unlock-space-location effect. Cached in storage and rebuilt
+--- on configuration changes.
+---
+--- Returns: { [tech_name] = base_planet_name, ... }
+local function build_discovery_techs()
+    local map = {}
+    if not (prototypes and prototypes.technology) then return map end
+    for tech_name, tech in pairs(prototypes.technology) do
+        for _, effect in pairs(tech.effects or {}) do
+            if effect.type == "unlock-space-location" then
+                -- The effect's modifier field changed names across
+                -- Factorio versions; check both the modern field
+                -- (`space_location`) and any legacy variants. The
+                -- pcall covers the case where the field exists but
+                -- isn't a string we can read.
+                local location = effect.space_location
+                if location and game.planets and game.planets[location] then
+                    map[tech_name] = location
+                end
+            end
+        end
+    end
+    return map
+end
 
---- If the finished tech is a planet discovery, unlock the team's variant
---- and lock the base. Called from tech_records on_research_finished hook.
+--- Refresh the cached discovery-tech map. Call from on_init,
+--- on_configuration_changed, and any time technology prototypes might
+--- have changed (mod added/removed).
+function planet_map.refresh_discovery_techs()
+    if not space_age.is_active() then
+        storage.discovery_tech_map = {}
+        return
+    end
+    storage.discovery_tech_map = build_discovery_techs()
+    log("[multi-team-support:planet_map] discovery techs detected: "
+        .. (next(storage.discovery_tech_map) and "" or "none"))
+    for tech_name, base in pairs(storage.discovery_tech_map) do
+        log("  " .. tech_name .. " -> " .. base)
+    end
+end
+
+--- If the finished tech is a planet discovery, unlock the team's
+--- variant and lock the base. Called from tech_records on_research_finished.
 --- Returns true if handled, false if unrelated.
 function planet_map.on_research_finished(tech)
     if not space_age.is_active() then return false end
-    local base = DISCOVERY_TECHS[tech.name]
+    local map = storage.discovery_tech_map or {}
+    local base = map[tech.name]
     if not base then return false end
     local force = tech.force
     if not is_team_force(force.name) then return false end
@@ -228,7 +324,9 @@ function planet_map.on_research_finished(tech)
     local variant = planet_map.get_variant(force.name, base)
     if variant then
         pcall(function() force.unlock_space_location(variant) end)
-        -- Defensive: re-lock the base in case some other event unlocked it
+        -- Defensive: re-lock the base in case some other event
+        -- unlocked it. Without this, discovering the variant would
+        -- leak access to the shared base planet too.
         pcall(function() force.lock_space_location(base) end)
     end
     return true
