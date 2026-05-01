@@ -24,6 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FACTORIO_API_KEY: ${{ secrets.FACTORIO_API_KEY }}
+      DISCORD_ANNOUNCEMENTS_WEBHOOK: ${{ secrets.DISCORD_ANNOUNCEMENTS_WEBHOOK }}
     steps:
       - uses: actions/checkout@v4
 
@@ -73,9 +74,52 @@ jobs:
           ls -la "${ZIP}"
 
       - name: Upload to Factorio mod portal
+        id: upload
         run: |
           ZIP="${{ steps.info.outputs.name }}_${{ steps.tag.outputs.version }}.zip"
           ./tools/upload_mod_portal.sh \
             "${{ steps.info.outputs.name }}" \
             "${{ steps.tag.outputs.version }}" \
             "${ZIP}"
+
+      # Mirror of the announce step in release.yml. When this manual workflow
+      # is the one that actually puts the version on the portal (because the
+      # original release run failed at upload), the announcement should fire
+      # from here too.
+      - name: Post mod-portal release to announcements channel
+        if: ${{ steps.upload.outcome == 'success' && env.DISCORD_ANNOUNCEMENTS_WEBHOOK != '' }}
+        env:
+          RELEASE_VERSION: ${{ steps.tag.outputs.version }}
+          MOD_NAME: ${{ steps.info.outputs.name }}
+        run: |
+          PORTAL_URL="https://mods.factorio.com/mod/${MOD_NAME}"
+          PAYLOAD=$(jq -n \
+            --arg title "Multi-Team Support v${RELEASE_VERSION} is live on the mod portal" \
+            --arg desc  "Download or update in-game from the mods menu." \
+            --arg url   "$PORTAL_URL" \
+            '{
+              embeds: [{
+                title:       $title,
+                description: $desc,
+                url:         $url,
+                color:       5763719
+              }]
+            }')
+
+          HTTP_CODE=$(curl -sS \
+            -w "%{http_code}" \
+            -o /tmp/announce_response.txt \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_ANNOUNCEMENTS_WEBHOOK")
+          CURL_EXIT=$?
+
+          echo "--- Announcements HTTP status: ${HTTP_CODE}"
+          echo "--- curl exit: ${CURL_EXIT}"
+          cat /tmp/announce_response.txt || true
+          echo ""
+
+          if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Announcements webhook returned non-success status (${HTTP_CODE})"
+            exit 1
+          fi

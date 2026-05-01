@@ -15,6 +15,7 @@ jobs:
       # Hoisted to job scope so step-level `if:` conditions can see it.
       # (Step-level env is not available in the same step's if expression.)
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      DISCORD_ANNOUNCEMENTS_WEBHOOK: ${{ secrets.DISCORD_ANNOUNCEMENTS_WEBHOOK }}
       FACTORIO_API_KEY: ${{ secrets.FACTORIO_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -201,9 +202,52 @@ jobs:
       # the portal. If THIS step fails, recover via the manual
       # "Upload to Mod Portal" workflow (mod-portal-upload.yml).
       - name: Upload to Factorio mod portal
+        id: upload
         if: ${{ always() && steps.release.outcome == 'success' && env.FACTORIO_API_KEY != '' }}
         run: |
           ./tools/upload_mod_portal.sh \
             "${{ steps.info.outputs.name }}" \
             "${{ steps.info.outputs.version }}" \
             "${{ steps.info.outputs.folder }}.zip"
+
+      # Short "now live on the mod portal" ping to a separate announcements
+      # channel. The full changelog goes to DISCORD_WEBHOOK (changelog
+      # channel); this is the human-facing "go play it" message that fires
+      # only after the portal upload actually succeeds.
+      - name: Post mod-portal release to announcements channel
+        if: ${{ steps.upload.outcome == 'success' && env.DISCORD_ANNOUNCEMENTS_WEBHOOK != '' }}
+        env:
+          RELEASE_VERSION: ${{ steps.info.outputs.version }}
+          MOD_NAME: ${{ steps.info.outputs.name }}
+        run: |
+          PORTAL_URL="https://mods.factorio.com/mod/${MOD_NAME}"
+          PAYLOAD=$(jq -n \
+            --arg title "Multi-Team Support v${RELEASE_VERSION} is live on the mod portal" \
+            --arg desc  "Download or update in-game from the mods menu." \
+            --arg url   "$PORTAL_URL" \
+            '{
+              embeds: [{
+                title:       $title,
+                description: $desc,
+                url:         $url,
+                color:       5763719
+              }]
+            }')
+
+          HTTP_CODE=$(curl -sS \
+            -w "%{http_code}" \
+            -o /tmp/announce_response.txt \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_ANNOUNCEMENTS_WEBHOOK")
+          CURL_EXIT=$?
+
+          echo "--- Announcements HTTP status: ${HTTP_CODE}"
+          echo "--- curl exit: ${CURL_EXIT}"
+          cat /tmp/announce_response.txt || true
+          echo ""
+
+          if [ "$CURL_EXIT" -ne 0 ] || [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "::error::Announcements webhook returned non-success status (${HTTP_CODE})"
+            exit 1
+          fi
