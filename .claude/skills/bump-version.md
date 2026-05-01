@@ -5,7 +5,12 @@ When the user asks to bump the version, release a new version, or after the vers
 
 ## Steps
 
-1. **Bump the version in `info.json`** if not already done. Follow semver: patch for bugfixes, minor for features, major for breaking changes. Ask the user which component to bump if unclear.
+1. **Bump the version in `info.json`** if not already done. **Default to a patch bump** (e.g. `0.4.4` → `0.4.5`). Only do a minor or major bump if the user explicitly asks for one — do not infer from the diff.
+
+   Semver components (https://semver.org/), given a version `MAJOR.MINOR.PATCH`:
+   - **PATCH** — backwards-compatible bug fixes. Default. Increment the third number; reset nothing. `0.4.4` → `0.4.5`.
+   - **MINOR** — backwards-compatible new functionality. Only when the user requests it. Increment the second number; reset patch to 0. `0.4.5` → `0.5.0`.
+   - **MAJOR** — incompatible / breaking changes (save-format breakage, removed commands, changed remote interface, etc.). Only when the user requests it. Increment the first number; reset minor and patch to 0. `0.5.0` → `1.0.0`.
 
 2. **Generate a changelog entry** at the top of `changelog.txt`:
    - Determine the previous version's git tag (format: `v<old_version>`). If no tag exists, use `git log` to find commits since the last changelog entry.
@@ -32,3 +37,7 @@ When the user asks to bump the version, release a new version, or after the vers
    This removes old `multi-team-support_*` symlinks and creates new ones with the current version in both `~/factorio/mods/` and `~/.factorio/mods/`.
 
 4. **Commit the version bump**: stage `info.json` and `changelog.txt`, then commit with message: `Bump version to <new_version>`.
+
+5. **Release** (when the user asks): push the bump commit, then run `./tools/release.sh`. The script verifies the changelog entry, creates and pushes `v<new_version>`, and the GitHub Actions workflow takes over (build zip → GitHub release → Discord → mod portal upload).
+   - If the mod-portal upload step fails (portal outage, etc.), the GH release and tag remain. Re-run the upload via the **Upload to Mod Portal** workflow (Actions tab → workflow_dispatch). The upload script is idempotent — it noops if the version is already published.
+   - Required secrets on the GitHub repo: `FACTORIO_API_KEY` (scope: ModPortal: Upload Mods), and optionally `DISCORD_WEBHOOK`.

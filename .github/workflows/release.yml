@@ -15,6 +15,7 @@ jobs:
       # Hoisted to job scope so step-level `if:` conditions can see it.
       # (Step-level env is not available in the same step's if expression.)
       DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      FACTORIO_API_KEY: ${{ secrets.FACTORIO_API_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -192,3 +193,17 @@ jobs:
             echo "::error::Discord webhook returned non-success status (${HTTP_CODE})"
             exit 1
           fi
+
+      # Upload to the Factorio mod portal. Runs even if Discord failed, since
+      # the GH release + tag are the source of truth and a portal upload
+      # missing is more expensive to recover than a missing Discord post.
+      # Idempotent — safe to re-run; it noops if the version is already on
+      # the portal. If THIS step fails, recover via the manual
+      # "Upload to Mod Portal" workflow (mod-portal-upload.yml).
+      - name: Upload to Factorio mod portal
+        if: ${{ always() && steps.release.outcome == 'success' && env.FACTORIO_API_KEY != '' }}
+        run: |
+          ./tools/upload_mod_portal.sh \
+            "${{ steps.info.outputs.name }}" \
+            "${{ steps.info.outputs.version }}" \
+            "${{ steps.info.outputs.folder }}.zip"
