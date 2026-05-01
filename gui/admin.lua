@@ -113,6 +113,21 @@ local function distribute_items_to_spawned(items)
     end
 end
 
+--- Broadcast that an admin added entries to the starter items list.
+--- items is the same {{name=, count=}, ...} shape distribute_items_to_spawned takes.
+--- No-op if empty so callers do not need to guard.
+local function announce_starter_items_added(items, admin_player)
+    if not items or #items == 0 then return end
+    local parts = {}
+    for _, item in ipairs(items) do
+        parts[#parts + 1] = item.count .. "x " .. helpers.item_rich_name(item.name)
+    end
+    local who = admin_player
+        and helpers.colored_name(admin_player.name, admin_player.chat_color)
+        or "Admin"
+    helpers.broadcast(who .. " added " .. table.concat(parts, ", ") .. " to the starter items list.")
+end
+
 -- ---------------------------------------------------------------------------
 -- Starter Items helpers
 -- ---------------------------------------------------------------------------
@@ -386,6 +401,7 @@ function admin_gui.on_gui_click(event)
             end
             if #diff > 0 then
                 distribute_items_to_spawned(diff)
+                announce_starter_items_added(diff, player)
             end
             admin_gui.build_admin_gui(player)
         end
@@ -417,7 +433,9 @@ function admin_gui.on_gui_click(event)
                     storage.starter_items[#storage.starter_items + 1] = {name = item_name, count = count}
                 end
                 -- Give the added item to all already-spawned players
-                distribute_items_to_spawned({{name = item_name, count = count}})
+                local added = {{name = item_name, count = count}}
+                distribute_items_to_spawned(added)
+                announce_starter_items_added(added, player)
                 admin_gui.build_admin_gui(player)
             end
         end
