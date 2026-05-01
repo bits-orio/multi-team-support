@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.4
+Date: 2026-04-30
+  Features:
+    - Spawn labels: every team-owned surface (planet variants,
+      cloned surfaces, and space platforms) now carries a persistent
+      "<team_tag_with_leader>'s\n<location>" label at the spawn
+      area. Platformer's existing hub label is rerouted through the
+      same code so it picks up the team-and-leader prefix too.
+      Live-refresh on /mts-rename, the Team Settings rename field,
+      and leader auto-election after a leader leaves. Backfilled on
+      on_configuration_changed for upgraded saves.
+  Tweaks:
+    - Landing pen: drop the "Same start. Different finish." subtitle
+      and render the "Spawn when ready" prompt with default-large at
+      scale 3 so it stays crisp instead of looking upscaled.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.3
 Date: 2026-04-30
   Features:

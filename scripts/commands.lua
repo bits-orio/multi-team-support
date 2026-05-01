@@ -24,6 +24,7 @@ local awards_gui    = require("gui.awards")
 local force_pause   = require("scripts.force_pause")
 local chunk_trim    = require("scripts.chunk_trim")
 local event_replay  = require("scripts.event_replay")
+local spawn_labels  = require("scripts.spawn_labels")
 
 local commands_mod = {}
 
@@ -226,6 +227,7 @@ function commands_mod.register()
         storage.team_names[caller.force.name] = new_name
         helpers.broadcast("[Team] " .. helpers.colored_name(caller.name, caller.chat_color)
             .. " renamed their team to " .. helpers.team_tag(caller.force.name))
+        spawn_labels.refresh_for_force(caller.force.name)
         teams_gui.update_all()
         awards_gui.update_all()
     end)

@@ -34,6 +34,7 @@ local force_pause     = require("scripts.force_pause")
 local team_settings   = require("gui.team_settings")
 local chunk_trim      = require("scripts.chunk_trim")
 local remote_api      = require("scripts.remote_api")
+local spawn_labels    = require("scripts.spawn_labels")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -120,6 +121,7 @@ local function init_events()
             -- with remote_api.
             local owner = surface_utils.get_owner(surface)
             if owner then
+                spawn_labels.draw(owner, surface)
                 remote_api.raise_team_surface_created(surface.name, owner)
                 -- Rebuild the Teams GUI for everyone who has it open so
                 -- the new surface appears immediately. Triggered by
@@ -263,6 +265,7 @@ script.on_init(function()
     force_pause.init_storage()
     team_settings.init_storage()
     chunk_trim.init_storage()
+    spawn_labels.init_storage()
 
     -- Pre-create all team forces ("team-1" through "team-N")
     force_utils.create_team_pool()
@@ -301,6 +304,7 @@ script.on_configuration_changed(function()
     force_pause.init_storage()
     team_settings.init_storage()
     chunk_trim.init_storage()
+    spawn_labels.init_storage()
 
     -- One-shot migration: auto-pause was removed, so resume any team that's
     -- currently in a paused or mid-pause state. Otherwise legacy entities
@@ -370,6 +374,16 @@ script.on_configuration_changed(function()
     -- take effect immediately instead of showing stale content.
     landing_pen.update_pen_gui_all()
     teams_gui.update_all()
+
+    -- Backfill spawn labels for saves upgrading from a version without them,
+    -- and refresh existing ones in case a team rename/leader change happened
+    -- during a session that pre-dated live refresh wiring.
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid then
+            local owner_fn = surface_utils.get_owner(surface)
+            if owner_fn then spawn_labels.draw(owner_fn, surface) end
+        end
+    end
 
     init_events()
 end)

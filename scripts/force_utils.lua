@@ -15,6 +15,7 @@ local surface_utils = require("scripts.surface_utils")
 local planet_map    = require("scripts.planet_map")
 local friendship    = require("gui.friendship")
 local remote_api    = require("scripts.remote_api")
+local spawn_labels  = require("scripts.spawn_labels")
 
 local force_utils = {}
 
@@ -414,6 +415,7 @@ function force_utils.remove_from_team(player)
                 storage.team_leader[old_force_name] = new_leader.index
                 -- Update force display color to new leader's color
                 old_force.custom_color = new_leader.color
+                spawn_labels.refresh_for_force(old_force_name)
 
                 local cn_leader = helpers.colored_name(new_leader.name, new_leader.chat_color)
                 for _, member in pairs(old_force.players) do

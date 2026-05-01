@@ -14,6 +14,7 @@ local nav         = require("gui.nav")
 local force_utils = require("scripts.force_utils")
 local teams_gui   = require("gui.teams")
 local awards_gui  = require("gui.awards")
+local spawn_labels = require("scripts.spawn_labels")
 
 local team_settings = {}
 
@@ -216,6 +217,7 @@ local function try_rename(player, raw_text)
     helpers.broadcast("[Team] " .. helpers.colored_name(player.name, player.chat_color)
         .. " renamed their team to " .. helpers.team_tag(force_name))
 
+    spawn_labels.refresh_for_force(force_name)
     team_settings.update_all_for_force(force_name)
     -- Teams panel caches team names, so refresh any open copies.
     teams_gui.update_all()

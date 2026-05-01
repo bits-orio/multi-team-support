@@ -65,16 +65,10 @@ function landing_pen_terrain.get_or_create_surface()
         scale = 5, font = "default-large-bold", alignment = "center",
     }
     rendering.draw_text{
-        text = "Same start. Different finish.", surface = surface,
-        target = {x = 0, y = -4},
-        color = {r = 0.7, g = 0.7, b = 0.7, a = 0.8},
-        scale = 3, font = "default-large", alignment = "center",
-    }
-    rendering.draw_text{
         text = "Spawn when ready", surface = surface,
         target = {x = 0, y = 4},
-        color = {r = 1.0, g = 1.0, b = 1.0, a = 0.5},
-        scale = 1.5, font = "default", alignment = "center",
+        color = {r = 1.0, g = 1.0, b = 1.0, a = 0.8},
+        scale = 3, font = "default-large", alignment = "center",
     }
 
     return surface

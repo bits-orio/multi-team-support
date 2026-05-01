@@ -10,7 +10,8 @@
 -- Call on_init() from on_init and on_player_created(player) from
 -- on_player_created, both guarded by is_active().
 
-local helpers = require("scripts.helpers")
+local helpers      = require("scripts.helpers")
+local spawn_labels = require("scripts.spawn_labels")
 
 local platformer = {}
 
@@ -73,16 +74,13 @@ function platformer.setup_player_platform(player)
             hub.insert(item)
         end
 
-        -- Draw a persistent name label anchored to the hub entity so it is
-        -- identifiable at a glance in-world and on the minimap.
-        rendering.draw_text({
-            text             = platform_name,
-            surface          = platform.surface,
-            target           = hub,
-            target_offset    = { x = 0, y = -2 },
-            color            = { r = 1, g = 1, b = 1, a = 1 },
-            scale            = 3,
-            alignment        = "center",
+        -- Draw the persistent team-and-location label anchored to the hub.
+        -- on_surface_created fires before the hub is placed, so an earlier
+        -- label may already exist at the default origin position; spawn_labels
+        -- destroys the old one and re-anchors here.
+        spawn_labels.draw(force.name, platform.surface, {
+            target        = hub,
+            target_offset = { x = 0, y = -2 },
         })
     end
 
