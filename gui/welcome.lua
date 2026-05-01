@@ -95,6 +95,7 @@ local function draw_about(parent)
         "[img=item/production-science-pack] Production Stats - per-team output comparison\n" ..
         "[img=quality/legendary] Team Awards - leaderboards across research, science, and resources\n" ..
         "[img=utility/custom_tag_icon] Team Settings - rename your team (leader only)\n" ..
+        "[img=utility/bookmark] Admin - feature flags, starter items, team size limit (admin only)\n" ..
         "[img=virtual-signal/signal-info] About - this screen, reopen anytime"
     )
     section(
@@ -102,6 +103,21 @@ local function draw_about(parent)
         "New players wait in the Landing Pen until they are ready to " ..
         "spawn. Start a new team, or request to join an existing one — " ..
         "the team leader accepts."
+    )
+    section(
+        "Records & announcements",
+        "First-ever and fastest research wins, plus production milestones " ..
+        "(science packs, landfill, platform tiles, and more), are broadcast " ..
+        "as teams hit them. Each team's clock starts at first spawn, so " ..
+        "speed comparisons stay fair regardless of when a team joined."
+    )
+    section(
+        "Commands",
+        "/mts-teams — list teams with members and color\n" ..
+        "/mts-players — list players and surfaces with GPS pings\n" ..
+        "/mts-rename <name> — rename your team (leader only)\n" ..
+        "/mts-leave — leave your team\n" ..
+        "/mts-kick <player> — remove a teammate (leader only)"
     )
 end
 

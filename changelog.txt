@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.5
+Date: 2026-05-01
+  Features:
+    - Broadcast starter-item additions to all players. Both admin
+      add paths — manual single-item add and "Copy from inventory" —
+      print a colorized "<Admin> added Nx [item] to the starter
+      items list." Copy-from-inventory announces only the diff
+      (new or increased items); empty diffs stay silent.
+  Tweaks:
+    - Welcome / About panel refresh: list the Admin nav button
+      (admin only), add a Records & announcements section
+      explaining tech-record and milestone broadcasts plus the
+      per-team clock, and add a Commands section listing
+      /mts-teams, /mts-players, /mts-rename, /mts-leave, /mts-kick.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.4
 Date: 2026-04-30
   Features:
