@@ -48,20 +48,20 @@
 -- time on `mts-lignumis-N` (not the shared `lignumis`), each of these
 -- silently no-ops on team surfaces, breaking gameplay:
 --
--- 1. /home/shobhitg/src/lignumis/lignumis/scripts/wooden-rocket-silo.lua:136
+-- 1. lignumis/scripts/wooden-rocket-silo.lua:136
 --    The on_script_trigger_effect handler that registers the
 --    provisional rocket silo only fires when `event.surface_index`
 --    equals the literal lignumis surface. On a team variant, the
 --    silo never registers, so launches from `mts-lignumis-N` don't
 --    work.
 --
--- 2. /home/shobhitg/src/lignumis/lignumis/scripts/to-nauvis.lua:46
+-- 2. lignumis/scripts/to-nauvis.lua:46
 --    The "return to Nauvis" teleport triggers only when the player's
 --    surface is named exactly "lignumis". A team player on
 --    `mts-lignumis-1` who tries to leave gets stuck — no teleport
 --    fires.
 --
--- 3. /home/shobhitg/src/lignumis/lignumis/scripts/init.lua:88
+-- 3. lignumis/scripts/init.lua:88
 --    The auto-research gift for automation science pack is gated on
 --    `player.physical_surface.name ~= "lignumis"`. Players on
 --    `mts-lignumis-N` either always or never trigger it (depending
@@ -118,7 +118,7 @@
 -- Two more issues that can't be fixed at runtime at all:
 --
 -- 4. Ambient sound prototypes are hardcoded to `planet = "lignumis"`
---    in /home/shobhitg/src/lignumis/lignumis/prototypes/content/lignumis/planet.lua
+--    in lignumis/prototypes/content/lignumis/planet.lua
 --    around lines 143-182. Each ambient track only plays on the
 --    shared lignumis surface, never on team variants. Players on
 --    `mts-lignumis-N` would get silence instead of the intended
@@ -132,7 +132,7 @@
 --
 -- 5. Recipe restrictions are applied via
 --    PlanetsLib.restrict_to_planet(entity, "lignumis") in
---    /home/shobhitg/src/lignumis/lignumis/scripts/wooden-rocket-silo.lua
+--    lignumis/scripts/wooden-rocket-silo.lua
 --    around lines 160-162. The restriction only matches the literal
 --    surface name. Recipes that should only craft on lignumis would
 --    refuse to craft on team variants.

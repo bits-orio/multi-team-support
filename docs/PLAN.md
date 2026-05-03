@@ -44,7 +44,7 @@ This refactor changes force naming to a numbered pool (`"team-1"`, `"team-2"`, .
 
 4. **`shared/connection_types.lua`** - Base connection type references.
 
-5. **`prototypes/planets.lua`** - Deep-copy base planet prototypes for each variant (following Team Starts pattern at `/home/shobhitg/src/team-starts/prototypes/planets.lua`).
+5. **`prototypes/planets.lua`** - Deep-copy base planet prototypes for each variant (following Team Starts pattern at `team-starts/prototypes/planets.lua`).
 
 6. **`prototypes/connections.lua`** - Deep-copy base space-connection prototypes for variant connections.
 
@@ -189,7 +189,7 @@ for each team force do
 end
 ```
 
-Add `on_technology_effects_reset` and `on_force_reset` handlers to re-lock nauvis and re-unlock team planet variants (following Team Starts pattern at `/home/shobhitg/src/team-starts/scripts/universe.lua` lines 89-127).
+Add `on_technology_effects_reset` and `on_force_reset` handlers to re-lock nauvis and re-unlock team planet variants (following Team Starts pattern at `team-starts/scripts/universe.lua` lines 89-127).
 
 ---
 
