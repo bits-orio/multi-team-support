@@ -27,6 +27,14 @@ for dir in "${MOD_DIRS[@]}"; do
         fi
     done
 
+    # Remove old packaged zips of this mod
+    for zip in "$dir/${NAME}_"*.zip; do
+        if [[ -f "$zip" ]]; then
+            echo "Removing old zip: $zip"
+            rm "$zip"
+        fi
+    done
+
     ln -s "$SCRIPT_DIR" "$dir/$LINK_NAME"
     echo "Created: $dir/$LINK_NAME -> $SCRIPT_DIR"
 done
