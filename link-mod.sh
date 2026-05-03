@@ -11,6 +11,7 @@ LINK_NAME="${NAME}_${VERSION}"
 MOD_DIRS=(
     "$HOME/factorio/mods"
     "$HOME/.factorio/mods"
+    "$HOME/factorio2/mods"
 )
 
 for dir in "${MOD_DIRS[@]}"; do
