@@ -204,14 +204,25 @@ local function rebuild_frame(viewer, state)
         -- Camera widget inside a deep frame for a nice border.
         local zoom = state.zoom_levels[target.index] or CAMERA_ZOOM
         local cam_frame = cell.add{type = "frame", style = "inside_deep_frame"}
+        local _, t_surface, t_pos = spectator.resolve_view_for(target)
+        t_surface = (t_surface and t_surface.valid) and t_surface or target.surface
+        t_pos     = t_pos or target.position
         local camera = cam_frame.add{
             type          = "camera",
-            position      = target.position,
-            surface_index = target.surface and target.surface.index or 1,
+            position      = t_pos,
+            surface_index = t_surface and t_surface.index or 1,
             zoom          = zoom,
         }
         camera.style.width  = CAMERA_WIDTH
         camera.style.height = CAMERA_HEIGHT
+        -- Chart immediately so the camera doesn't open black (tick() charts
+        -- on subsequent updates, but the first frame would otherwise be empty).
+        if viewer.force and viewer.force.valid and t_surface and t_surface.valid then
+            viewer.force.chart(t_surface, {
+                {t_pos.x - CHART_RADIUS, t_pos.y - CHART_RADIUS},
+                {t_pos.x + CHART_RADIUS, t_pos.y + CHART_RADIUS},
+            })
+        end
 
         camera_refs[target.index] = camera
     end
