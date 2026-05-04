@@ -613,6 +613,7 @@ function landing_pen.reject_buddy_request(target, requester_index)
         .. "'s request to join " .. team_tag .. ".")
 
     if requester.connected then
+        requester.print(leader_tag .. " declined your buddy request.")
         landing_pen.build_pen_gui(requester)
     end
 end
