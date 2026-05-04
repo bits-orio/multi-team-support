@@ -35,6 +35,7 @@ local team_settings   = require("gui.team_settings")
 local chunk_trim      = require("scripts.chunk_trim")
 local remote_api      = require("scripts.remote_api")
 local spawn_labels    = require("scripts.spawn_labels")
+local debug_engine    = require("scripts.debug")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -196,6 +197,11 @@ local function init_events()
     -- Chunk trim runs one surface per interval so the server gets a
     -- breather between large per-surface deletions.
     script.on_nth_tick(30, function() chunk_trim.tick() end)
+
+    -- /mts-debug task driver. Runs every tick so scheduled actions
+    -- fire at their exact target tick. Cheap early-return when no
+    -- tasks are queued.
+    script.on_nth_tick(1, function() debug_engine.tick() end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
@@ -266,6 +272,7 @@ script.on_init(function()
     team_settings.init_storage()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
+    debug_engine.init_storage()
 
     -- Pre-create all team forces ("team-1" through "team-N")
     force_utils.create_team_pool()
@@ -305,6 +312,7 @@ script.on_configuration_changed(function()
     team_settings.init_storage()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
+    debug_engine.init_storage()
 
     -- One-shot migration: auto-pause was removed, so resume any team that's
     -- currently in a paused or mid-pause state. Otherwise legacy entities
