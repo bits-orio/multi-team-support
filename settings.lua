@@ -19,7 +19,7 @@ data:extend({
         type = "string-setting",
         name = "mts_discord_url",
         setting_type = "runtime-global",
-        default_value = "",
+        default_value = "https://discord.gg/tWz4FT74pH",
         allow_blank = true,
         order = "b-a",
     },

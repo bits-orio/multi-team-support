@@ -26,7 +26,7 @@ local welcome_gui = {}
 -- Constants
 -- ---------------------------------------------------------------------------
 
-local DISCORD_URL = "https://discord.gg/tWz4FT74pH"
+local function discord_url() return settings.global["mts_discord_url"].value end
 local NAV_BTN     = "sb_welcome_btn"
 local FRAME_NAME  = "sb_welcome_frame"
 
@@ -175,7 +175,7 @@ local function draw_discord(parent)
     url_row.style.horizontally_stretchable = true
     url_row.style.vertical_align          = "center"
 
-    local tb = url_row.add{type = "text-box", text = DISCORD_URL}
+    local tb = url_row.add{type = "text-box", text = discord_url()}
     tb.read_only       = true
     tb.style.width     = 260
     tb.style.height    = 28
