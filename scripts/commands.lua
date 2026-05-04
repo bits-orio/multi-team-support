@@ -42,10 +42,16 @@ local function perform_leave(player, _data)
     if spectator.is_spectating(player) then
         spectator.exit(player)
     end
+    -- Capture before remove_from_team: a solo leaver triggers an auto-disband
+    -- that frees the team slot, and pen GUIs need to refresh to show it.
+    local was_solo = force_utils.force_member_count(player.force) <= 1
     if force_utils.remove_from_team(player) then
         landing_pen.return_to_pen(player)
         player.print("You have left your team.")
         teams_gui.update_all()
+        if was_solo then
+            landing_pen.update_pen_gui_all()
+        end
     end
 end
 
@@ -72,7 +78,7 @@ local function perform_kick(leader, data)
     end
     if force_utils.remove_from_team(target) then
         landing_pen.return_to_pen(target)
-        local team_tag = helpers.team_tag(leader.force.name)
+        local team_tag = helpers.team_tag_with_leader(leader.force.name)
         target.print("You have been kicked from " .. team_tag .. " by "
             .. helpers.colored_name(leader.name, leader.chat_color) .. ".")
         leader.print("Kicked " .. helpers.colored_name(target.name, target.chat_color)
@@ -96,7 +102,7 @@ local function perform_disband(admin_player, data)
         return
     end
 
-    local team_tag = helpers.team_tag(force_name)
+    local team_tag = helpers.team_tag_with_leader(force_name)
 
     -- Move all players on this team back to the landing pen
     local members = {}
@@ -228,7 +234,7 @@ function commands_mod.register()
 
         storage.team_names[caller.force.name] = new_name
         helpers.broadcast("[Team] " .. helpers.colored_name(caller.name, caller.chat_color)
-            .. " renamed their team to " .. helpers.team_tag(caller.force.name))
+            .. " renamed their team to " .. helpers.team_tag_with_leader(caller.force.name))
         spawn_labels.refresh_for_force(caller.force.name)
         teams_gui.update_all()
         awards_gui.update_all()

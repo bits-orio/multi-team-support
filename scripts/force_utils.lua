@@ -379,10 +379,12 @@ function force_utils.remove_from_team(player)
     storage.team_leader = storage.team_leader or {}
     local is_leader = (storage.team_leader[old_force_name] == player.index)
     local cn_player = helpers.colored_name(player.name, player.chat_color)
-    local team_tag  = helpers.team_tag(old_force_name)
+    local team_tag  = helpers.team_tag_with_leader(old_force_name)
 
     if member_count <= 1 then
-        -- Solo player leaving: clean up surfaces and release the team slot.
+        -- Solo player leaving: this is an auto-disband. Wipe the team's
+        -- surfaces, release the slot, and announce to all players —
+        -- mirrors /mts-disband so the team is officially gone.
         local deleted = force_utils.cleanup_force_surfaces(old_force_name)
 
         -- Move player to spectator force (they'll be placed in pen by caller)
@@ -392,9 +394,11 @@ function force_utils.remove_from_team(player)
         -- Release the team slot back to the pool
         force_utils.release_team_slot(old_force_name)
 
+        local msg = "[Team] " .. team_tag .. " has been disbanded."
         if #deleted > 0 then
-            helpers.broadcast("[Team] " .. team_tag .. "'s base has been cleaned up.")
+            msg = msg .. " Their base has been cleaned up."
         end
+        helpers.broadcast(msg)
     else
         -- Multi-player team: player leaves, team stays.
         -- Move player to spectator force (they'll be placed in pen by caller)
