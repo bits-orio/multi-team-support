@@ -214,8 +214,10 @@ local function init_events()
         if not force_utils.is_team_leader(player) then return end
         player.force.custom_color = player.color
         spawn_labels.refresh_for_force(player.force.name)
-        teams_gui.update_all()
+        refresh_all_gameplay_guis()  -- teams + research + stats
         awards_gui.update_all()
+        follow_cam.rebuild_all()
+        team_settings.update_all_for_force(player.force.name)
     end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
