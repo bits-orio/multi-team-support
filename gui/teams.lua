@@ -631,8 +631,8 @@ end
 local function on_follow_cam_toggle(player, tags)
     if not tags.target_idx then return end
     follow_cam.toggle_target(player, tags.target_idx)
-    -- Rebuild teams GUI so the tooltip on the radar button reflects the new state
-    teams_gui.update_all()
+    -- Rebuild only this player's panel; only their radar tooltip changed
+    teams_gui.build_gui(player)
 end
 
 --- Handle GUI click events. Returns true if consumed.
