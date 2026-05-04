@@ -486,23 +486,16 @@ function landing_pen.send_buddy_request(requester, target)
     show_buddy_request_gui(target, requester)
     landing_pen.build_pen_gui(requester)
 
-    -- Announce the request:
-    --   • requester gets confirmation
-    --   • all members of the target team see it, clarifying that only the
-    --     leader (the popup target) can approve.
+    -- Announce the request: requester gets private confirmation; everyone
+    -- else gets a broadcast so the whole server can see a team is growing.
     local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
     local leader_tag    = helpers.colored_name(target.name, target.chat_color)
-    local team_tag      = helpers.team_tag(target.force.name)
+    local team_tag      = helpers.team_tag_with_leader(target.force.name)
 
     requester.print("You requested to join " .. team_tag
         .. ". Waiting for " .. leader_tag .. " (leader) to approve.")
 
-    for _, member in pairs(target.force.players) do
-        if member.valid and member.connected and member.index ~= target.index then
-            member.print(requester_tag .. " wants to join " .. team_tag
-                .. ". Only " .. leader_tag .. " (leader) can approve.")
-        end
-    end
+    helpers.broadcast("[Team] " .. requester_tag .. " wants to join " .. team_tag .. ".")
 end
 
 function landing_pen.accept_buddy_request(target, requester_index)
@@ -545,6 +538,13 @@ function landing_pen.accept_buddy_request(target, requester_index)
         landing_pen.grant_starter_items(requester)
     end
 
+    local leader_tag    = helpers.colored_name(target.name, target.chat_color)
+    local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
+    local team_tag      = helpers.team_tag_with_leader(target.force.name)
+
+    helpers.broadcast("[Team] " .. leader_tag .. " accepted " .. requester_tag
+        .. " into " .. team_tag .. ".")
+
     requester.force = target.force
     local default_group = game.permissions.get_group("Default")
     if default_group then default_group.add_player(requester) end
@@ -558,6 +558,8 @@ function landing_pen.accept_buddy_request(target, requester_index)
     if not storage.player_clock_start[requester.index] then
         storage.player_clock_start[requester.index] = game.tick
     end
+
+    helpers.broadcast("[Team] " .. requester_tag .. " has joined " .. team_tag .. ".")
 
     local ft = helpers.force_tag(target.force.name)
     target.print(helpers.colored_name(requester.name, requester.chat_color) .. " has joined your team." .. ft)
@@ -582,12 +584,8 @@ function landing_pen.cancel_buddy_request(requester)
         end
 
         local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
-        local team_tag      = helpers.team_tag(target.force.name)
-        for _, member in pairs(target.force.players) do
-            if member.valid and member.connected then
-                member.print(requester_tag .. " cancelled their request to join " .. team_tag .. ".")
-            end
-        end
+        local team_tag      = helpers.team_tag_with_leader(target.force.name)
+        helpers.broadcast("[Team] " .. requester_tag .. " cancelled their request to join " .. team_tag .. ".")
     end
 
     if requester.connected then
@@ -605,8 +603,16 @@ function landing_pen.reject_buddy_request(target, requester_index)
     end
 
     local requester = game.get_player(requester_index)
-    if requester and requester.connected then
-        requester.print(helpers.colored_name(target.name, target.chat_color) .. " declined your buddy request.")
+    if not requester then return end
+
+    local leader_tag    = helpers.colored_name(target.name, target.chat_color)
+    local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
+    local team_tag      = helpers.team_tag_with_leader(target.force.name)
+
+    helpers.broadcast("[Team] " .. leader_tag .. " declined " .. requester_tag
+        .. "'s request to join " .. team_tag .. ".")
+
+    if requester.connected then
         landing_pen.build_pen_gui(requester)
     end
 end
