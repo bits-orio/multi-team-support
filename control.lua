@@ -174,6 +174,16 @@ local function init_events()
     end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
 
+    -- Periodic Discord reminder every 6 hours (1,296,000 ticks at 60 UPS).
+    script.on_nth_tick(1296000, function()
+        local discord_url = settings.global["mts_discord_url"].value
+        if discord_url ~= "" then
+            helpers.broadcast(
+                "Join our Discord for reset notifications and to vote on the next game: " .. discord_url
+            )
+        end
+    end)
+
     -- Poll milestones every 300 ticks (5 seconds).
     -- Lightweight check across all trackers × items × occupied teams.
     -- When a new record is recorded, refresh the Awards GUI for anyone
@@ -281,6 +291,7 @@ script.on_init(function()
     storage.left_teams               = {}
     storage.player_clock_start       = {}
     storage.tech_research_ticks      = {}
+    storage.seen_players             = {}
     storage.follow_cam               = {}
     storage.follow_cam_location      = {}
     storage.map_force_to_planets     = {}
@@ -371,6 +382,11 @@ script.on_configuration_changed(function()
     storage.team_names               = storage.team_names               or {}
     storage.team_clock_start         = storage.team_clock_start         or {}
     storage.left_teams               = storage.left_teams               or {}
+    storage.seen_players             = storage.seen_players             or {}
+    -- Back-fill seen_players so existing players aren't greeted as new after an update.
+    for _, player in pairs(game.players) do
+        storage.seen_players[player.index] = true
+    end
     -- Back-fill spawned_players for users upgrading from a version that
     -- didn't track this flag. Skip players currently in the landing pen,
     -- otherwise their pen buttons go dead (is_in_pen would return false).
@@ -456,6 +472,27 @@ script.on_event(defines.events.on_player_joined_game, function(event)
     storage.pending_admin_check = storage.pending_admin_check or {}
     storage.pending_admin_check[event.player_index] = game.tick + 30
     rebuild_for_connectivity(nil)
+
+    if player then
+        storage.seen_players = storage.seen_players or {}
+        local discord_url = settings.global["mts_discord_url"].value
+        if not storage.seen_players[player.index] then
+            storage.seen_players[player.index] = true
+            local msg = "Welcome " .. player.name .. "!"
+            if discord_url ~= "" then
+                msg = msg .. " Join our Discord for reset notifications: " .. discord_url
+            end
+            helpers.broadcast(msg)
+        else
+            local msg
+            if force_utils.is_team_force(player.force.name) then
+                msg = "Welcome back " .. player.name .. " " .. helpers.team_tag_with_leader(player.force.name) .. "!"
+            else
+                msg = "Welcome back " .. player.name .. "!"
+            end
+            helpers.broadcast(msg)
+        end
+    end
 end)
 
 script.on_event(defines.events.on_player_left_game, function(event)

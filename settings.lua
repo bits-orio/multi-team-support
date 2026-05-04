@@ -15,4 +15,12 @@ data:extend({
         maximum_value = 20,
         order = "a-a",
     },
+    {
+        type = "string-setting",
+        name = "mts_discord_url",
+        setting_type = "map",
+        default_value = "",
+        allow_blank = true,
+        order = "b-a",
+    },
 })
