@@ -18,7 +18,7 @@ data:extend({
     {
         type = "string-setting",
         name = "mts_discord_url",
-        setting_type = "map",
+        setting_type = "runtime-global",
         default_value = "",
         allow_blank = true,
         order = "b-a",
