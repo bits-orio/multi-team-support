@@ -477,6 +477,19 @@ script.on_event(defines.events.on_player_demoted, function(event)
     end
 end)
 
+script.on_event(defines.events.on_player_color_changed, function(event)
+    local player = game.get_player(event.player_index)
+    if not (player and player.valid) then return end
+    if not force_utils.is_team_force(player.force.name) then return end
+    if not force_utils.is_team_leader(player) then return end
+    -- Leader changed color: propagate to the team force so team_tag
+    -- and all color-derived displays stay in sync.
+    player.force.custom_color = player.color
+    spawn_labels.refresh_for_force(player.force.name)
+    teams_gui.update_all()
+    awards_gui.update_all()
+end)
+
 -- ─── Surface & Controller Events ───────────────────────────────────────
 
 script.on_event(defines.events.on_player_changed_surface, function(event)
