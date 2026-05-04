@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.7
+Date: 2026-05-04
+  Features:
+    - New players receive a welcome announcement on first join that includes
+      the Discord invite link. Returning players receive a "Welcome back"
+      message that includes their team name if they are on one.
+    - Periodic server-wide Discord reminder every 6 hours, prompting players
+      to join for reset notifications and game polls.
+    - Discord URL is configured via Settings → Map → Discord URL (defaults to
+      the community Discord; leave blank to disable all Discord messages).
+---------------------------------------------------------------------------------------------------
 Version: 0.4.6
 Date: 2026-05-03
   Changes:

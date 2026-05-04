@@ -28,6 +28,7 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - 🥇 **Tech records** — First team to research any tech gets an announcement. Subsequent faster researches (measured from each team's clock) broadcast new speed records.
 - 📈 **Milestone engine** — Configurable production thresholds per category (science packs, landfill, space platform tiles). Edit `milestones/config.lua` to add more. Dynamic item discovery handles any mod combo.
 - ⏱️ **Team clock** — Starts when the first member spawns; never resets. Makes speed comparisons fair regardless of when a team joined.
+- 📢 **Server announcements** — New players receive a welcome with the Discord invite link; returning players get a welcome-back that includes their team name. A server-wide Discord reminder broadcasts every 6 hours. The URL is configured via Settings → Map → Discord URL (defaults to the community Discord; leave blank to disable).
 
 ### 🖥️ GUI Panels *(top-left toolbar)*
 - 🗂️ **Teams** — Card per team with members (★ leader, online/offline, 🤝 friendship, 📡 Follow Cam per player) and surfaces (👁 Spectate).
