@@ -405,12 +405,7 @@ function force_utils.remove_from_team(player)
         local spec_force = game.forces["spectator"]
         if spec_force then player.force = spec_force end
 
-        -- Notify remaining team members
-        for _, member in pairs(old_force.players) do
-            if member.connected then
-                member.print(cn_player .. " has left " .. team_tag .. ".")
-            end
-        end
+        helpers.broadcast("[Team] " .. cn_player .. " has left " .. team_tag .. ".")
 
         -- Elect new leader if the departing player was the leader
         if is_leader then
