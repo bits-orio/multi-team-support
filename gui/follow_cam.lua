@@ -396,6 +396,11 @@ end
 --- Called when a player disconnects: close their follow cam, and drop
 --- them from any other viewer's grid.
 function follow_cam.on_player_left(player)
+    -- Destroy the frame so the player starts clean on rejoin; without this,
+    -- the stale frame persists but storage state is gone, making buttons no-ops.
+    if player.gui.screen[FRAME_NAME] then
+        player.gui.screen[FRAME_NAME].destroy()
+    end
     clear_state(player.index)
     -- Remove this player from all other viewers' target sets
     if not storage.follow_cam then return end
