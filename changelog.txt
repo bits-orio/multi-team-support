@@ -1,4 +1,25 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.6
+Date: 2026-05-03
+  Changes:
+    - Team color now syncs from the leader's player color regardless of
+      source — the /color console command and Factorio's built-in GUI color
+      picker are both detected.
+    - Buddy-request events (request, cancel, accept, reject, join) are now
+      announced to all connected players, not just the team involved.
+    - Player leaving a team is now announced to all connected players.
+    - Solo leader leaving their team now auto-disbands it and broadcasts the
+      standard disband message.
+    - Production Stats panel now colors each team name using the leader's
+      current player color.
+  Bugfixes:
+    - Follow Cam frame is now closed on player disconnect; previously it
+      persisted on reconnect with cleared state, making all buttons no-ops.
+    - Follow Cam now renders immediately on open — the target area is charted
+      at frame creation rather than on the next poll tick.
+    - Clicking the Follow Cam toggle no longer rebuilds the Teams panel for
+      all connected players, eliminating the per-click lag spike.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.5
 Date: 2026-05-01
   Features:

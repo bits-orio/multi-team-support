@@ -40,7 +40,7 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 ### 🛬 Landing Pen
 - New players wait in a shared pre-game lobby until ready to spawn.
 - **"Start a new team"** or **"Request to join"** an existing team — other actions disable while a join request is pending.
-- Request flow announces to all team members (only the leader can accept).
+- Request flow and join/leave events announce to all connected players (only the leader can accept).
 - Withdraw a request at any time with the Cancel button.
 
 ### ⚡ Commands
