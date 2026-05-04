@@ -210,7 +210,7 @@ local function init_events()
         for force_name, leader_idx in pairs(leaders) do
             local force  = game.forces[force_name]
             local leader = game.get_player(leader_idx)
-            if force and force.valid and leader and leader.valid then
+            if force and force.valid and leader and leader.valid and leader.connected then
                 local c  = leader.color
                 local fc = force.custom_color
                 if not fc
