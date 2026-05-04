@@ -203,29 +203,19 @@ local function init_events()
     -- tasks are queued.
     script.on_nth_tick(1, function() debug_engine.tick() end)
 
-    -- No on_player_color_changed event exists in Factorio, so poll once
-    -- per second. When a team leader's color differs from force.custom_color,
-    -- sync it and rebuild color-dependent displays.
-    script.on_nth_tick(60, function()
-        local leaders = storage.team_leader or {}
-        for force_name, leader_idx in pairs(leaders) do
-            local force  = game.forces[force_name]
-            local leader = game.get_player(leader_idx)
-            if force and force.valid and leader and leader.valid then
-                local c  = leader.color
-                local fc = force.custom_color
-                if not fc
-                    or math.abs(c.r - fc.r) > 0.001
-                    or math.abs(c.g - fc.g) > 0.001
-                    or math.abs(c.b - fc.b) > 0.001
-                then
-                    force.custom_color = c
-                    spawn_labels.refresh_for_force(force_name)
-                    teams_gui.update_all()
-                    awards_gui.update_all()
-                end
-            end
-        end
+    -- Factorio has no on_player_color_changed event, but on_console_command
+    -- fires after built-in commands execute, so player.color is already
+    -- updated when we handle it.
+    script.on_event(defines.events.on_console_command, function(event)
+        if event.command ~= "color" then return end
+        local player = event.player_index and game.get_player(event.player_index)
+        if not (player and player.valid) then return end
+        if not force_utils.is_team_force(player.force.name) then return end
+        if not force_utils.is_team_leader(player) then return end
+        player.force.custom_color = player.color
+        spawn_labels.refresh_for_force(player.force.name)
+        teams_gui.update_all()
+        awards_gui.update_all()
     end)
     script.on_event(defines.events.on_tick, function()
         landing_pen.process_pending_teleports()
