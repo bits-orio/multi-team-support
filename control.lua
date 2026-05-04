@@ -94,6 +94,8 @@ local function rebuild_for_connectivity(leaving_index)
     awards_gui.update_all()
 end
 
+local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
+
 -- ─── Tick Events ───────────────────────────────────────────────────────
 
 local function init_events()
@@ -177,7 +179,7 @@ local function init_events()
     -- Periodic Discord reminder every 6 hours (1,296,000 ticks at 60 UPS).
     -- Skip tick 0: on_nth_tick fires immediately on a fresh save, which would
     -- duplicate the new-player welcome message shown in on_player_joined_game.
-    script.on_nth_tick(1296000, function()
+    script.on_nth_tick(DISCORD_REMINDER_TICKS, function()
         if game.tick == 0 then return end
         local discord_url = settings.global["mts_discord_url"].value
         if discord_url ~= "" then
