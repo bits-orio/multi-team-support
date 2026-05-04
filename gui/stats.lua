@@ -271,7 +271,8 @@ local function player_forces(leaving_index)
                 end
             end
             list[#list + 1] = {
-                player_name = pname,
+                player_name = pname,                              -- plain name: used for sort + "is my team" check
+                caption     = helpers.team_tag_with_leader(name), -- rich tag: used for GUI display
                 force       = force,
                 online      = online,
             }
@@ -445,7 +446,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
         name_cell.style.vertical_align = "center"
         name_cell.style.minimal_width  = 160
 
-        local name_lbl = name_cell.add{type = "label", caption = entry.player_name}
+        local name_lbl = name_cell.add{type = "label", caption = entry.caption}
         name_lbl.style.font = "default-bold"
         if not entry.online then
             name_lbl.style.font_color = {0.65, 0.65, 0.65}
