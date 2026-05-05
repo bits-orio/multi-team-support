@@ -308,6 +308,7 @@ script.on_init(function()
     storage.player_clock_start       = {}
     storage.tech_research_ticks      = {}
     storage.seen_players             = {}
+    storage.player_last_seen         = {}
     storage.follow_cam               = {}
     storage.follow_cam_location      = {}
     storage.map_force_to_planets     = {}
@@ -399,6 +400,7 @@ script.on_configuration_changed(function()
     storage.team_clock_start         = storage.team_clock_start         or {}
     storage.left_teams               = storage.left_teams               or {}
     storage.seen_players             = storage.seen_players             or {}
+    storage.player_last_seen         = storage.player_last_seen         or {}
     -- Back-fill seen_players so existing players aren't greeted as new after an update.
     for _, player in pairs(game.players) do
         storage.seen_players[player.index] = true
@@ -516,6 +518,8 @@ script.on_event(defines.events.on_player_left_game, function(event)
     if player then
         spectator.on_player_left(player)
         follow_cam.on_player_left(player)
+        storage.player_last_seen = storage.player_last_seen or {}
+        storage.player_last_seen[player.index] = game.tick
     end
     rebuild_for_connectivity(event.player_index)
 end)

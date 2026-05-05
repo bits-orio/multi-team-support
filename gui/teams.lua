@@ -154,6 +154,60 @@ function teams_gui.get_platforms_by_owner()
     return owners, order, owner_info
 end
 
+-- ─── Activity Tracking Helpers ────────────────────────────────────────
+
+local function fmt_ago(ticks)
+    if ticks < 3600 then return "just now" end
+    local s = math.floor(ticks / 60)
+    local h = math.floor(s / 3600)
+    local m = math.floor((s % 3600) / 60)
+    local d = math.floor(h / 24)
+    if d >= 1 then return d .. "d ago" end
+    if h >= 1 then return h .. "h " .. m .. "m ago" end
+    return m .. "m ago"
+end
+
+local function fmt_playtime(ticks)
+    local s = math.floor(ticks / 60)
+    local h = math.floor(s / 3600)
+    local m = math.floor((s % 3600) / 60)
+    if h >= 1 then return h .. "h " .. m .. "m" end
+    return (m > 0 and m .. "m" or "< 1m")
+end
+
+--- Tick when this player was last active (game.tick if currently online).
+local function player_last_active_tick(player)
+    if player.connected then return game.tick end
+    return (storage.player_last_seen or {})[player.index]
+end
+
+--- Tick when any member of this team was last active.
+local function team_last_active_tick(member_list)
+    local best = nil
+    for _, p in ipairs(member_list) do
+        local t = player_last_active_tick(p)
+        if t and (not best or t > best) then best = t end
+    end
+    return best
+end
+
+--- Tooltip string listing each member's playtime and last-seen.
+local function build_activity_tooltip(member_list)
+    if #member_list == 0 then return nil end
+    local lines = {}
+    for _, p in ipairs(member_list) do
+        local c = p.chat_color
+        local hex = string.format("#%02x%02x%02x",
+            math.floor((c.r or c[1] or 0) * 255),
+            math.floor((c.g or c[2] or 0) * 255),
+            math.floor((c.b or c[3] or 0) * 255))
+        local t = player_last_active_tick(p)
+        local seen = p.connected and "online now" or (t and ("last seen: " .. fmt_ago(game.tick - t)) or "never seen")
+        lines[#lines + 1] = "[color=" .. hex .. "]" .. p.name .. "[/color]: Played " .. fmt_playtime(p.online_time) .. " (" .. seen .. ")"
+    end
+    return table.concat(lines, "\n")
+end
+
 -- ─── Card Rendering Helpers ────────────────────────────────────────────
 
 --- Add a horizontal colored stripe as a visual separator at the card top.
@@ -193,6 +247,34 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     }
     count_label.style.font       = "default-small"
     count_label.style.font_color = {0.7, 0.7, 0.7}
+
+    -- Last-active indicator with per-player playtime tooltip
+    local last_tick = team_last_active_tick(members.members)
+    if last_tick then
+        local ago_ticks = game.tick - last_tick
+        local any_online = false
+        for _, p in ipairs(members.members) do
+            if p.connected then any_online = true; break end
+        end
+        local ago_text = any_online and "active" or fmt_ago(ago_ticks)
+        local color
+        if ago_ticks < 216000 then          -- < 1 hour
+            color = {0.4, 1.0, 0.4}
+        elseif ago_ticks < 5184000 then     -- < 24 hours
+            color = {1.0, 0.8, 0.2}
+        else
+            color = {1.0, 0.4, 0.4}
+        end
+        local tip = build_activity_tooltip(members.members)
+        local ago_label = hdr.add{
+            type    = "label",
+            caption = " · " .. ago_text,
+            tooltip = tip,
+        }
+        ago_label.style.font        = "default-small"
+        ago_label.style.font_color  = color
+        ago_label.style.left_margin = 4
+    end
 
     -- Research queue: spacer pushes 7 fixed slots to the right
     local spacer = hdr.add{type = "empty-widget"}
