@@ -218,7 +218,7 @@ local function add_color_stripe(parent, color)
     -- a colored background as a workaround. Fall back to default line.
 end
 
---- Add the card header row: team name, team ID, member count, Watch button.
+--- Add the card header row: team name, activity indicator, research queue.
 --- Renaming is handled by /mts-rename and Leaving by /mts-leave to keep the GUI minimal.
 local function add_card_header(card, force, members, viewer_player, is_own)
     local hdr = card.add{type = "flow", name = "sb_card_hdr", direction = "horizontal"}
@@ -228,25 +228,15 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     local display_name = helpers.display_name(force.name)
     local force_color  = helpers.force_color(force)
 
-    -- Team display name (colored by force color)
-    local name_label = hdr.add{type = "label", caption = display_name}
+    -- Team display name; tooltip carries the internal ID and member count
+    local count = #members.members
+    local name_label = hdr.add{
+        type    = "label",
+        caption = display_name,
+        tooltip = force.name .. " — " .. count .. (count == 1 and " player" or " players"),
+    }
     name_label.style.font       = "default-bold"
     name_label.style.font_color = force_color
-
-    -- Internal team ID (subtle)
-    local id_label = hdr.add{type = "label", caption = " [" .. force.name .. "]"}
-    id_label.style.font        = "default-small"
-    id_label.style.font_color  = {0.5, 0.5, 0.5}
-    id_label.style.left_margin = 4
-
-    -- Member count
-    local count = #members.members
-    local count_label = hdr.add{
-        type    = "label",
-        caption = " — " .. count .. (count == 1 and " player" or " players"),
-    }
-    count_label.style.font       = "default-small"
-    count_label.style.font_color = {0.7, 0.7, 0.7}
 
     -- Last-active indicator with per-player playtime tooltip
     local last_tick = team_last_active_tick(members.members)
