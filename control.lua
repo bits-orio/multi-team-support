@@ -622,13 +622,23 @@ end)
 script.on_event(defines.events.on_research_finished, function(event)
     -- Handle tech records (first/fastest tracking + announcements)
     local records_changed = tech_records.on_research_finished(event)
-    -- Sync quality and refresh research GUI
+    -- Sync quality and refresh both research and teams GUIs
     force_utils.sync_quality_all_forces()
     research_gui.update_all()
+    teams_gui.update_all()
     if records_changed then
         awards_gui.update_all()
     end
 end)
+
+-- Queue changes: refresh the team card header so the queue icon row stays current.
+local function on_research_queue_changed()
+    teams_gui.update_all()
+end
+script.on_event(defines.events.on_research_queued,    on_research_queue_changed)
+script.on_event(defines.events.on_research_cancelled, on_research_queue_changed)
+script.on_event(defines.events.on_research_moved,     on_research_queue_changed)
+script.on_event(defines.events.on_research_started,   on_research_queue_changed)
 
 -- ─── GUI Events ────────────────────────────────────────────────────────
 

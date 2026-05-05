@@ -62,6 +62,32 @@ function research_diff.add_tech_icons(grid, tech_list, clock_start)
     end
 end
 
+--- Render the research queue for a force as a fixed row of max_slots icon buttons.
+--- Filled slots show the queued tech icon and open the tech tree on click.
+--- Empty slots are dimmed placeholders to keep the row width stable.
+function research_diff.add_queue_icons(parent, force, max_slots)
+    local queue = force.research_queue or {}
+    for i = 1, max_slots do
+        local tech = queue[i]
+        if tech and tech.valid then
+            local btn = parent.add{
+                type    = "sprite-button",
+                sprite  = "technology/" .. tech.name,
+                tooltip = {"", tech.localised_name, "\nQueued at position " .. i},
+                style   = "slot_button",
+                tags    = {sb_research_open_tech = tech.name},
+            }
+            btn.style.width  = 28
+            btn.style.height = 28
+        else
+            local btn = parent.add{type = "sprite-button", style = "slot_button"}
+            btn.style.width   = 28
+            btn.style.height  = 28
+            btn.enabled       = false
+        end
+    end
+end
+
 -- ---------------------------------------------------------------------------
 -- Diff mode
 -- ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ local friendship    = require("gui.friendship")
 local admin_gui     = require("gui.admin")
 local landing_pen   = require("gui.landing_pen")
 local follow_cam    = require("gui.follow_cam")
+local research_diff = require("gui.research_diff")
 
 local teams_gui = {}
 
@@ -193,6 +194,10 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     count_label.style.font       = "default-small"
     count_label.style.font_color = {0.7, 0.7, 0.7}
 
+    -- Research queue: spacer pushes 7 fixed slots to the right
+    local spacer = hdr.add{type = "empty-widget"}
+    spacer.style.horizontally_stretchable = true
+    research_diff.add_queue_icons(hdr, force, 7)
 end
 
 --- Add a row for a single team member.
