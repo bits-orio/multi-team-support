@@ -6,13 +6,14 @@
 -- land before spawning into the actual game. Players can either start their
 -- own team or request to join an existing team.
 
-local admin_gui    = require("gui.admin")
-local helpers      = require("scripts.helpers")
-local terrain      = require("gui.landing_pen_terrain")
-local platformer   = require("compat.platformer")
-local voidblock    = require("compat.voidblock")
-local compat_utils = require("compat.compat_utils")
-local force_utils  = require("scripts.force_utils")
+local admin_gui       = require("gui.admin")
+local helpers         = require("scripts.helpers")
+local terrain         = require("gui.landing_pen_terrain")
+local platformer      = require("compat.platformer")
+local voidblock       = require("compat.voidblock")
+local compat_utils    = require("compat.compat_utils")
+local force_utils     = require("scripts.force_utils")
+local ultracube_compat = require("compat.ultracube")
 
 local landing_pen = {}
 
@@ -561,6 +562,8 @@ function landing_pen.accept_buddy_request(target, requester_index)
         "character", target.position, 10, 1
     ) or target.position
     requester.teleport(spawn_pos, target.surface)
+    -- Requester is now on their team surface — safe to run Ultracube setup.
+    ultracube_compat.after_spawn(requester)
 
     storage.player_clock_start = storage.player_clock_start or {}
     if not storage.player_clock_start[requester.index] then

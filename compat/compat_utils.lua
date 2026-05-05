@@ -6,9 +6,10 @@
 -- Extracts common logic: surface naming, teleport queue, display names,
 -- and the setup_player_surface skeleton.
 
-local helpers    = require("scripts.helpers")
-local space_age  = require("scripts.space_age")
-local planet_map = require("scripts.planet_map")
+local helpers         = require("scripts.helpers")
+local space_age       = require("scripts.space_age")
+local planet_map      = require("scripts.planet_map")
+local ultracube_compat = require("compat.ultracube")
 
 local compat_utils = {}
 
@@ -39,6 +40,9 @@ function compat_utils.process_pending_teleports()
             helpers.diag("compat_utils.process_pending_teleports: TELEPORT → "
                 .. surface.name, player)
             player.teleport(helpers.ORIGIN, surface)
+            -- Player is now on their team surface. Run any post-teleport
+            -- setup that depends on player.surface being correct.
+            ultracube_compat.after_spawn(player)
         end
     end
     storage.pending_vanilla_tp = {}

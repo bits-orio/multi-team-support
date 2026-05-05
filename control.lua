@@ -23,6 +23,7 @@ local vanilla         = require("compat.vanilla")
 local voidblock       = require("compat.voidblock")
 local dangoreus       = require("compat.dangoreus")
 local clone_mirror    = require("compat.clone_mirror")
+local ultracube_compat = require("compat.ultracube")
 local friendship      = require("gui.friendship")
 local tech_records    = require("scripts.tech_records")
 local milestones      = require("milestones.engine")
@@ -152,6 +153,9 @@ local function init_events()
             planet_map.hide_base_planets_for_all()
         end
     end)
+
+    -- Ultracube compat: drive player setup and force-slot recycling.
+    ultracube_compat.register_events()
 
     -- dangOreus compat: block non-miners on ore, spill on destroyed containers.
     if dangoreus.is_active() then
@@ -351,6 +355,10 @@ script.on_init(function()
     -- dangOreus compat: port its logic onto our team nauvis surfaces
     dangoreus.init()
 
+    -- Ultracube compat: suppress its on_player_created handler so we can
+    -- call setup_player at the right time (after force assignment).
+    ultracube_compat.on_init()
+
     commands_mod.register()
     init_events()
 end)
@@ -441,6 +449,9 @@ script.on_configuration_changed(function()
 
     -- Re-init dangOreus compat (may be newly added/removed)
     dangoreus.init()
+
+    -- Re-apply Ultracube compat (Ultracube may have been added/removed)
+    ultracube_compat.on_init()
 
     -- Rebuild open GUIs so any layout/data changes from the version bump
     -- take effect immediately instead of showing stale content.
