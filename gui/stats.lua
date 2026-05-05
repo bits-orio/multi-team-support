@@ -496,7 +496,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
             local ca = a.cnts[sort_col] or 0
             local cb = b.cnts[sort_col] or 0
             if ca ~= cb then
-                return sort_dir == "desc" and ca > cb or ca < cb
+                if sort_dir == "desc" then return ca > cb else return ca < cb end
             end
             return a.entry.player_name < b.entry.player_name  -- stable tie-break by name
         end)
