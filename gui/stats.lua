@@ -184,9 +184,11 @@ local function default_item_names(cat)
 end
 
 -- Returns a positional table [1..MAX_COLS] where nil means "empty slot".
--- Respects any user override stored in storage.stats_category_items[cat].
-function stats_gui.get_category_item_names(cat)
-    local override = storage.stats_category_items and storage.stats_category_items[cat]
+-- Respects any per-player override stored in storage.stats_category_items[player_index][cat].
+function stats_gui.get_category_item_names(player_index, cat)
+    local override = storage.stats_category_items
+        and storage.stats_category_items[player_index]
+        and storage.stats_category_items[player_index][cat]
     if override then
         local out = {}
         for i = 1, MAX_COLS do
@@ -315,7 +317,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
     end
 
     local state      = get_state(player)
-    local item_names = stats_gui.get_category_item_names(state.category)   -- [1..MAX_COLS], sparse
+    local item_names = stats_gui.get_category_item_names(player.index, state.category)   -- [1..MAX_COLS], sparse
     local all_pf     = player_forces(leaving_index)
     local show_offline = helpers.show_offline(player)
     local my_name    = helpers.display_name(player.force.name)
@@ -532,15 +534,17 @@ function stats_gui.on_gui_elem_changed(event)
     local col_idx  = el.tags.sb_stats_col
     local cat      = el.tags.sb_stats_cat
 
-    -- Lazily initialise the category's storage entry from current defaults
+    -- Lazily initialise the per-player category storage entry from current defaults
     if not storage.stats_category_items then storage.stats_category_items = {} end
-    if not storage.stats_category_items[cat] then
-        local current = stats_gui.get_category_item_names(cat)
-        storage.stats_category_items[cat] = current
+    if not storage.stats_category_items[player.index] then
+        storage.stats_category_items[player.index] = {}
+    end
+    if not storage.stats_category_items[player.index][cat] then
+        storage.stats_category_items[player.index][cat] = stats_gui.get_category_item_names(player.index, cat)
     end
 
     -- nil clears the slot; a name fills it
-    storage.stats_category_items[cat][col_idx] = new_item
+    storage.stats_category_items[player.index][cat][col_idx] = new_item
 
     stats_gui.build_stats_gui(player)
     return true
