@@ -448,7 +448,11 @@ function stats_gui.build_stats_gui(player, leaving_index)
     -- Empty columns get a disabled placeholder so the table grid stays aligned.
     local sort_col = state.sort_col
     local sort_dir = state.sort_dir or "desc"
-    tbl.add{type = "label", caption = ""}   -- corner placeholder
+    local sort_lbl = tbl.add{type = "label", caption = "sort →"}
+    sort_lbl.style.horizontal_align         = "right"
+    sort_lbl.style.horizontally_stretchable = true
+    sort_lbl.style.font                     = "default-small"
+    sort_lbl.style.font_color               = {0.6, 0.6, 0.6}
     for col_idx = 1, MAX_COLS do
         local item_name = item_names[col_idx]
         if item_name then
