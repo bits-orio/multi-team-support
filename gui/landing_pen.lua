@@ -410,6 +410,18 @@ function landing_pen.return_to_pen(player)
     end
     local pos = terrain.get_spawn_position(storage.pen_slots[player.index])
 
+    -- Set spectator permissions regardless of connection state.
+    local spec_group = game.permissions.get_group("spectator")
+    if spec_group then spec_group.add_player(player) end
+
+    -- Teleport, character creation, and GUI require an active connection.
+    -- If the player is offline (e.g. kicked while disconnected) we skip these;
+    -- on_player_joined_game will call place_player when they reconnect.
+    if not player.connected then
+        landing_pen.update_pen_gui_all()
+        return
+    end
+
     -- Exit the death state so we can teleport and create a fresh character
     if not player.character then
         player.set_controller({type = defines.controllers.god})
@@ -425,10 +437,6 @@ function landing_pen.return_to_pen(player)
 
     -- Force is already set to spectator by remove_from_team.
     -- Player will claim a new team slot when they click "Spawn" again.
-
-    -- Set spectator permissions (matching fresh pen entry)
-    local spec_group = game.permissions.get_group("spectator")
-    if spec_group then spec_group.add_player(player) end
 
     -- Build pen GUI
     landing_pen.build_pen_gui(player)
