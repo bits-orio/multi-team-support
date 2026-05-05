@@ -90,7 +90,7 @@ local function draw_about(parent)
     end
     section(
         "Navigation bar",
-        "[img=utility/gps_map_icon] Teams - members, surfaces, friend toggles, Follow Cam launchers\n" ..
+        "[img=utility/gps_map_icon] Teams - members, surfaces, friend toggles, Follow Cam launchers, research queue per team\n" ..
         "[img=item/lab] Research - tech grid with 1-on-1 diff view\n" ..
         "[img=item/production-science-pack] Production Stats - per-team output comparison\n" ..
         "[img=quality/legendary] Team Awards - leaderboards across research, science, and resources\n" ..

@@ -31,10 +31,10 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - 📢 **Server announcements** — New players receive a welcome with the Discord invite link; returning players get a welcome-back that includes their team name. A server-wide Discord reminder broadcasts every 6 hours. The URL is configured via Settings → Map → Discord URL (defaults to the community Discord; leave blank to disable).
 
 ### 🖥️ GUI Panels *(top-left toolbar)*
-- 🗂️ **Teams** — Card per team with members (★ leader, online/offline, 🤝 friendship, 📡 Follow Cam per player) and surfaces (👁 Spectate).
+- 🗂️ **Teams** — Card per team showing the active research queue (up to 7 icons with live progress bars), a colour-coded last-active indicator with per-player playtime on hover, members (★ leader, online/offline, 🤝 friendship, 📡 Follow Cam per player) and surfaces (👁 Spectate).
 - 📡 **Follow Cam** — Grid of live mini-cameras tracking individual players across planets. Click the 🔍 on any cell to expand into full spectator view; Esc returns with the grid intact.
 - 🔬 **Research** — Tech icon grid ordered by research time. Click any team for a 1-on-1 diff.
-- 📊 **Production Stats** — Per-team item production comparison.
+- 📊 **Production Stats** — Per-team item production comparison with per-player item tracking and sortable columns.
 - 🛠️ **Admin Panel** — Runtime feature flags, starter items editor, and team size limit. Toolbar button is admin-only.
 - 👋 **Welcome / Discord** — Mod intro + Discord invite with scannable QR code.
 
@@ -58,7 +58,7 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - Compatible with [Platformer](https://mods.factorio.com/mod/platformer)
 - **Generic terrain mirror** — any third-party mod that decorates Nauvis via `on_chunk_generated` (and filters by hardcoded surface name) is automatically mirrored onto every team surface. The mod's handler runs once on the real Nauvis; MTS clones the resulting tiles, entities, and decoratives to each team's nauvis variant. Verified working with [dangOreus](https://mods.factorio.com/mod/dangOreus), [VoidBlock](https://mods.factorio.com/mod/VoidBlock), [Alien Biomes](https://mods.factorio.com/mod/alien-biomes), and content mods like [Periodic Madness](https://mods.factorio.com/mod/periodic-madness). Trade-off: every team gets the same map (per-team randomization is sacrificed for zero-cooperation compat). See [`docs/COMPAT.md`](docs/COMPAT.md) for details.
 - **dangOreus** — beyond the terrain mirror, MTS also reproduces dangOreus's runtime gameplay rules (block non-miners on ore tiles, spill containers on death, floor-is-lava damage) on team surfaces.
-- Factorio supports up to 64 forces (20 teams + built-ins leaves plenty of headroom)
+- Factorio supports up to 64 forces. Without Space Age: up to 60 teams (64 minus 4 reserved built-in forces). With Space Age: capped at 20 due to per-team planet variant pre-creation.
 
 ## 🔌 For Mod Authors
 

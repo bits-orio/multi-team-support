@@ -1,4 +1,27 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.8
+Date: 2026-05-05
+  Features:
+    - Teams panel now shows a research queue in each team card header: up to 7 tech icons
+      with live progress bars that update at 10 FPS in-place. Hovering an icon shows the
+      tech name, queue position, and current progress percentage.
+    - Team cards show a colour-coded last-active indicator (green < 1 h, yellow < 24 h,
+      red > 24 h). Hovering it shows each member's total playtime and when they were last
+      online. The label refreshes in-place once per minute.
+    - Production Stats item tracking is now per-player — each player independently
+      explores which items to track; no longer a shared global list.
+    - Production Stats columns are now sortable. Click any column header to cycle through
+      unsorted → descending → ascending.
+  Changes:
+    - Max teams cap raised from 20 to 60 when Space Age is not installed (Space Age stays
+      at 20 due to per-team planet variant pre-creation).
+    - Team card header now shows only the display name; internal force name and player count
+      appear in a tooltip on hover, freeing space for longer team names.
+    - Research queue icons resized to 20 × 20 px; empty slots always reserve the progress
+      bar row so the card height never changes when research starts or finishes.
+  Bugfixes:
+    - Fixed crash when an admin kicked an offline player.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.7
 Date: 2026-05-04
   Features:
