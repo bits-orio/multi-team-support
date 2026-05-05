@@ -63,22 +63,38 @@ function research_diff.add_tech_icons(grid, tech_list, clock_start)
 end
 
 --- Render the research queue for a force as a fixed row of max_slots icon buttons.
---- Filled slots show the queued tech icon and open the tech tree on click.
---- Empty slots are dimmed placeholders to keep the row width stable.
+--- Filled slots show the queued tech icon, a thin progress bar below it, and open
+--- the tech tree on click. Empty slots are dimmed placeholders.
 function research_diff.add_queue_icons(parent, force, max_slots)
     local queue = force.research_queue or {}
     for i = 1, max_slots do
         local tech = queue[i]
         if tech and tech.valid then
-            local btn = parent.add{
+            -- Progress: active research uses force.research_progress; queued-but-not-
+            -- started techs use tech.saved_progress (preserved across reorders).
+            local progress = (i == 1) and force.research_progress or tech.saved_progress
+            local pct      = math.floor(progress * 100)
+
+            local slot = parent.add{type = "flow", direction = "vertical"}
+            slot.style.horizontal_spacing = 0
+            slot.style.vertical_spacing   = 1
+
+            local btn = slot.add{
                 type    = "sprite-button",
                 sprite  = "technology/" .. tech.name,
-                tooltip = {"", tech.localised_name, "\nQueued at position " .. i},
+                tooltip = {"", tech.localised_name,
+                    "\nQueued at position " .. i ..
+                    (pct > 0 and ("\nProgress: " .. pct .. "%") or "")},
                 style   = "slot_button",
                 tags    = {sb_research_open_tech = tech.name},
             }
             btn.style.width  = 28
             btn.style.height = 28
+
+            local bar = slot.add{type = "progressbar", value = progress}
+            bar.style.width  = 28
+            bar.style.height = 4
+            bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}
         else
             local btn = parent.add{type = "sprite-button", style = "slot_button"}
             btn.style.width   = 28

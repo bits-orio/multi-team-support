@@ -176,6 +176,17 @@ local function init_events()
     end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
 
+    -- Refresh Teams panel every second while any team has active research,
+    -- so the progress bar below each queue icon stays live.
+    script.on_nth_tick(60, function()
+        for _, force in pairs(game.forces) do
+            if force_utils.is_team_force(force.name) and force.current_research then
+                teams_gui.update_all()
+                return
+            end
+        end
+    end)
+
     -- Periodic Discord reminder every 6 hours (1,296,000 ticks at 60 UPS).
     -- Skip tick 0: on_nth_tick fires immediately on a fresh save, which would
     -- duplicate the new-player welcome message shown in on_player_joined_game.
