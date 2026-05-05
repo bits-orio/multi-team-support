@@ -62,6 +62,13 @@ function research_diff.add_tech_icons(grid, tech_list, clock_start)
     end
 end
 
+--- Build the tooltip for a queued tech icon.
+function research_diff.queue_tooltip(tech, position, progress)
+    local pct = math.floor(progress * 100)
+    local status = position == 1 and "Currently researching" or ("Queued at position " .. position)
+    return {"", tech.localised_name, "\n" .. status .. (pct > 0 and ("\nProgress: " .. pct .. "%") or "")}
+end
+
 --- Render the research queue for a force as a fixed row of max_slots icon buttons.
 --- Filled slots show the queued tech icon, a thin progress bar below it, and open
 --- the tech tree on click. Empty slots are dimmed placeholders.
@@ -80,10 +87,9 @@ function research_diff.add_queue_icons(parent, force, max_slots)
 
             local btn = slot.add{
                 type    = "sprite-button",
+                name    = "sb_qbtn",
                 sprite  = "technology/" .. tech.name,
-                tooltip = {"", tech.localised_name,
-                    "\nQueued at position " .. i ..
-                    (pct > 0 and ("\nProgress: " .. pct .. "%") or "")},
+                tooltip = research_diff.queue_tooltip(tech, i, progress),
                 style   = "slot_button",
                 tags    = {sb_research_open_tech = tech.name},
             }

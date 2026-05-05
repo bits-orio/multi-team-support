@@ -586,9 +586,14 @@ function teams_gui.update_queue_progress_all()
                 if not (slot and slot.valid) then goto next_slot end
                 local bar = slot.sb_qprog
                 if not (bar and bar.valid) then goto next_slot end
+                local btn = slot.sb_qbtn
                 local tech = queue[i]
                 if not (tech and tech.valid) then goto next_slot end
-                bar.value = (i == 1) and force.research_progress or tech.saved_progress
+                local progress = (i == 1) and force.research_progress or tech.saved_progress
+                bar.value = progress
+                if btn and btn.valid then
+                    btn.tooltip = research_diff.queue_tooltip(tech, i, progress)
+                end
                 ::next_slot::
             end
             ::next_force::
