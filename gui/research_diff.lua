@@ -76,15 +76,12 @@ function research_diff.add_queue_icons(parent, force, max_slots)
     local queue = force.research_queue or {}
     for i = 1, max_slots do
         local tech = queue[i]
+
+        local slot = parent.add{type = "flow", name = "sb_qslot_" .. i, direction = "vertical"}
+        slot.style.vertical_spacing = 1
+
         if tech and tech.valid then
-            -- Progress: active research uses force.research_progress; queued-but-not-
-            -- started techs use tech.saved_progress (preserved across reorders).
             local progress = (i == 1) and force.research_progress or tech.saved_progress
-            local pct      = math.floor(progress * 100)
-
-            local slot = parent.add{type = "flow", name = "sb_qslot_" .. i, direction = "vertical"}
-            slot.style.vertical_spacing = 1
-
             local btn = slot.add{
                 type    = "sprite-button",
                 name    = "sb_qbtn",
@@ -93,18 +90,23 @@ function research_diff.add_queue_icons(parent, force, max_slots)
                 style   = "slot_button",
                 tags    = {sb_research_open_tech = tech.name},
             }
-            btn.style.width  = 28
-            btn.style.height = 28
-
+            btn.style.width  = 24
+            btn.style.height = 24
             local bar = slot.add{type = "progressbar", name = "sb_qprog", value = progress}
-            bar.style.width  = 28
+            bar.style.width  = 24
             bar.style.height = 4
             bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}
         else
-            local btn = parent.add{type = "sprite-button", style = "slot_button"}
-            btn.style.width   = 28
-            btn.style.height  = 28
-            btn.enabled       = false
+            -- Empty slot: dimmed button + zero bar, both sized identically to
+            -- filled slots so the queue row never changes height mid-game.
+            local btn = slot.add{type = "sprite-button", name = "sb_qbtn", style = "slot_button"}
+            btn.style.width  = 24
+            btn.style.height = 24
+            btn.enabled      = false
+            local bar = slot.add{type = "progressbar", name = "sb_qprog", value = 0}
+            bar.style.width  = 24
+            bar.style.height = 4
+            bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}
         end
     end
 end
