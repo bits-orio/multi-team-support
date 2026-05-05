@@ -75,7 +75,7 @@ function research_diff.add_queue_icons(parent, force, max_slots)
             local progress = (i == 1) and force.research_progress or tech.saved_progress
             local pct      = math.floor(progress * 100)
 
-            local slot = parent.add{type = "flow", direction = "vertical"}
+            local slot = parent.add{type = "flow", name = "sb_qslot_" .. i, direction = "vertical"}
             slot.style.vertical_spacing = 1
 
             local btn = slot.add{
@@ -90,7 +90,7 @@ function research_diff.add_queue_icons(parent, force, max_slots)
             btn.style.width  = 28
             btn.style.height = 28
 
-            local bar = slot.add{type = "progressbar", value = progress}
+            local bar = slot.add{type = "progressbar", name = "sb_qprog", value = progress}
             bar.style.width  = 28
             bar.style.height = 4
             bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}

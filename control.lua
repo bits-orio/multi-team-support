@@ -176,12 +176,12 @@ local function init_events()
     end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
 
-    -- Refresh Teams panel every second while any team has active research,
-    -- so the progress bar below each queue icon stays live.
-    script.on_nth_tick(60, function()
+    -- Update research progress bars in-place at 10 FPS while any team is researching.
+    -- In-place (sets bar.value only, no GUI rebuild) so the cost is negligible.
+    script.on_nth_tick(6, function()
         for _, force in pairs(game.forces) do
             if force_utils.is_team_force(force.name) and force.current_research then
-                teams_gui.update_all()
+                teams_gui.update_queue_progress_all()
                 return
             end
         end

@@ -167,7 +167,7 @@ end
 --- Add the card header row: team name, team ID, member count, Watch button.
 --- Renaming is handled by /mts-rename and Leaving by /mts-leave to keep the GUI minimal.
 local function add_card_header(card, force, members, viewer_player, is_own)
-    local hdr = card.add{type = "flow", direction = "horizontal"}
+    local hdr = card.add{type = "flow", name = "sb_card_hdr", direction = "horizontal"}
     hdr.style.vertical_align           = "center"
     hdr.style.horizontally_stretchable = true
 
@@ -379,6 +379,7 @@ local function build_team_card(parent, force, viewer_player, viewer_force_name, 
     local card_style = is_own and "inside_deep_frame" or "inside_shallow_frame"
     local card = parent.add{
         type      = "frame",
+        name      = "sb_card_" .. force.name,
         direction = "vertical",
         style     = card_style,
     }
@@ -557,6 +558,42 @@ function teams_gui.update_all()
         if player.connected and player.gui.screen.sb_platforms_frame then
             teams_gui.build_gui(player)
         end
+    end
+end
+
+--- Update only the research progress bars in-place (no GUI rebuild).
+--- Navigate: sb_platforms_frame → sb_platforms_scroll → sb_card_<force>
+---            → sb_card_hdr → sb_qslot_<i> → sb_qprog
+function teams_gui.update_queue_progress_all()
+    for _, player in pairs(game.connected_players) do
+        local frame = player.gui.screen.sb_platforms_frame
+        if not frame then goto next_player end
+        local scroll = frame.sb_platforms_scroll
+        if not scroll then goto next_player end
+
+        for _, force in pairs(game.forces) do
+            if SKIP_FORCES[force.name] then goto next_force end
+            if not force.current_research then goto next_force end
+
+            local card = scroll["sb_card_" .. force.name]
+            if not (card and card.valid) then goto next_force end
+            local hdr = card.sb_card_hdr
+            if not (hdr and hdr.valid) then goto next_force end
+
+            local queue = force.research_queue or {}
+            for i = 1, 7 do
+                local slot = hdr["sb_qslot_" .. i]
+                if not (slot and slot.valid) then goto next_slot end
+                local bar = slot.sb_qprog
+                if not (bar and bar.valid) then goto next_slot end
+                local tech = queue[i]
+                if not (tech and tech.valid) then goto next_slot end
+                bar.value = (i == 1) and force.research_progress or tech.saved_progress
+                ::next_slot::
+            end
+            ::next_force::
+        end
+        ::next_player::
     end
 end
 
