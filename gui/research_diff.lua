@@ -76,8 +76,7 @@ function research_diff.add_queue_icons(parent, force, max_slots)
             local pct      = math.floor(progress * 100)
 
             local slot = parent.add{type = "flow", direction = "vertical"}
-            slot.style.horizontal_spacing = 0
-            slot.style.vertical_spacing   = 1
+            slot.style.vertical_spacing = 1
 
             local btn = slot.add{
                 type    = "sprite-button",
