@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.9
+Date: 2026-05-05
+  Features:
+    - Ultracube compatibility: each team gets its own starting cube on their own surface.
+      Cube location alerts are shown only to players on the relevant force. Force slots are
+      cleaned up when a team disbands so recycled slots get a fresh cube and a clean victory
+      condition.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.8
 Date: 2026-05-05
   Features:
