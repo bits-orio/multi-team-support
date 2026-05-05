@@ -90,21 +90,21 @@ function research_diff.add_queue_icons(parent, force, max_slots)
                 style   = "slot_button",
                 tags    = {sb_research_open_tech = tech.name},
             }
-            btn.style.width  = 24
-            btn.style.height = 24
+            btn.style.width  = 20
+            btn.style.height = 20
             local bar = slot.add{type = "progressbar", name = "sb_qprog", value = progress}
-            bar.style.width  = 24
+            bar.style.width  = 20
             bar.style.height = 4
             bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}
         else
             -- Empty slot: dimmed button + zero bar, both sized identically to
             -- filled slots so the queue row never changes height mid-game.
             local btn = slot.add{type = "sprite-button", name = "sb_qbtn", style = "slot_button"}
-            btn.style.width  = 24
-            btn.style.height = 24
+            btn.style.width  = 20
+            btn.style.height = 20
             btn.enabled      = false
             local bar = slot.add{type = "progressbar", name = "sb_qprog", value = 0}
-            bar.style.width  = 24
+            bar.style.width  = 20
             bar.style.height = 4
             bar.style.color  = {r = 0.2, g = 0.8, b = 0.2}
         end

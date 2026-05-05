@@ -248,25 +248,28 @@ local function add_card_header(card, force, members, viewer_player, is_own)
         end
         local ago_text = any_online and "active" or fmt_ago(ago_ticks)
         local color
-        if ago_ticks < 216000 then          -- < 1 hour
+        if ago_ticks < 216000 then
             color = {0.4, 1.0, 0.4}
-        elseif ago_ticks < 5184000 then     -- < 24 hours
+        elseif ago_ticks < 5184000 then
             color = {1.0, 0.8, 0.2}
         else
             color = {1.0, 0.4, 0.4}
         end
-        local tip = build_activity_tooltip(members.members)
         local ago_label = hdr.add{
             type    = "label",
             name    = "sb_card_activity",
             caption = " · " .. ago_text,
-            tooltip = tip,
+            tooltip = build_activity_tooltip(members.members),
         }
         ago_label.style.font        = "default-small"
         ago_label.style.font_color  = color
         ago_label.style.left_margin = 4
     end
 
+    -- Research queue: spacer pushes 7 fixed slots to the right
+    local spacer = hdr.add{type = "empty-widget"}
+    spacer.style.horizontally_stretchable = true
+    research_diff.add_queue_icons(hdr, force, 7)
 end
 
 --- Add a row for a single team member.
@@ -458,11 +461,7 @@ local function build_team_card(parent, force, viewer_player, viewer_force_name, 
     card.style.bottom_margin = 4
 
     add_card_header(card, force, members, viewer_player, is_own)
-    local queue_row = card.add{type = "flow", name = "sb_card_queue", direction = "horizontal"}
-    queue_row.style.horizontal_spacing = 2
-    queue_row.style.top_margin         = 2
-    research_diff.add_queue_icons(queue_row, force, 7)
-    card.add{type = "line"}.style.top_margin = 4
+    card.add{type = "line"}.style.top_margin = 2
     add_members_section(card, force, members, viewer_player, viewer_force_name, force.name, is_own)
     add_surfaces_section(card, force, surfaces, is_own, is_current_target, viewer_player)
 end
@@ -573,8 +572,8 @@ function teams_gui.build_gui(player)
     }
 
     frame.style.maximal_height = 600
-    frame.style.minimal_width  = 380
-    frame.style.maximal_width  = 440
+    frame.style.minimal_width  = 480
+    frame.style.maximal_width  = 560
 
     local show_offline = helpers.show_offline(player)
     helpers.add_show_offline_checkbox(frame, player)
@@ -695,12 +694,12 @@ function teams_gui.update_queue_progress_all()
 
             local card = scroll["sb_card_" .. force.name]
             if not (card and card.valid) then goto next_force end
-            local queue_row = card.sb_card_queue
-            if not (queue_row and queue_row.valid) then goto next_force end
+            local hdr = card.sb_card_hdr
+            if not (hdr and hdr.valid) then goto next_force end
 
             local queue = force.research_queue or {}
             for i = 1, 7 do
-                local slot = queue_row["sb_qslot_" .. i]
+                local slot = hdr["sb_qslot_" .. i]
                 if not (slot and slot.valid) then goto next_slot end
                 local bar = slot.sb_qprog
                 if not (bar and bar.valid) then goto next_slot end
