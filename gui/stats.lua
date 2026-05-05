@@ -292,6 +292,8 @@ local function get_state(player)
         s = {
             category  = "ores",
             precision = defines.flow_precision_index.one_minute,
+            sort_col  = nil,    -- nil = alphabetical by team name (default)
+            sort_dir  = "desc", -- "desc" | "asc"
         }
         storage.stats_gui_state[player.index] = s
     end
@@ -441,8 +443,69 @@ function stats_gui.build_stats_gui(player, leaving_index)
         end
     end
 
+    -- ── Sort button row ───────────────────────────────────────────────────────
+    -- One small button per item column. Clicking cycles: unsorted → desc → asc → unsorted.
+    -- Empty columns get a disabled placeholder so the table grid stays aligned.
+    local sort_col = state.sort_col
+    local sort_dir = state.sort_dir or "desc"
+    tbl.add{type = "label", caption = ""}   -- corner placeholder
+    for col_idx = 1, MAX_COLS do
+        local item_name = item_names[col_idx]
+        if item_name then
+            local active  = sort_col == col_idx
+            local caption = active and (sort_dir == "desc" and "▼" or "▲") or "·"
+            local btn = tbl.add{
+                type    = "button",
+                caption = caption,
+                style   = active and "green_button" or "button",
+                tags    = {sb_stats_sort = col_idx},
+                tooltip = active
+                    and (sort_dir == "desc" and "Sorted high→low (click for low→high)" or "Sorted low→high (click to clear sort)")
+                    or  "Sort by this column (high→low)",
+            }
+            btn.style.width   = 36
+            btn.style.height  = 20
+            btn.style.padding = 0
+        else
+            tbl.add{type = "label", caption = ""}
+        end
+    end
+
+    -- ── Pre-compute counts, then sort rows ───────────────────────────────────
+    local row_counts = {}   -- row_counts[i][col_idx] = number
+    for i, entry in ipairs(pf) do
+        row_counts[i] = {}
+        for col_idx = 1, MAX_COLS do
+            local item_name = item_names[col_idx]
+            if item_name then
+                row_counts[i][col_idx] = get_count(entry.force, item_name, state.precision)
+            end
+        end
+    end
+
+    if sort_col then
+        local pairs_list = {}
+        for i = 1, #pf do
+            pairs_list[i] = {entry = pf[i], cnts = row_counts[i]}
+        end
+        table.sort(pairs_list, function(a, b)
+            local ca = a.cnts[sort_col] or 0
+            local cb = b.cnts[sort_col] or 0
+            if ca ~= cb then
+                return sort_dir == "desc" and ca > cb or ca < cb
+            end
+            return a.entry.player_name < b.entry.player_name  -- stable tie-break by name
+        end)
+        pf         = {}
+        row_counts = {}
+        for i, p in ipairs(pairs_list) do
+            pf[i]         = p.entry
+            row_counts[i] = p.cnts
+        end
+    end
+
     -- ── Data rows ────────────────────────────────────────────────────────────
-    for _, entry in ipairs(pf) do
+    for i, entry in ipairs(pf) do
         -- Player name cell: flow so we can append "(offline)" with a different style
         local name_cell = tbl.add{type = "flow", direction = "horizontal"}
         name_cell.style.vertical_align = "center"
@@ -459,12 +522,11 @@ function stats_gui.build_stats_gui(player, leaving_index)
             off_lbl.style.font_color = {0.45, 0.45, 0.45}
         end
 
-        -- One count cell per column; empty columns get a blank label
+        -- One count cell per column; reuse pre-computed values
         for col_idx = 1, MAX_COLS do
-            local item_name = item_names[col_idx]
-            if item_name then
-                local count = get_count(entry.force, item_name, state.precision)
-                local cell  = tbl.add{type = "label", caption = fmt(count)}
+            local count = row_counts[i][col_idx]
+            if count then
+                local cell = tbl.add{type = "label", caption = fmt(count)}
                 cell.style.minimal_width    = 38
                 cell.style.horizontal_align = "right"
             else
@@ -514,6 +576,24 @@ function stats_gui.on_gui_click(event)
             stats_gui.build_stats_gui(player)
             return true
         end
+    end
+
+    if el.tags and el.tags.sb_stats_sort then
+        local col   = el.tags.sb_stats_sort
+        local state = get_state(player)
+        if state.sort_col == col then
+            if state.sort_dir == "desc" then
+                state.sort_dir = "asc"
+            else
+                state.sort_col = nil   -- third click clears sort
+                state.sort_dir = "desc"
+            end
+        else
+            state.sort_col = col
+            state.sort_dir = "desc"
+        end
+        stats_gui.build_stats_gui(player)
+        return true
     end
 
     return false
