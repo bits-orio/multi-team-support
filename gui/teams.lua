@@ -268,6 +268,7 @@ local function add_card_header(card, force, members, viewer_player, is_own)
         local tip = build_activity_tooltip(members.members)
         local ago_label = hdr.add{
             type    = "label",
+            name    = "sb_card_activity",
             caption = " · " .. ago_text,
             tooltip = tip,
         }
@@ -640,6 +641,51 @@ function teams_gui.update_all()
         if player.connected and player.gui.screen.sb_platforms_frame then
             teams_gui.build_gui(player)
         end
+    end
+end
+
+--- Update only the last-active labels in-place (no GUI rebuild).
+--- Navigate: sb_platforms_frame → sb_platforms_scroll → sb_card_<force>
+---            → sb_card_hdr → sb_card_activity
+function teams_gui.update_activity_labels_all()
+    for _, player in pairs(game.connected_players) do
+        local frame = player.gui.screen.sb_platforms_frame
+        if not frame then goto next_player end
+        local scroll = frame.sb_platforms_scroll
+        if not scroll then goto next_player end
+        for _, force in pairs(game.forces) do
+            if SKIP_FORCES[force.name] then goto next_force end
+            local card = scroll["sb_card_" .. force.name]
+            if not (card and card.valid) then goto next_force end
+            local hdr = card.sb_card_hdr
+            if not (hdr and hdr.valid) then goto next_force end
+            local lbl = hdr.sb_card_activity
+            if not (lbl and lbl.valid) then goto next_force end
+
+            local members = collect_team_members(force)
+            local last_tick = team_last_active_tick(members.members)
+            if not last_tick then goto next_force end
+
+            local ago_ticks = game.tick - last_tick
+            local any_online = false
+            for _, p in ipairs(members.members) do
+                if p.connected then any_online = true; break end
+            end
+            local ago_text = any_online and "active" or fmt_ago(ago_ticks)
+            local color
+            if ago_ticks < 216000 then
+                color = {0.4, 1.0, 0.4}
+            elseif ago_ticks < 5184000 then
+                color = {1.0, 0.8, 0.2}
+            else
+                color = {1.0, 0.4, 0.4}
+            end
+            lbl.caption          = " · " .. ago_text
+            lbl.style.font_color = color
+            lbl.tooltip          = build_activity_tooltip(members.members)
+            ::next_force::
+        end
+        ::next_player::
     end
 end
 

@@ -176,6 +176,10 @@ local function init_events()
     end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
 
+    -- Refresh last-active labels in-place once per minute. In-place (caption +
+    -- color + tooltip only, no rebuild) so cost is negligible.
+    script.on_nth_tick(3600, function() teams_gui.update_activity_labels_all() end)
+
     -- Update research progress bars in-place at 10 FPS while any team is researching.
     -- In-place (sets bar.value only, no GUI rebuild) so the cost is negligible.
     script.on_nth_tick(6, function()
