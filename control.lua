@@ -21,6 +21,7 @@ local research_gui    = require("gui.research")
 local platformer      = require("compat.platformer")
 local vanilla         = require("compat.vanilla")
 local voidblock       = require("compat.voidblock")
+local deep_core_ops   = require("compat.deep_core_ops")
 local dangoreus       = require("compat.dangoreus")
 local clone_mirror    = require("compat.clone_mirror")
 local ultracube_compat = require("compat.ultracube")
@@ -40,10 +41,12 @@ local debug_engine    = require("scripts.debug")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
---- Spawn the player into the game world (Platformer, VoidBlock, or vanilla).
+--- Spawn the player into the game world (Platformer, DCO, VoidBlock, or vanilla).
 local function spawn_into_world(player)
     if platformer.is_active() then
         platformer.on_player_created(player)
+    elseif deep_core_ops.is_active() then
+        deep_core_ops.on_player_created(player)
     elseif voidblock.is_active() then
         voidblock.setup_player_surface(player)
     else

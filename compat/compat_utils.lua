@@ -39,13 +39,16 @@ function compat_utils.process_pending_teleports()
         if player and player.valid and surface and surface.valid then
             helpers.diag("compat_utils.process_pending_teleports: TELEPORT → "
                 .. surface.name, player)
-            player.teleport(helpers.ORIGIN, surface)
-            -- Player is now on their team surface. Run any post-teleport
-            -- setup that depends on player.surface being correct.
-            ultracube_compat.after_spawn(player)
+            if player.teleport(player.force.get_spawn_position(surface), surface) then
+                -- Player is now on their team surface. Run any post-teleport
+                -- setup that depends on player.surface being correct.
+                ultracube_compat.after_spawn(player)
+                storage.pending_vanilla_tp[player_index] = nil
+            end
+        else
+            storage.pending_vanilla_tp[player_index] = nil
         end
     end
-    storage.pending_vanilla_tp = {}
 end
 
 --- Create a personal surface for `player` and queue a deferred teleport.

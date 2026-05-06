@@ -103,10 +103,13 @@ function platformer.process_pending_teleports()
         if player and player.valid and surface and surface.valid then
             helpers.diag("platformer.process_pending_teleports: TELEPORT → "
                 .. surface.name, player)
-            player.teleport(helpers.ORIGIN, surface)
+            if player.teleport(helpers.ORIGIN, surface) then
+                storage.pending_platform_tp[player_index] = nil
+            end
+        else
+            storage.pending_platform_tp[player_index] = nil
         end
     end
-    storage.pending_platform_tp = {}
 end
 
 --- Handle on_player_created for Platformer compatibility.

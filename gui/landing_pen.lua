@@ -11,6 +11,7 @@ local helpers         = require("scripts.helpers")
 local terrain         = require("gui.landing_pen_terrain")
 local platformer      = require("compat.platformer")
 local voidblock       = require("compat.voidblock")
+local deep_core_ops   = require("compat.deep_core_ops")
 local compat_utils    = require("compat.compat_utils")
 local force_utils     = require("scripts.force_utils")
 local ultracube_compat = require("compat.ultracube")
@@ -341,6 +342,8 @@ function landing_pen.grant_starter_items(player)
         -- No admin config — use compat defaults
         if platformer.is_active() then
             items = platformer.CHARACTER_STARTING_ITEMS
+        elseif deep_core_ops.is_active() then
+            items = deep_core_ops.CHARACTER_STARTING_ITEMS
         elseif voidblock.is_active() then
             items = voidblock.CHARACTER_STARTING_ITEMS
         else
