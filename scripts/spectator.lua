@@ -134,6 +134,9 @@ end
 local SPECTATOR_ALLOWED_ACTIONS = {
     "admin_action",
     "change_active_item_group_for_filters",
+    -- Required so mods using player.request_translations() (e.g. factoriolab-export)
+    -- can receive on_string_translated while the player is in the spectator group.
+    "translate_string",
     "change_active_quick_bar",
     "change_multiplayer_config",
     "clear_cursor",
