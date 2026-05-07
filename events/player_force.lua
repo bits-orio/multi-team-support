@@ -44,7 +44,9 @@ function M.register()
     script.on_event(defines.events.on_player_died, function(event)
         local player = game.get_player(event.player_index)
         if player and force_utils.is_team_force(player.force.name) then
-            pop_text.rip(player, player.position)
+            local char = player.character
+            local pos  = (char and char.valid) and char.position or player.position
+            pop_text.rip(player, pos)
         end
     end)
 end

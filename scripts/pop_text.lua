@@ -155,14 +155,20 @@ end
 function pop_text.rip(player, pos)
     if not admin_gui.flag("popup_text_enabled") then return end
     pop_text.init_storage()
-    local surface = player.surface
+    -- Use the character's physical surface; player.surface returns the remote
+    -- view surface when in remote controller, which may not support .players.
+    local char    = player.character
+    local surface = (char and char.valid) and char.surface or player.surface
     if not (surface and surface.valid) then return end
 
     local x, y = pos.x, pos.y - 2
 
+    -- surface.players is not available on all surface types (e.g. space platforms).
     local visible = {}
-    for _, p in pairs(surface.players) do
-        if p.connected then visible[#visible + 1] = p.index end
+    for _, p in pairs(game.players) do
+        if p.connected and p.surface.index == surface.index then
+            visible[#visible + 1] = p.index
+        end
     end
 
     local obj = rendering.draw_text{
