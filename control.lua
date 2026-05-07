@@ -2,297 +2,40 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Main control script. Wires up all event handlers, initializes storage,
--- and delegates to specialized modules.
+-- Bootstrap: initialises storage, wires modules, and delegates all event
+-- registrations to the events/ folder.  Event handlers live there; this
+-- file stays focused on lifecycle (on_init / on_load / on_configuration_changed).
 
-local nav             = require("gui.nav")
-local helpers         = require("scripts.helpers")
-local spectator       = require("scripts.spectator")
-local force_utils     = require("scripts.force_utils")
-local surface_utils   = require("scripts.surface_utils")
-local commands_mod    = require("scripts.commands")
-local teams_gui       = require("gui.teams")
-local stats_gui       = require("gui.stats")
-local awards_gui      = require("gui.awards")
-local landing_pen     = require("gui.landing_pen")
-local admin_gui       = require("gui.admin")
-local welcome_gui     = require("gui.welcome")
-local research_gui    = require("gui.research")
-local platformer      = require("compat.platformer")
-local vanilla         = require("compat.vanilla")
-local voidblock       = require("compat.voidblock")
-local deep_core_ops   = require("compat.deep_core_ops")
-local dangoreus       = require("compat.dangoreus")
-local clone_mirror    = require("compat.clone_mirror")
+local admin_gui        = require("gui.admin")
+local spectator        = require("scripts.spectator")
+local force_pause      = require("scripts.force_pause")
+local team_settings    = require("gui.team_settings")
+local chunk_trim       = require("scripts.chunk_trim")
+local spawn_labels     = require("scripts.spawn_labels")
+local debug_engine     = require("scripts.debug")
+local pop_text         = require("scripts.pop_text")
+local force_utils      = require("scripts.force_utils")
+local planet_map       = require("scripts.planet_map")
+local tech_records     = require("scripts.tech_records")
+local milestones       = require("milestones.engine")
+local dangoreus        = require("compat.dangoreus")
 local ultracube_compat = require("compat.ultracube")
-local friendship      = require("gui.friendship")
-local tech_records    = require("scripts.tech_records")
-local milestones      = require("milestones.engine")
-local confirm_gui     = require("gui.confirm")
-local follow_cam      = require("gui.follow_cam")
-local planet_map      = require("scripts.planet_map")
-local space_age       = require("scripts.space_age")
-local force_pause     = require("scripts.force_pause")
-local team_settings   = require("gui.team_settings")
-local chunk_trim      = require("scripts.chunk_trim")
-local remote_api      = require("scripts.remote_api")
-local spawn_labels    = require("scripts.spawn_labels")
-local debug_engine    = require("scripts.debug")
-local pop_text        = require("scripts.pop_text")
-
--- ─── Helpers ───────────────────────────────────────────────────────────
-
---- Spawn the player into the game world (Platformer, DCO, VoidBlock, or vanilla).
-local function spawn_into_world(player)
-    if platformer.is_active() then
-        platformer.on_player_created(player)
-    elseif deep_core_ops.is_active() then
-        deep_core_ops.on_player_created(player)
-    elseif voidblock.is_active() then
-        voidblock.setup_player_surface(player)
-    else
-        vanilla.setup_player_surface(player)
-    end
-end
-
---- Register nav buttons for a player across all modules.
-local function register_nav_buttons(player)
-    welcome_gui.on_player_created(player)
-    teams_gui.on_player_created(player)
-    stats_gui.on_player_created(player)
-    awards_gui.on_player_created(player)
-    research_gui.on_player_created(player)
-    admin_gui.on_player_created(player)
-    team_settings.on_player_created(player)
-    -- Team Settings button is gated on team membership, so refresh it now.
-    team_settings.refresh_nav_button(player)
-end
-
---- Rebuild stats GUI for all connected players who have it open.
-local function refresh_stats(leaving_index)
-    for _, player in pairs(game.players) do
-        if player.connected and player.gui.screen.sb_stats_frame then
-            stats_gui.build_stats_gui(player, leaving_index)
-        end
-    end
-end
-
---- Rebuild all gameplay GUIs (platforms, research, stats).
-local function refresh_all_gameplay_guis()
-    teams_gui.update_all()
-    research_gui.update_all()
-    refresh_stats()
-end
-
---- Rebuild all GUIs for connectivity changes.
-local function rebuild_for_connectivity(leaving_index)
-    teams_gui.update_all()
-    research_gui.update_all()
-    landing_pen.update_pen_gui_all()
-    landing_pen.rebuild_buddy_request_guis()
-    admin_gui.update_all()
-    refresh_stats(leaving_index)
-    -- Follow cam panels list team members; connectivity changes may remove them
-    follow_cam.rebuild_all()
-    -- Leader may have changed (auto-election on leave) — awards GUI surfaces
-    -- the leader's name, so it needs a rebuild too.
-    awards_gui.update_all()
-end
-
-local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
-
--- ─── Tick Events ───────────────────────────────────────────────────────
+local commands_mod     = require("scripts.commands")
+local landing_pen      = require("gui.landing_pen")
+local teams_gui        = require("gui.teams")
+local stats_gui        = require("gui.stats")
+local space_age        = require("scripts.space_age")
+local surface_utils    = require("scripts.surface_utils")
 
 local function init_events()
-    script.on_event(defines.events.on_chunk_generated, function(event)
-        landing_pen.on_chunk_generated(event)
-        -- Generic terrain mirror: drives nauvis chunk generation (which
-        -- fires every third-party mod's handler against nauvis) and
-        -- clones the result onto team surfaces. Replaces what used to
-        -- be voidblock.on_chunk_generated and dangoreus's pattern code.
-        clone_mirror.on_chunk_generated(event)
-        -- dangOreus post-step: places a deepwater hole near origin so
-        -- offshore pumps work even when dangOreus's starting-radius is
-        -- shrunk below the vanilla starter lake. Runs AFTER clone_mirror
-        -- so it overwrites any cloned ore at the pump location.
-        if dangoreus.is_active() then
-            dangoreus.on_chunk_generated(event)
-        end
-    end)
-    script.on_event(defines.events.on_surface_created, function(event)
-        local surface = game.surfaces[event.surface_index]
-        if surface then
-            surface_utils.on_surface_created(surface)
-            -- Public mts-v1: notify subscribers when a team-owned surface
-            -- comes online. Resolved here (not inside surface_utils) so
-            -- the raise sits in control.lua and avoids a circular require
-            -- with remote_api.
-            local owner = surface_utils.get_owner(surface)
-            if owner then
-                spawn_labels.draw(owner, surface)
-                remote_api.raise_team_surface_created(surface.name, owner)
-                -- Rebuild the Teams GUI for everyone who has it open so
-                -- the new surface appears immediately. Triggered by
-                -- on_surface_created (per Factorio runtime API), which
-                -- fires for:
-                --   • new space platforms (rocket launch creates a new
-                --     "platform-N" surface),
-                --   • Space Age planet-variant surfaces (created lazily
-                --     when a team first visits that planet — e.g.
-                --     mts-vulcanus-3 appearing when team-3 lands on
-                --     Vulcanus for the first time),
-                --   • non-Space-Age cloned surfaces (team-N-planet).
-                -- collect_team_surfaces in gui/teams.lua reads from
-                -- live state (force.platforms, game.surfaces,
-                -- storage.map_force_to_planets) so a rebuild picks the
-                -- new surface up automatically.
-                teams_gui.update_all()
-            end
-            -- Space Age: re-hide base planets for all team forces. We
-            -- deliberately DON'T use apply_all_force_locks here — that
-            -- would re-lock per-team planet variants and wipe any
-            -- planet-discovery research the team has completed, causing
-            -- the "space map" button to vanish every time a space platform
-            -- is built.
-            planet_map.hide_base_planets_for_all()
-        end
-    end)
-
-    -- Ultracube compat: drive player setup and force-slot recycling.
-    ultracube_compat.register_events()
-
-    -- dangOreus compat: block non-miners on ore, spill on destroyed containers.
-    if dangoreus.is_active() then
-        script.on_event({
-            defines.events.on_built_entity,
-            defines.events.on_robot_built_entity,
-            defines.events.script_raised_built,
-            defines.events.script_raised_revive,
-        }, dangoreus.on_built_entity)
-        script.on_event(defines.events.on_entity_died, dangoreus.on_entity_died)
-        -- Floor-is-lava tick (same cadence as dangOreus)
-        script.on_nth_tick(120, dangoreus.on_nth_tick)
-    end
-
-    -- Re-apply space-location locks when force state is reset externally
-    -- (mirrors Team Starts' approach for Space Age).
-    script.on_event(defines.events.on_force_reset, function(event)
-        if event.force then planet_map.apply_force_locks(event.force) end
-    end)
-    script.on_event(defines.events.on_technology_effects_reset, function(event)
-        if event.force then planet_map.apply_force_locks(event.force) end
-    end)
-    script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
-
-    -- Refresh last-active labels in-place once per minute. In-place (caption +
-    -- color + tooltip only, no rebuild) so cost is negligible.
-    script.on_nth_tick(3600, function() teams_gui.update_activity_labels_all() end)
-
-    -- Update research progress bars in-place at 10 FPS while any team is researching.
-    -- In-place (sets bar.value only, no GUI rebuild) so the cost is negligible.
-    script.on_nth_tick(6, function()
-        for _, force in pairs(game.forces) do
-            if force_utils.is_team_force(force.name) and force.current_research then
-                teams_gui.update_queue_progress_all()
-                return
-            end
-        end
-    end)
-
-    -- Periodic Discord reminder every 6 hours (1,296,000 ticks at 60 UPS).
-    -- Skip tick 0: on_nth_tick fires immediately on a fresh save, which would
-    -- duplicate the new-player welcome message shown in on_player_joined_game.
-    script.on_nth_tick(DISCORD_REMINDER_TICKS, function()
-        if game.tick == 0 then return end
-        local discord_url = settings.global["mts_discord_url"].value
-        if discord_url ~= "" then
-            helpers.broadcast(
-                "Join our Discord for reset notifications and to vote on the next game: " .. discord_url
-            )
-        end
-    end)
-
-    -- Poll milestones every 300 ticks (5 seconds).
-    -- Lightweight check across all trackers × items × occupied teams.
-    -- When a new record is recorded, refresh the Awards GUI for anyone
-    -- viewing it (piggy-backs on the existing milestone detection event
-    -- rather than introducing a separate poll).
-    script.on_nth_tick(300, function()
-        if milestones.tick() then
-            awards_gui.update_all()
-        end
-    end)
-
-    -- Update follow cams every 2 ticks (~30 FPS). Server cost is just
-    -- per-camera position/surface property writes; rendering is client-side.
-    script.on_nth_tick(2, function() follow_cam.tick() end)
-
-    -- Drive pending force-pause / force-resume sweeps. Entity-budget is
-    -- enforced inside force_pause.tick(); this interval just gives it
-    -- a predictable cadence.
-    script.on_nth_tick(10, function() force_pause.tick() end)
-
-    -- Chunk trim runs one surface per interval so the server gets a
-    -- breather between large per-surface deletions.
-    script.on_nth_tick(30, function() chunk_trim.tick() end)
-
-    -- /mts-debug task driver. Runs every tick so scheduled actions
-    -- fire at their exact target tick. Cheap early-return when no
-    -- tasks are queued.
-    script.on_nth_tick(1, function() debug_engine.tick() end)
-
-    -- No Factorio event exists for player color changes (including GUI picker),
-    -- so poll each leader's color once per second and sync to force.custom_color.
-    script.on_nth_tick(60, function()
-        local leaders = storage.team_leader or {}
-        for force_name, leader_idx in pairs(leaders) do
-            local force  = game.forces[force_name]
-            local leader = game.get_player(leader_idx)
-            if force and force.valid and leader and leader.valid and leader.connected then
-                local c  = leader.color
-                local fc = force.custom_color
-                if not fc
-                    or math.abs(c.r - fc.r) > 0.001
-                    or math.abs(c.g - fc.g) > 0.001
-                    or math.abs(c.b - fc.b) > 0.001
-                then
-                    force.custom_color = c
-                    spawn_labels.refresh_for_force(force_name)
-                    refresh_all_gameplay_guis()
-                    awards_gui.update_all()
-                    follow_cam.rebuild_all()
-                    team_settings.update_all_for_force(force_name)
-                end
-            end
-        end
-    end)
-    script.on_event(defines.events.on_tick, function()
-        pop_text.tick(game.tick)
-        landing_pen.process_pending_teleports()
-        if platformer.is_active() then
-            platformer.process_pending_teleports()
-        elseif voidblock.is_active() then
-            voidblock.process_pending_teleports()
-        else
-            vanilla.process_pending_teleports()
-        end
-        if storage.pending_admin_check and next(storage.pending_admin_check) then
-            local done = {}
-            for idx, target_tick in pairs(storage.pending_admin_check) do
-                if game.tick >= target_tick then
-                    done[#done + 1] = idx
-                    local p = game.get_player(idx)
-                    if p and p.connected then
-                        -- Refresh admin nav button based on current admin status
-                        admin_gui.refresh_nav_button(p)
-                    end
-                end
-            end
-            for _, idx in ipairs(done) do
-                storage.pending_admin_check[idx] = nil
-            end
-        end
-    end)
+    require("events.ticks").register()
+    require("events.player_lifecycle").register()
+    require("events.player_force").register()
+    require("events.player_surface").register()
+    require("events.research").register()
+    require("events.gui_clicks").register()
+    require("events.gui_state").register()
+    require("events.chat").register()
 end
 
 -- ─── Lifecycle ─────────────────────────────────────────────────────────
@@ -343,27 +86,15 @@ script.on_init(function()
     debug_engine.init_storage()
     pop_text.init_storage()
 
-    -- Pre-create all team forces ("team-1" through "team-N")
+    -- Pre-create all team forces and build Space Age planet maps.
     force_utils.create_team_pool()
-
-    -- Build the team↔planet variant maps (Space Age only; no-op otherwise)
-    -- and apply space-location locks so teams only see their own planets.
-    -- refresh_discovery_techs scans every loaded tech for
-    -- unlock-space-location effects; the result is used by
-    -- on_research_finished to redirect discovery unlocks to team variants.
     planet_map.build()
     planet_map.refresh_discovery_techs()
     planet_map.apply_all_force_locks()
 
-    -- Initialize records and milestone tracking
     tech_records.init_storage()
     milestones.discover_items()
-
-    -- dangOreus compat: port its logic onto our team nauvis surfaces
     dangoreus.init()
-
-    -- Ultracube compat: suppress its on_player_created handler so we can
-    -- call setup_player at the right time (after force assignment).
     ultracube_compat.on_init()
 
     commands_mod.register()
@@ -371,10 +102,7 @@ script.on_init(function()
 end)
 
 script.on_load(function()
-    -- on_load must NOT write to storage — doing so causes multiplayer desyncs
-    -- because the server doesn't run on_load when a client joins.
-    -- Individual functions already guard with "storage.xxx = storage.xxx or {}"
-    -- at the point of use, so no initialization is needed here.
+    -- on_load must NOT write to storage (causes multiplayer desyncs).
     commands_mod.register()
     init_events()
 end)
@@ -388,17 +116,15 @@ script.on_configuration_changed(function()
     debug_engine.init_storage()
     pop_text.init_storage()
 
-    -- One-shot migration: auto-pause was removed, so resume any team that's
-    -- currently in a paused or mid-pause state. Otherwise legacy entities
-    -- stay stuck active=false with no event to wake them up.
+    -- Resume any forces stuck in a paused state from a removed auto-pause feature.
     local to_resume = {}
     for fn in pairs(storage.paused_forces or {}) do to_resume[fn] = true end
     for fn, state in pairs(storage.pause_sweep or {}) do
         if state.direction == "pause" then to_resume[fn] = true end
     end
     for fn in pairs(to_resume) do force_pause.resume(fn) end
-    -- The auto_pause checkbox is gone; drop its storage table.
     storage.team_settings = nil
+
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}
     storage.tech_research_ticks      = storage.tech_research_ticks      or {}
@@ -421,54 +147,34 @@ script.on_configuration_changed(function()
     storage.left_teams               = storage.left_teams               or {}
     storage.seen_players             = storage.seen_players             or {}
     storage.player_last_seen         = storage.player_last_seen         or {}
+
     -- Back-fill seen_players so existing players aren't greeted as new after an update.
     for _, player in pairs(game.players) do
         storage.seen_players[player.index] = true
     end
-    -- Back-fill spawned_players for users upgrading from a version that
-    -- didn't track this flag. Skip players currently in the landing pen,
-    -- otherwise their pen buttons go dead (is_in_pen would return false).
+    -- Back-fill spawned_players for saves upgrading from a version without this flag.
     for _, player in pairs(game.players) do
         if not storage.spawned_players[player.index]
            and player.surface and player.surface.name ~= "landing-pen" then
             storage.spawned_players[player.index] = true
         end
     end
+
     stats_gui.invalidate_categories()
     spectator.init()
     spectator.init_storage()
-
-    -- Re-discover milestone items in case mod combo changed
     tech_records.init_storage()
     milestones.discover_items()
-
-    -- Invalidate Space Age detection cache so we re-probe after the mod list changed
     space_age.invalidate_cache()
-
-    -- Rebuild planet mappings + re-apply locks. Handles: max_teams
-    -- change, Space Age added/removed, planet mod added (e.g. Lignumis
-    -- mid-save), or variant prototypes changing.
-    -- refresh_discovery_techs is critical here: a newly-installed
-    -- planet mod brings new "planet-discovery-X" techs that need to
-    -- be detected so on_research_finished routes them to team variants.
     planet_map.build()
     planet_map.refresh_discovery_techs()
     planet_map.apply_all_force_locks()
-
-    -- Re-init dangOreus compat (may be newly added/removed)
     dangoreus.init()
-
-    -- Re-apply Ultracube compat (Ultracube may have been added/removed)
     ultracube_compat.on_init()
-
-    -- Rebuild open GUIs so any layout/data changes from the version bump
-    -- take effect immediately instead of showing stale content.
     landing_pen.update_pen_gui_all()
     teams_gui.update_all()
 
-    -- Backfill spawn labels for saves upgrading from a version without them,
-    -- and refresh existing ones in case a team rename/leader change happened
-    -- during a session that pre-dated live refresh wiring.
+    -- Backfill or refresh spawn labels for saves upgrading from older versions.
     for _, surface in pairs(game.surfaces) do
         if surface.valid then
             local owner_fn = surface_utils.get_owner(surface)
@@ -477,460 +183,4 @@ script.on_configuration_changed(function()
     end
 
     init_events()
-end)
-
--- ─── Player Events ─────────────────────────────────────────────────────
-
-script.on_event(defines.events.on_player_created, function(event)
-    local player = game.get_player(event.player_index)
-    register_nav_buttons(player)
-    admin_gui.auto_populate_starter_items(player)
-
-    if admin_gui.flag("landing_pen_enabled") then
-        -- Player stays on spectator force in the landing pen.
-        -- They'll claim a team slot when they click "Spawn into game".
-        local spec_force = game.forces["spectator"]
-        if spec_force then player.force = spec_force end
-        landing_pen.place_player(player)
-    else
-        -- No landing pen: claim a team slot immediately and spawn
-        force_utils.claim_team_slot(player)
-        storage.spawned_players = storage.spawned_players or {}
-        storage.spawned_players[player.index] = true
-        spawn_into_world(player)
-        force_utils.start_player_clock(player)
-    end
-    teams_gui.update_all()
-end)
-
-script.on_event(defines.events.on_player_joined_game, function(event)
-    local player = game.get_player(event.player_index)
-    if player then spectator.on_player_joined(player) end
-    if player and landing_pen.is_in_pen(player) then
-        landing_pen.place_player(player)
-    end
-    if player then register_nav_buttons(player) end
-    storage.pending_admin_check = storage.pending_admin_check or {}
-    storage.pending_admin_check[event.player_index] = game.tick + 30
-    rebuild_for_connectivity(nil)
-
-    if player then
-        storage.seen_players = storage.seen_players or {}
-        local discord_url = settings.global["mts_discord_url"].value
-        if not storage.seen_players[player.index] then
-            storage.seen_players[player.index] = true
-            local msg = "Welcome " .. player.name .. "!"
-            if discord_url ~= "" then
-                msg = msg .. " Join our Discord for reset notifications: " .. discord_url
-            end
-            helpers.broadcast(msg)
-        else
-            local msg
-            if force_utils.is_team_force(player.force.name) then
-                msg = "Welcome back " .. player.name .. " " .. helpers.team_tag_with_leader(player.force.name) .. "!"
-            else
-                msg = "Welcome back " .. player.name .. "!"
-            end
-            helpers.broadcast(msg)
-        end
-    end
-end)
-
-script.on_event(defines.events.on_player_left_game, function(event)
-    local player = game.get_player(event.player_index)
-    if player then
-        spectator.on_player_left(player)
-        follow_cam.on_player_left(player)
-        storage.player_last_seen = storage.player_last_seen or {}
-        storage.player_last_seen[player.index] = game.tick
-    end
-    rebuild_for_connectivity(event.player_index)
-end)
-
--- Refresh the Team Settings nav button when membership changes (e.g. a
--- player claims or leaves a team slot from the pen).
-script.on_event(defines.events.on_player_changed_force, function(event)
-    -- Public mts-v1: translate force changes into player_joined_team /
-    -- player_left_team events. Done before our own handlers so subscribers
-    -- can react first.
-    remote_api.on_player_changed_force(event)
-
-    local player = game.get_player(event.player_index)
-    if player and player.connected then
-        team_settings.refresh_nav_button(player)
-        -- Rebuild any open settings panel — it's now backed by a different
-        -- force (or should close if the player went back to spectator).
-        if player.gui.screen.sb_team_settings_frame then
-            team_settings.build_gui(player)
-        end
-        -- Mark that this player needs a spawn popup on their next surface change.
-        -- The popup is shown from on_player_changed_surface once they've actually
-        -- landed on their team surface (the teleport is deferred by compat_utils).
-        if force_utils.is_team_force(player.force.name) then
-            storage.pending_spawn_pop = storage.pending_spawn_pop or {}
-            storage.pending_spawn_pop[player.index] = player.force.name
-        end
-    end
-end)
-
-script.on_event(defines.events.on_player_promoted, function(event)
-    local player = game.get_player(event.player_index)
-    if player and player.connected then
-        admin_gui.refresh_nav_button(player)
-    end
-end)
-
-script.on_event(defines.events.on_player_demoted, function(event)
-    local player = game.get_player(event.player_index)
-    if player then
-        admin_gui.refresh_nav_button(player)
-        if player.gui.screen.sb_admin_frame then
-            player.gui.screen.sb_admin_frame.destroy()
-        end
-    end
-end)
-
--- ─── Surface & Controller Events ───────────────────────────────────────
-
-script.on_event(defines.events.on_player_changed_surface, function(event)
-    local player = game.get_player(event.player_index)
-    if player and player.connected then
-        helpers.diag("on_player_changed_surface (before handlers)", player)
-        if spectator.is_spectating(player)
-           and player.controller_type ~= defines.controllers.remote then
-            spectator.exit(player)
-        end
-        -- Auto-exit MTS spectator when camera leaves the target team's
-        -- territory. Specifically catches the platform-spectator case
-        -- where pressing escape reverts the camera to the player's own
-        -- physical surface without changing controller, leaving them
-        -- silently stuck in spectator mode. See
-        -- spectator.on_player_changed_surface for the full reasoning.
-        spectator.on_player_changed_surface(player)
-        force_utils.bounce_if_foreign(player)
-        teams_gui.build_gui(player)
-
-        -- Fire spawn/join popups once the player has actually landed on their
-        -- team surface (pending flag set in on_player_changed_force).
-        local pending = (storage.pending_spawn_pop or {})[player.index]
-        if pending and force_utils.is_team_force(player.force.name)
-           and player.surface.name ~= "landing-pen" then
-            storage.pending_spawn_pop[player.index] = nil
-            -- Elastic pop "Welcome <name>" for the arriving player.
-            pop_text.spawn_confirm(player, player.position,
-                "Welcome " .. helpers.colored_name(player.name, player.chat_color) .. "!")
-            -- Jiggle "X joined!" above each teammate already on this surface.
-            local force = player.force
-            for _, mate in pairs(force.players) do
-                if mate.connected and mate.index ~= player.index
-                   and mate.surface.index == player.surface.index then
-                    pop_text.team_join(mate, mate.position,
-                        helpers.colored_name(player.name, player.chat_color) .. " joined!")
-                end
-            end
-        end
-
-        helpers.diag("on_player_changed_surface (after handlers)", player)
-    end
-end)
-
-script.on_event(defines.events.on_player_controller_changed, function(event)
-    local player = game.get_player(event.player_index)
-    if player and player.connected then
-        helpers.diag("on_player_controller_changed (before handlers, old_ctrl="
-            .. tostring(event.old_type) .. ")", player)
-
-        -- Anchor god-mode position across remote-view round-trips.
-        --
-        -- In Platformer mode the player has no character and lives in a god
-        -- controller whose position IS the player's physical position. When
-        -- they enter a remote view of another surface and press Esc, Factorio
-        -- drops the god cursor onto the last-viewed surface (e.g. landing-pen)
-        -- because there's no character to fall back to.
-        --
-        -- Workaround: when entering remote view from god, save the god's
-        -- physical surface+position. When exiting remote back to god, if the
-        -- physical surface changed, teleport the god back to the saved spot.
-        storage.god_pre_remote = storage.god_pre_remote or {}
-        if event.old_type == defines.controllers.god
-           and player.controller_type == defines.controllers.remote
-           and player.physical_surface and player.physical_surface.valid then
-            storage.god_pre_remote[player.index] = {
-                surface_name = player.physical_surface.name,
-                position     = {
-                    x = player.physical_position.x,
-                    y = player.physical_position.y,
-                },
-            }
-        elseif event.old_type == defines.controllers.remote
-           and player.controller_type == defines.controllers.god then
-            local saved = storage.god_pre_remote[player.index]
-            storage.god_pre_remote[player.index] = nil
-            if saved and player.physical_surface
-               and player.physical_surface.name ~= saved.surface_name then
-                local s = game.surfaces[saved.surface_name]
-                if s and s.valid then
-                    helpers.diag("god_pre_remote: restoring god to "
-                        .. saved.surface_name, player)
-                    player.teleport(saved.position, s)
-                end
-            end
-        end
-
-        spectator.on_controller_changed(player, event.old_type)
-        force_utils.bounce_if_foreign(player)
-        helpers.diag("on_player_controller_changed (after handlers)", player)
-    end
-end)
-
--- ─── Death Events ──────────────────────────────────────────────────────
-
-script.on_event(defines.events.on_player_died, function(event)
-    local player = game.get_player(event.player_index)
-    if player and force_utils.is_team_force(player.force.name) then
-        pop_text.rip(player, player.position)
-    end
-end)
-
--- ─── Research Events ───────────────────────────────────────────────────
-
-script.on_event(defines.events.on_research_finished, function(event)
-    -- Handle tech records (first/fastest tracking + announcements)
-    local records_changed = tech_records.on_research_finished(event)
-    -- Sync quality and refresh both research and teams GUIs
-    force_utils.sync_quality_all_forces()
-    research_gui.update_all()
-    teams_gui.update_all()
-    if records_changed then
-        awards_gui.update_all()
-    end
-end)
-
--- Queue changes: refresh the team card header so the queue icon row stays current.
-local function on_research_queue_changed()
-    teams_gui.update_all()
-end
-script.on_event(defines.events.on_research_queued,    on_research_queue_changed)
-script.on_event(defines.events.on_research_cancelled, on_research_queue_changed)
-script.on_event(defines.events.on_research_moved,     on_research_queue_changed)
-script.on_event(defines.events.on_research_started,   on_research_queue_changed)
-
--- ─── GUI Events ────────────────────────────────────────────────────────
-
-script.on_event(defines.events.on_gui_click, function(event)
-    local el = event.element
-    if not el or not el.valid then return end
-
-    if nav.dispatch_click(event) then return end
-
-    -- Confirmation dialogs (leave, kick)
-    if confirm_gui.on_gui_click(event) then return end
-
-    -- Follow Cam close button (refresh teams GUI so radar tooltips update)
-    if follow_cam.on_gui_click(event) then
-        teams_gui.update_all()
-        return
-    end
-
-    if el.name == "sb_spawn_btn" then
-        local player = game.get_player(event.player_index)
-        if player and landing_pen.is_in_pen(player) then
-            if spectator.is_spectating(player) then
-                spectator.exit(player)
-            end
-            -- Claim a team slot (assigns player to "team-N" force)
-            local force_name = force_utils.claim_team_slot(player)
-            if not force_name then return end  -- No slots available
-
-            local default_group = game.permissions.get_group("Default")
-            if default_group then default_group.add_player(player) end
-            admin_gui.auto_populate_starter_items(player)
-            landing_pen.grant_starter_items(player)
-            landing_pen.finish_spawn(player)
-            spawn_into_world(player)
-            force_utils.start_player_clock(player)
-            helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
-                .. " has joined " .. helpers.team_tag(player.force.name) .. ".")
-            refresh_all_gameplay_guis()
-        end
-        return
-    end
-
-    if el.name == "sb_buddy_request" then
-        local player = game.get_player(event.player_index)
-        if player and landing_pen.is_in_pen(player) and el.tags and el.tags.sb_target_index then
-            local target = game.get_player(el.tags.sb_target_index)
-            if target and target.connected and not landing_pen.is_in_pen(target) then
-                landing_pen.send_buddy_request(player, target)
-            end
-        end
-        return
-    end
-
-    if el.name == "sb_buddy_accept" then
-        local player = game.get_player(event.player_index)
-        if player and el.tags and el.tags.sb_requester_index then
-            landing_pen.accept_buddy_request(player, el.tags.sb_requester_index)
-            refresh_all_gameplay_guis()
-        end
-        return
-    end
-
-    if el.name == "sb_buddy_reject" then
-        local player = game.get_player(event.player_index)
-        if player and el.tags and el.tags.sb_requester_index then
-            landing_pen.reject_buddy_request(player, el.tags.sb_requester_index)
-        end
-        return
-    end
-
-    if el.name == "sb_buddy_cancel" then
-        local player = game.get_player(event.player_index)
-        if player and landing_pen.is_in_pen(player) then
-            landing_pen.cancel_buddy_request(player)
-        end
-        return
-    end
-
-    if research_gui.on_gui_click(event) then return end
-    if admin_gui.on_gui_click(event) then return end
-    if team_settings.on_gui_click(event) then return end
-    if stats_gui.on_gui_click(event) then return end
-    if awards_gui.on_gui_click(event) then return end
-    teams_gui.on_gui_click(event)
-end)
-
-script.on_event(defines.events.on_gui_confirmed, function(event)
-    team_settings.on_gui_confirmed(event)
-end)
-
-script.on_event(defines.events.on_gui_selection_state_changed, function(event)
-    if admin_gui.on_gui_selection_state_changed(event) then
-        local admin_player = game.get_player(event.player_index)
-        if admin_player then
-            local limit = admin_gui.buddy_team_limit()
-            helpers.broadcast("[Admin] " .. helpers.colored_name(admin_player.name, admin_player.chat_color) .. " set max team size to " .. limit)
-        end
-        landing_pen.update_pen_gui_all()
-        return
-    end
-end)
-
-script.on_event(defines.events.on_gui_elem_changed, function(event)
-    stats_gui.on_gui_elem_changed(event)
-end)
-
-script.on_event(defines.events.on_gui_closed, function(event)
-    if research_gui.on_gui_closed(event) then return end
-    welcome_gui.on_gui_closed(event)
-
-    -- Spectator quality-of-life: when the spectated target is a space
-    -- platform, Factorio opens the platform's hub UI as player.opened
-    -- and pressing escape closes the hub instead of exiting remote view.
-    -- Without this hook, the user has to press escape twice (or click
-    -- the "Exit remote view" button) to actually leave spectator. With
-    -- this hook, the first escape closes the hub AND we detect the
-    -- close, so we call spectator.exit ourselves — one keystroke
-    -- collapses the two-step flow into the user's intuitive "escape
-    -- exits the thing I'm doing".
-    if event.gui_type == defines.gui_type.entity then
-        local entity = event.entity
-        if entity and entity.valid and entity.type == "space-platform-hub" then
-            local p = game.get_player(event.player_index)
-            if p and spectator.is_spectating(p) then
-                spectator.exit(p)
-                -- Rebuild the teams panel so the "Exit remote view"
-                -- button hides immediately. spectator.exit doesn't
-                -- itself trigger a panel rebuild, and the post-exit
-                -- teleport often lands on the same surface the player
-                -- was already on (their physical platform), so
-                -- on_player_changed_surface doesn't fire either.
-                -- Without this explicit rebuild the panel would keep
-                -- showing the spectator-mode button until the next
-                -- unrelated rebuild trigger.
-                teams_gui.build_gui(p)
-            end
-        end
-    end
-end)
-
-script.on_event(defines.events.on_gui_checked_state_changed, function(event)
-    -- "Show offline" toggle in platforms GUI
-    local el = event.element
-    if el and el.valid and el.name == "sb_show_offline_toggle" then
-        local player = game.get_player(event.player_index)
-        if player then
-            helpers.toggle_show_offline(player)
-            -- Rebuild every GUI this player has open so the toggle and any
-            -- offline-filtered rows update in lockstep.
-            if player.gui.screen.sb_platforms_frame then
-                teams_gui.build_gui(player)
-            end
-            if player.gui.screen.sb_research_frame then
-                research_gui.update_all()
-            end
-            if player.gui.screen.sb_stats_frame then
-                stats_gui.build_stats_gui(player)
-            end
-            if player.gui.screen.sb_awards_frame then
-                awards_gui.build(player)
-            end
-        end
-        return
-    end
-
-    local changed_flag = admin_gui.on_gui_checked_state_changed(event)
-    if changed_flag then
-        local admin_player = game.get_player(event.player_index)
-        if admin_player then
-            local state_str = admin_gui.flag(changed_flag) and "enabled" or "disabled"
-            local label = admin_gui.get_flag_label(changed_flag)
-            helpers.broadcast("[Admin] " .. helpers.colored_name(admin_player.name, admin_player.chat_color) .. " " .. state_str .. " " .. label)
-        end
-        if changed_flag == "buddy_join_enabled" then
-            landing_pen.update_pen_gui_all()
-            -- Rebuild admin GUI to show/hide team limit dropdown
-            for _, p in pairs(game.players) do
-                if p.connected and p.admin and p.gui.screen.sb_admin_frame then
-                    admin_gui.build_admin_gui(p)
-                end
-            end
-        end
-        if changed_flag == "friendship_enabled" and not admin_gui.flag("friendship_enabled") then
-            friendship.break_all()
-            teams_gui.update_all()
-        end
-        if changed_flag == "friendship_enabled" and admin_gui.flag("friendship_enabled") then
-            teams_gui.update_all()
-        end
-        if changed_flag == "landing_pen_enabled" and not admin_gui.flag("landing_pen_enabled") then
-            for _, player in pairs(game.players) do
-                if landing_pen.is_in_pen(player) then
-                    local default_group = game.permissions.get_group("Default")
-                    if default_group then default_group.add_player(player) end
-                    landing_pen.finish_spawn(player)
-                    spawn_into_world(player)
-                    force_utils.start_player_clock(player)
-                end
-            end
-            refresh_all_gameplay_guis()
-        end
-        return
-    end
-    teams_gui.on_friend_toggle(event)
-end)
-
--- ─── Chat ──────────────────────────────────────────────────────────────
-
-script.on_event(defines.events.on_console_chat, function(event)
-    if not event.player_index then return end
-    local author = game.get_player(event.player_index)
-    if not author then return end
-    local prefix = spectator.get_chat_prefix(author)
-    for _, player in pairs(game.players) do
-        if player.force ~= author.force then
-            player.print(prefix .. author.name .. ": " .. event.message,
-                         {color = author.color})
-        end
-    end
 end)
