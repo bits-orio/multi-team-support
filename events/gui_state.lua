@@ -20,6 +20,7 @@ local M = {}
 
 function M.register()
     script.on_event(defines.events.on_gui_confirmed, function(event)
+        admin_gui.on_gui_confirmed(event)
         team_settings.on_gui_confirmed(event)
     end)
 

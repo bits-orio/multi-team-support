@@ -275,6 +275,34 @@ function admin_gui.on_gui_click(event)
     return false
 end
 
+function admin_gui.on_gui_confirmed(event)
+    local el = event.element
+    if not (el and el.valid and el.name == "sb_starter_count") then return false end
+    local player = game.get_player(event.player_index)
+    if not (player and is_admin(player)) then return false end
+    local flow      = el.parent
+    local elem_btn  = flow and flow.sb_starter_elem
+    if not (elem_btn and elem_btn.elem_value) then return false end
+    local item_name = elem_btn.elem_value
+    local count     = tonumber(el.text) or 1
+    if count < 1 then count = 1 end
+    storage.starter_items = storage.starter_items or {}
+    local found = false
+    for _, existing in pairs(storage.starter_items) do
+        if existing.name == item_name then
+            existing.count = existing.count + count; found = true; break
+        end
+    end
+    if not found then
+        storage.starter_items[#storage.starter_items + 1] = {name = item_name, count = count}
+    end
+    local added = {{name = item_name, count = count}}
+    admin_flags.distribute_items_to_spawned(added)
+    admin_flags.announce_starter_items_added(added, player)
+    admin_gui.build_admin_gui(player)
+    return true
+end
+
 --- Returns the changed flag key, or false if not consumed.
 function admin_gui.on_gui_checked_state_changed(event)
     local el = event.element
