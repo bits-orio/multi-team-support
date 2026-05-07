@@ -23,7 +23,11 @@ function M.register()
             end
             -- Flag a pending spawn popup; consumed by player_surface.lua once
             -- the deferred teleport lands the player on their team surface.
-            if force_utils.is_team_force(player.force.name) then
+            -- Guard: only set when coming from a non-team force (spectator →
+            -- team). Team-to-team transitions happen on friend-spectator exit
+            -- and must not re-trigger the welcome popup.
+            if force_utils.is_team_force(player.force.name)
+               and not force_utils.is_team_force(event.force.name) then
                 storage.pending_spawn_pop = storage.pending_spawn_pop or {}
                 storage.pending_spawn_pop[player.index] = player.force.name
             end
