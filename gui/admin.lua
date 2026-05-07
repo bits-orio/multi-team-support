@@ -41,6 +41,11 @@ local FLAGS = {
         label   = "Spectate Notifications",
         tooltip = "When enabled, all players are notified when someone starts or stops spectating.",
     },
+    {
+        key     = "popup_text_enabled",
+        label   = "Text Popups",
+        tooltip = "When enabled, animated text popups appear on spawn, team join, milestones, and player death.",
+    },
 }
 
 -- Defaults used on first init.
@@ -49,6 +54,7 @@ local FLAG_DEFAULTS = {
     buddy_join_enabled              = true,
     friendship_enabled              = true,
     spectate_notifications_enabled  = false,
+    popup_text_enabled              = true,
 }
 
 -- Buddy team size limit: how many players can share one force via buddy join.

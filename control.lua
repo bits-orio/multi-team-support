@@ -38,6 +38,7 @@ local chunk_trim      = require("scripts.chunk_trim")
 local remote_api      = require("scripts.remote_api")
 local spawn_labels    = require("scripts.spawn_labels")
 local debug_engine    = require("scripts.debug")
+local pop_text        = require("scripts.pop_text")
 
 -- ─── Helpers ───────────────────────────────────────────────────────────
 
@@ -266,6 +267,7 @@ local function init_events()
         end
     end)
     script.on_event(defines.events.on_tick, function()
+        pop_text.tick(game.tick)
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
             platformer.process_pending_teleports()
@@ -308,6 +310,7 @@ script.on_init(function()
     storage.pen_slots                = {}
     storage.pen_gui_location         = {}
     storage.pending_pen_tp           = {}
+    storage.pending_spawn_pop        = {}
     storage.buddy_requests           = {}
     storage.player_surfaces          = {}
     storage.pending_vanilla_tp       = {}
@@ -338,6 +341,7 @@ script.on_init(function()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
     debug_engine.init_storage()
+    pop_text.init_storage()
 
     -- Pre-create all team forces ("team-1" through "team-N")
     force_utils.create_team_pool()
@@ -382,6 +386,7 @@ script.on_configuration_changed(function()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
     debug_engine.init_storage()
+    pop_text.init_storage()
 
     -- One-shot migration: auto-pause was removed, so resume any team that's
     -- currently in a paused or mid-pause state. Otherwise legacy entities
@@ -558,6 +563,13 @@ script.on_event(defines.events.on_player_changed_force, function(event)
         if player.gui.screen.sb_team_settings_frame then
             team_settings.build_gui(player)
         end
+        -- Mark that this player needs a spawn popup on their next surface change.
+        -- The popup is shown from on_player_changed_surface once they've actually
+        -- landed on their team surface (the teleport is deferred by compat_utils).
+        if force_utils.is_team_force(player.force.name) then
+            storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+            storage.pending_spawn_pop[player.index] = player.force.name
+        end
     end
 end)
 
@@ -597,6 +609,27 @@ script.on_event(defines.events.on_player_changed_surface, function(event)
         spectator.on_player_changed_surface(player)
         force_utils.bounce_if_foreign(player)
         teams_gui.build_gui(player)
+
+        -- Fire spawn/join popups once the player has actually landed on their
+        -- team surface (pending flag set in on_player_changed_force).
+        local pending = (storage.pending_spawn_pop or {})[player.index]
+        if pending and force_utils.is_team_force(player.force.name)
+           and player.surface.name ~= "landing-pen" then
+            storage.pending_spawn_pop[player.index] = nil
+            -- Elastic pop "Welcome <name>" for the arriving player.
+            pop_text.spawn_confirm(player, player.position,
+                "Welcome " .. helpers.colored_name(player.name, player.chat_color) .. "!")
+            -- Jiggle "X joined!" above each teammate already on this surface.
+            local force = player.force
+            for _, mate in pairs(force.players) do
+                if mate.connected and mate.index ~= player.index
+                   and mate.surface.index == player.surface.index then
+                    pop_text.team_join(mate, mate.position,
+                        helpers.colored_name(player.name, player.chat_color) .. " joined!")
+                end
+            end
+        end
+
         helpers.diag("on_player_changed_surface (after handlers)", player)
     end
 end)
@@ -647,6 +680,15 @@ script.on_event(defines.events.on_player_controller_changed, function(event)
         spectator.on_controller_changed(player, event.old_type)
         force_utils.bounce_if_foreign(player)
         helpers.diag("on_player_controller_changed (after handlers)", player)
+    end
+end)
+
+-- ─── Death Events ──────────────────────────────────────────────────────
+
+script.on_event(defines.events.on_player_died, function(event)
+    local player = game.get_player(event.player_index)
+    if player and force_utils.is_team_force(player.force.name) then
+        pop_text.rip(player, player.position)
     end
 end)
 

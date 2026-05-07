@@ -12,6 +12,7 @@ local records     = require("scripts.records")
 local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local config      = require("milestones.config")
+local pop_text    = require("scripts.pop_text")
 
 local engine = {}
 
@@ -25,6 +26,17 @@ function engine.init_storage()
     storage.milestone_records  = storage.milestone_records  or {}
     storage.milestone_reached  = storage.milestone_reached  or {}
     storage.milestone_items    = storage.milestone_items    or {}
+end
+
+--- Build a short two-line popup string for the milestone overlay.
+---   is_first + first-threshold  → "FIRST!\n[item=X]"
+---   is_first + count-threshold  → "FIRST!\n100 [item=X]"
+---   fastest  + any threshold    → "RECORD!\n[same]"
+local function build_popup(label, item_name, threshold)
+    local item_tag = helpers.item_rich_name(item_name)
+    local count    = threshold == FIRST_THRESHOLD and 1 or threshold
+    local prefix   = label == "FIRST!" and "First to" or "Fastest to"
+    return label .. "\n" .. prefix .. " " .. count .. "x " .. item_tag
 end
 
 --- Run each tracker's discover_items function to build the item set.
@@ -96,6 +108,7 @@ local function check_milestone(tracker, item_name, force, threshold)
 
     if result.is_first then
         announce_first(team_tag, achievement)
+        pop_text.milestone(force, build_popup("FIRST!", item_name, threshold))
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
@@ -105,6 +118,7 @@ local function check_milestone(tracker, item_name, force, threshold)
             helpers.team_tag(prev.team),
             prev.elapsed
         )
+        pop_text.milestone(force, build_popup("RECORD!", item_name, threshold))
     end
     return true
 end
@@ -150,7 +164,6 @@ function engine.tick()
         local items = storage.milestone_items[tracker.category] or {}
         for item_name in pairs(items) do
             for _, force in pairs(game.forces) do
-                -- Only check occupied team forces
                 if force_utils.is_team_force(force.name) and #force.players > 0 then
                     if check_all_thresholds(tracker, item_name, force) then
                         changed = true
