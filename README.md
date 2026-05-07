@@ -45,6 +45,7 @@ Join the Discord: **https://discord.gg/tWz4FT74pH**
 - Withdraw a request at any time with the Cancel button.
 
 ### ⚡ Commands
+- `/t <message>` — Send a private message to your team only (other teams see nothing).
 - `/mts-teams` — List all teams with leader and member counts, colored by team color.
 - `/mts-players` — List all players and their surfaces with GPS pings.
 - `/mts-leave` — Leave your team (confirmation dialog explains consequences).

@@ -1,4 +1,39 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.10
+Date: 2026-05-06
+  Features:
+    - Animated pop-text notifications: floating text animations appear above players at key
+      moments — a coloured elastic pop on spawn confirm, a snap-in jiggle on team join, a
+      large comic bounce above all team members on production milestones and death. All
+      animations use the player's own chat colour. Disabled via the popup_text_enabled admin
+      flag.
+    - Tech research record popups: the first team to research a tech sees a "First!" popup
+      with the tech icon; a subsequent faster clear shows "New record!". Uses the same
+      animated pop-text system as milestones.
+    - /t <message> command: sends a private message to your team only. Factorio's command
+      system ensures the message is never broadcast by the engine — teammates see a green
+      [Team] label; other teams see nothing.
+    - Deep_Core_Operations compatibility: when DCO is active each MTS team gets its own
+      ship via the DCO remote interface; players spawn on the ship's interior surface with
+      DCO-appropriate starter items. Spawn teleports now retry each tick until the target
+      surface is ready rather than silently dropping.
+    - Admin starter-items panel: pressing Enter in the count field now submits the item,
+      equivalent to clicking the + button.
+  Changes:
+    - Pop-text spawn position raised and upward drift increased so notifications are less
+      likely to be obscured by open GUI panels.
+  Bugfixes:
+    - Fixed crash when a player died while in remote view: pop_text.rip was reading
+      surface.players on a space-platform surface, which Factorio does not support.
+    - Fixed crash when a tech was researched via the map editor: text render scale was 0 on
+      the first tick (ease-out starts at 0); clamped to 1e-4.
+    - Fixed spawn confirm popup not appearing after buddy join acceptance.
+    - Fixed spawn confirm popup incorrectly firing when exiting spectator mode or during
+      team-to-team force transitions.
+    - Fixed spectator permission group blocking translate_string input actions, causing mods
+      that call player.request_translations() (e.g. factoriolab-export) to hang waiting for
+      on_string_translated events that never fired.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.9
 Date: 2026-05-05
   Features:
