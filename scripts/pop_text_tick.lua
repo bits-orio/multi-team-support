@@ -135,6 +135,7 @@ function M.tick(now)
                 goto continue
             end
 
+            if scale < 1e-4 then scale = 1e-4 end  -- ease_out_quad(0)=0 on first tick
             _pos.x = e.anchor_x + dx
             _pos.y = e.anchor_y + dy
             text_obj.target = _pos
