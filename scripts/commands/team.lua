@@ -64,6 +64,25 @@ confirm.register("kick",  perform_kick)
 -- ─── Commands ─────────────────────────────────────────────────────────
 
 function M.register()
+    commands.add_command("t",
+        "Send a message to your team only. Usage: /t <message>",
+        function(cmd)
+            local caller = cmd.player_index and game.get_player(cmd.player_index)
+            if not caller then return end
+            local msg = cmd.parameter
+            if not msg or msg:match("^%s*$") then
+                caller.print("Usage: /t <message>  — sends to your team only.")
+                return
+            end
+            local label = "[color=0.60,0.86,0.39][Team][/color] "
+            local name  = helpers.colored_name(caller.name, caller.chat_color)
+            for _, p in pairs(game.players) do
+                if p.connected and p.force.name == caller.force.name then
+                    p.print(label .. name .. ": " .. msg)
+                end
+            end
+        end)
+
     commands.add_command("mts-players",
         "List all players, their bases, and platform locations",
         function(cmd)
