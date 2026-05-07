@@ -561,6 +561,8 @@ function landing_pen.accept_buddy_request(target, requester_index)
     local default_group = game.permissions.get_group("Default")
     if default_group then default_group.add_player(requester) end
     landing_pen.finish_spawn(requester)
+    storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+    storage.pending_spawn_pop[requester.index] = requester.force.name
     local spawn_pos = target.surface.find_non_colliding_position(
         "character", target.position, 10, 1
     ) or target.position
