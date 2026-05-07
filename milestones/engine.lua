@@ -29,14 +29,15 @@ function engine.init_storage()
 end
 
 --- Build a short two-line popup string for the milestone overlay.
----   is_first + first-threshold  → "FIRST!\n[item=X]"
----   is_first + count-threshold  → "FIRST!\n100 [item=X]"
----   fastest  + any threshold    → "RECORD!\n[same]"
+---   is_first + first-threshold  → "First!\n[item=X]"
+---   is_first + count-threshold  → "First!\n100x [item=X]"
+---   fastest  + any threshold    → "New record!\n[same]"
 local function build_popup(label, item_name, threshold)
     local item_tag = helpers.item_rich_name(item_name)
-    local count    = threshold == FIRST_THRESHOLD and 1 or threshold
-    local prefix   = label == "FIRST!" and "First to" or "Fastest to"
-    return label .. "\n" .. prefix .. " " .. count .. "x " .. item_tag
+    if threshold == FIRST_THRESHOLD then
+        return label .. "\n" .. item_tag
+    end
+    return label .. "\n" .. threshold .. "x " .. item_tag
 end
 
 --- Run each tracker's discover_items function to build the item set.
@@ -108,7 +109,7 @@ local function check_milestone(tracker, item_name, force, threshold)
 
     if result.is_first then
         announce_first(team_tag, achievement)
-        pop_text.milestone(force, build_popup("FIRST!", item_name, threshold))
+        pop_text.milestone(force, build_popup("First!", item_name, threshold))
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
@@ -118,7 +119,7 @@ local function check_milestone(tracker, item_name, force, threshold)
             helpers.team_tag(prev.team),
             prev.elapsed
         )
-        pop_text.milestone(force, build_popup("RECORD!", item_name, threshold))
+        pop_text.milestone(force, build_popup("New record!", item_name, threshold))
     end
     return true
 end

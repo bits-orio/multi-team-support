@@ -12,6 +12,7 @@ local records       = require("scripts.records")
 local helpers       = require("scripts.helpers")
 local force_utils   = require("scripts.force_utils")
 local planet_map    = require("scripts.planet_map")
+local pop_text      = require("scripts.pop_text")
 
 local tech_records = {}
 
@@ -52,6 +53,7 @@ function tech_records.on_research_finished(event)
             "[Records] %s was the first to research %s!",
             team_tag, tech_tag
         ))
+        pop_text.milestone(force, "First!\n[technology=" .. tech.name .. "]")
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.tech_records[tech.name].fastest
@@ -63,6 +65,7 @@ function tech_records.on_research_finished(event)
             helpers.team_tag(prev.team),
             helpers.format_elapsed(prev.elapsed)
         ))
+        pop_text.milestone(force, "New record!\n[technology=" .. tech.name .. "]")
     end
     return true
 end
