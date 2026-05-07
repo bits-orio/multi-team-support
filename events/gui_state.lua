@@ -99,6 +99,8 @@ function M.register()
                         local default_group = game.permissions.get_group("Default")
                         if default_group then default_group.add_player(player) end
                         landing_pen.finish_spawn(player)
+                        storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+                        storage.pending_spawn_pop[player.index] = player.force.name
                         h.spawn_into_world(player)
                         force_utils.start_player_clock(player)
                     end

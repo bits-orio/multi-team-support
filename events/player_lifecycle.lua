@@ -26,6 +26,8 @@ function M.register()
             force_utils.claim_team_slot(player)
             storage.spawned_players = storage.spawned_players or {}
             storage.spawned_players[player.index] = true
+            storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+            storage.pending_spawn_pop[player.index] = player.force.name
             h.spawn_into_world(player)
             force_utils.start_player_clock(player)
         end

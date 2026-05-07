@@ -38,6 +38,8 @@ function M.register()
                 admin_gui.auto_populate_starter_items(player)
                 landing_pen.grant_starter_items(player)
                 landing_pen.finish_spawn(player)
+                storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+                storage.pending_spawn_pop[player.index] = player.force.name
                 h.spawn_into_world(player)
                 force_utils.start_player_clock(player)
                 helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
