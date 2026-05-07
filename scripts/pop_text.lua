@@ -22,12 +22,13 @@ function pop_text.spawn_confirm(player, pos, text_str)
     local surface = player.surface
     if not (surface and surface.valid) then return end
 
-    local x, y = pos.x, pos.y - 3
+    local c = player.chat_color
+    local x, y = pos.x, pos.y - 5
     local obj = rendering.draw_text{
         text            = text_str,
         surface         = surface,
         target          = { x = x, y = y },
-        color           = { r = 1, g = 1, b = 1, a = 1 },
+        color           = { r = c.r, g = c.g, b = c.b, a = 1 },
         scale           = 0.1,
         font            = "default-large-semibold",
         alignment       = "center",
@@ -45,6 +46,9 @@ function pop_text.spawn_confirm(player, pos, text_str)
         anchor_x     = x,
         anchor_y     = y,
         base_scale   = 1.4,
+        color_r      = c.r,
+        color_g      = c.g,
+        color_b      = c.b,
     }
 end
 
@@ -57,13 +61,14 @@ function pop_text.team_join(player, pos, text_str)
     local surface = player.surface
     if not (surface and surface.valid) then return end
 
-    local x, y = pos.x, pos.y - 2
+    local c = player.chat_color
+    local x, y = pos.x, pos.y - 4
     local obj = rendering.draw_text{
         text            = text_str,
         surface         = surface,
         target          = { x = x, y = y },
-        color           = { r = 1, g = 1, b = 1, a = 1 },
-        scale           = 1.2,
+        color           = { r = c.r, g = c.g, b = c.b, a = 1 },
+        scale           = 0.1,
         font            = "default-bold",
         alignment       = "center",
         use_rich_text   = true,
@@ -80,6 +85,9 @@ function pop_text.team_join(player, pos, text_str)
         anchor_x     = x,
         anchor_y     = y,
         base_scale   = 1.2,
+        color_r      = c.r,
+        color_g      = c.g,
+        color_b      = c.b,
     }
 end
 
@@ -97,7 +105,8 @@ function pop_text.milestone(force, text_str)
         local surface = player.surface
         if not (surface and surface.valid) then goto next_player end
 
-        local x, y = player.position.x, player.position.y - 5
+        local c = player.chat_color
+        local x, y = player.position.x, player.position.y - 7
 
         local shadow_ids = {}
         for _, off in ipairs(shadow_offsets) do
@@ -120,7 +129,7 @@ function pop_text.milestone(force, text_str)
             text            = text_str,
             surface         = surface,
             target          = { x = x, y = y },
-            color           = { r = 1, g = 0.95, b = 0.15, a = 1 },
+            color           = { r = c.r, g = c.g, b = c.b, a = 1 },
             scale           = 0.1,
             font            = "default-game",
             alignment       = "center",
@@ -139,9 +148,9 @@ function pop_text.milestone(force, text_str)
                 anchor_x       = x,
                 anchor_y       = y,
                 base_scale     = 2.0,
-                color_r        = 1,
-                color_g        = 0.95,
-                color_b        = 0.15,
+                color_r        = c.r,
+                color_g        = c.g,
+                color_b        = c.b,
             }
         end
 
@@ -151,7 +160,8 @@ end
 
 -- ─── Preset: rip ──────────────────────────────────────────────────────
 
--- Fast explosive "RIP!" pop at the death position. Visible to all on the surface.
+-- Fast explosive "RIP!" pop at the death position.
+-- Per-player render objects so each viewer sees it in their own color.
 function pop_text.rip(player, pos)
     if not admin_gui.flag("popup_text_enabled") then return end
     pop_text.init_storage()
@@ -161,42 +171,39 @@ function pop_text.rip(player, pos)
     local surface = (char and char.valid) and char.surface or player.surface
     if not (surface and surface.valid) then return end
 
-    local x, y = pos.x, pos.y - 2
+    local x, y = pos.x, pos.y - 4
 
-    -- surface.players is not available on all surface types (e.g. space platforms).
-    local visible = {}
     for _, p in pairs(game.players) do
-        if p.connected and p.surface.index == surface.index then
-            visible[#visible + 1] = p.index
+        if not (p.connected and p.surface.index == surface.index) then goto next_p end
+        local c = p.chat_color
+        local obj = rendering.draw_text{
+            text            = "RIP!",
+            surface         = surface,
+            target          = { x = x, y = y },
+            color           = { r = c.r, g = c.g, b = c.b, a = 1 },
+            scale           = 0.1,
+            font            = "default-game",
+            alignment       = "center",
+            use_rich_text   = false,
+            scale_with_zoom = true,
+            players         = { p.index },
+        }
+        if obj then
+            storage.pop_texts[#storage.pop_texts + 1] = {
+                text_id      = obj.id,
+                created_tick = game.tick,
+                lifetime     = 70,
+                anim_type    = "rip",
+                anchor_x     = x,
+                anchor_y     = y,
+                base_scale   = 2.5,
+                color_r      = c.r,
+                color_g      = c.g,
+                color_b      = c.b,
+            }
         end
+        ::next_p::
     end
-
-    local obj = rendering.draw_text{
-        text            = "RIP!",
-        surface         = surface,
-        target          = { x = x, y = y },
-        color           = { r = 1, g = 0.2, b = 0.1, a = 1 },
-        scale           = 0.1,
-        font            = "default-game",
-        alignment       = "center",
-        use_rich_text   = false,
-        scale_with_zoom = true,
-        players         = visible,
-    }
-    if not obj then return end
-
-    storage.pop_texts[#storage.pop_texts + 1] = {
-        text_id      = obj.id,
-        created_tick = game.tick,
-        lifetime     = 70,
-        anim_type    = "rip",
-        anchor_x     = x,
-        anchor_y     = y,
-        base_scale   = 2.5,
-        color_r      = 1,
-        color_g      = 0.2,
-        color_b      = 0.1,
-    }
 end
 
 -- ─── Tick (re-exported from pop_text_tick) ────────────────────────────

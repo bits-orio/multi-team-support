@@ -41,7 +41,7 @@ local function anim_spawn(entry, age, progress)
     elseif age < 12 then mul = 2.0 - 1.0 * ((age - 5) / 7)
     else                 mul = 1.0
     end
-    local dy    = -1.0 * ease_out_cubic(progress)
+    local dy    = -2.5 * ease_out_cubic(progress)
     local alpha = progress < 0.75 and 1 or (1 - (progress - 0.75) / 0.25)
     return entry.base_scale * mul, alpha, 0, dy, nil
 end
@@ -55,7 +55,7 @@ local function anim_team_join(entry, age, progress)
     elseif age < 22 then pop = 1.05 - 0.00833 * (age - 16)
     else                 pop = 1.0
     end
-    local dy = -2.5 * ease_out_cubic(progress)
+    local dy = -4.0 * ease_out_cubic(progress)
     local jiggle_env = math_max(0, 1 - progress * 2)
     local dx    = 0.35 * jiggle_env * math_sin(age * 0.65)
     local alpha = progress < 0.60 and 1 or (1 - (progress - 0.60) / 0.40)
@@ -74,8 +74,9 @@ local function anim_milestone(entry, age, progress)
     local env = math_max(0, 1 - age / 35)
     local orientation = env * 0.035 * math_sin(age * 1.2)
     if orientation < 0 then orientation = orientation + 1 end
+    local dy    = -1.5 * ease_out_cubic(progress)
     local alpha = progress < 0.75 and 1 or (1 - (progress - 0.75) / 0.25)
-    return entry.base_scale * mul, alpha, 0, 0, orientation
+    return entry.base_scale * mul, alpha, 0, dy, orientation
 end
 
 local function anim_rip(entry, age, progress)
@@ -84,7 +85,7 @@ local function anim_rip(entry, age, progress)
     elseif age < 10 then mul = 3.5 - 2.3 * ((age - 4) / 6)
     else                 mul = 1.2
     end
-    local dy    = -3.0 * ease_out_cubic(progress)
+    local dy    = -4.5 * ease_out_cubic(progress)
     local alpha = progress < 0.65 and 1 or (1 - (progress - 0.65) / 0.35)
     return entry.base_scale * mul, alpha, 0, dy, nil
 end
@@ -159,8 +160,8 @@ function M.tick(now)
                         if orientation then s.orientation = orientation end
                         local off = soffsets[i]
                         if off then
-                            _pos.x = e.anchor_x + off[1]
-                            _pos.y = e.anchor_y + off[2]
+                            _pos.x = e.anchor_x + dx + off[1]
+                            _pos.y = e.anchor_y + dy + off[2]
                             s.target = _pos
                         end
                     end
