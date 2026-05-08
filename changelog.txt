@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.12
+Date: 2026-05-08
+  Features:
+    - Disable Blueprint Imports admin flag (default ON): blocks importing external blueprints
+      via chat-paste strings, the blueprint library, and the Import-string button. In-game
+      blueprint creation (alt-shift-click, copy-paste of placed entities) still works. Toggle
+      from the Admin panel to allow imports without restarting.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.11
 Date: 2026-05-08
   Features:
