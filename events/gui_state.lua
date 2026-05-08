@@ -15,6 +15,7 @@ local stats_gui     = require("gui.stats")
 local awards_gui    = require("gui.awards")
 local friendship    = require("gui.friendship")
 local force_utils   = require("scripts.force_utils")
+local blueprint_lock = require("scripts.blueprint_lock")
 
 local M = {}
 
@@ -107,6 +108,9 @@ function M.register()
                     end
                 end
                 h.refresh_all_gameplay_guis()
+            end
+            if changed_flag == "disable_blueprint_imports" then
+                blueprint_lock.apply()
             end
             return
         end

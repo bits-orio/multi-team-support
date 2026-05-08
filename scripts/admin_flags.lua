@@ -34,6 +34,11 @@ M.FLAGS = {
         label   = "Text Popups",
         tooltip = "When enabled, animated text popups appear on spawn, team join, milestones, and player death.",
     },
+    {
+        key     = "disable_blueprint_imports",
+        label   = "Disable Blueprint Imports",
+        tooltip = "When enabled, blocks importing external blueprints via chat strings, the blueprint library, and the import-string button. In-game blueprint creation (alt-shift-click, copy-paste of placed entities) still works.",
+    },
 }
 
 local FLAG_DEFAULTS = {
@@ -42,6 +47,7 @@ local FLAG_DEFAULTS = {
     friendship_enabled              = true,
     spectate_notifications_enabled  = false,
     popup_text_enabled              = true,
+    disable_blueprint_imports       = true,
 }
 
 M.BUDDY_TEAM_LIMIT_MIN     = 2
