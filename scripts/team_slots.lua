@@ -24,6 +24,14 @@ local function force_member_count(force)
     return n
 end
 
+-- Forces that script-spawned turrets / triggers belong to (e.g. K2's
+-- planetary teleporter and tesla coil). They MUST stay at war with team
+-- forces or the trigger-based mechanics (teleporter "standing on" detection,
+-- tesla coil targeting) silently break.
+local INTERNAL_TURRET_FORCES = {
+    ["kr-internal-turrets"] = true,
+}
+
 local function copy_force_state(source, target)
     for name, tech in pairs(source.technologies) do
         if tech.researched then
@@ -47,11 +55,15 @@ end
 local function reset_force_state(force)
     force.reset()
     for _, other in pairs(game.forces) do
-        if other.name ~= "enemy" and other ~= force then
+        if other.name ~= "enemy" and other ~= force and not INTERNAL_TURRET_FORCES[other.name] then
             force.set_cease_fire(other, true)
             other.set_cease_fire(force, true)
         end
     end
+    -- Restore chart sharing with the built-in player force (no active members
+    -- in MTS, but sharing its chart is desirable). reset() wipes this.
+    force.set_friend(game.forces.player, true)
+    game.forces.player.set_friend(force, true)
     spectator.setup_force(force)
 end
 
@@ -100,11 +112,17 @@ function M.create_team_pool()
         end
         copy_force_state(game.forces.player, new_force)
         for _, other_force in pairs(game.forces) do
-            if other_force.name ~= "enemy" and other_force ~= new_force then
+            if other_force.name ~= "enemy" and other_force ~= new_force
+               and not INTERNAL_TURRET_FORCES[other_force.name] then
                 new_force.set_cease_fire(other_force, true)
                 other_force.set_cease_fire(new_force, true)
             end
         end
+        -- Share chart data with the built-in player force (no active members
+        -- in MTS, but sharing its chart is desirable). Also set by
+        -- reset_force_state on every claim/release cycle.
+        new_force.set_friend(game.forces.player, true)
+        game.forces.player.set_friend(new_force, true)
         spectator.setup_force(new_force)
         storage.team_pool[i]           = "available"
         storage.team_names[force_name] = string.format("Team %02d", i)
