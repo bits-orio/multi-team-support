@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.11
+Date: 2026-05-08
+  Features:
+    - Krastorio 2 / Krastorio 2 Spaced Out compatibility: crash-site entities (vanilla
+      wrecks plus K2 spaceship pieces and chests) on team Nauvis surfaces are now
+      mineable. K2's planetary teleporter "standing on" detection and tesla coil
+      targeting now fire correctly on team characters.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.10
 Date: 2026-05-06
   Features:
