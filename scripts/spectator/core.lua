@@ -241,20 +241,15 @@ function M.needs_spectator_mode(viewer_force, target_force)
 end
 
 --- Resolve where to aim a view for a target player.
---- Returns (force, surface, position) — force is always the real team (never "spectator").
---- If the target is mts-spectating, returns their physical location to avoid chain-spectating.
+--- Returns (force, surface, position) — force is always the real team (never "spectator"),
+--- surface/position are always the target's physical body, never their camera.
+--- Using physical_* unconditionally prevents the follow-cam tick from chart-painting
+--- around a target's remote-view camera (which would let any follower expose fog by
+--- panning the camera in remote view of their own or a friend's surface).
 function M.resolve_view_for(target)
     if not (target and target.valid) then return nil, nil, nil end
     local force = game.forces[M.get_effective_force(target)]
-    local surface, position
-    if M.is_spectating(target) then
-        surface  = target.physical_surface
-        position = target.physical_position
-    else
-        surface  = target.surface
-        position = target.position
-    end
-    return force, surface, position
+    return force, target.physical_surface, target.physical_position
 end
 
 return M
