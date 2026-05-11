@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.14
+Date: 2026-05-10
+  Bugfixes:
+    - Fixed map-reveal exploit: a player being followed by another player's Follow Cam
+      could pan their camera in remote view to chart-paint fog onto the follower's
+      force, exposing previously unexplored chunks without anyone walking there.
+      The Follow Cam tick now charts around the target's physical body, not their
+      camera position.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.13
+Date: 2026-05-10
+  Bugfixes:
+    - Fixed crash when sorting the stats GUI by an item column in descending order
+      (operator-precedence bug produced an inconsistent comparator).
+---------------------------------------------------------------------------------------------------
 Version: 0.4.12
 Date: 2026-05-08
   Features:
