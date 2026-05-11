@@ -214,6 +214,27 @@ function planet_map.apply_all_force_locks()
     end
 end
 
+--- Ensure every base planet has its surface instantiated.
+---
+--- In Space Age, only nauvis is created at game start; vulcanus, fulgora,
+--- gleba, aquilo (and modded planets) are created lazily on first access.
+--- clone_mirror needs the base surface to exist so it has something to
+--- clone team variants from. If a team explores their variant before the
+--- base planet has been created, clone_mirror silently no-ops, the team
+--- chunk generates with the variant's own randomized map_seed_offset, and
+--- that team's terrain diverges permanently from other teams'. Force-
+--- creating the surfaces here closes that gap. The surfaces stay empty
+--- until clone_mirror demands chunks; no eager chunk generation.
+function planet_map.ensure_base_planet_surfaces()
+    if not space_age.is_active() then return end
+    for _, base in ipairs(space_age.list_base_planets_runtime()) do
+        local planet = game.planets and game.planets[base]
+        if planet and planet.valid and not (planet.surface and planet.surface.valid) then
+            pcall(function() planet.create_surface() end)
+        end
+    end
+end
+
 -- ─── Surface Creation ────────────────────────────────────────────────
 
 --- Get or create the surface for a planet by name. Returns nil on failure.
