@@ -231,12 +231,33 @@ end
 
 function M.cleanup_force_surfaces(force_name)
     local deleted = {}
+    local seen    = {}
+
+    -- Legacy / non-Space-Age cloned surfaces are named "team-N-<planet>".
     for _, surface in pairs(game.surfaces) do
         if surface.valid and surface.name:find("^" .. force_name:gsub("%-", "%%-") .. "%-") then
+            if not seen[surface.name] then
+                seen[surface.name] = true
+                deleted[#deleted + 1] = surface.name
+                game.delete_surface(surface)
+            end
+        end
+    end
+
+    -- Space Age variants are named "mts-<planet>-N" and don't match the
+    -- "team-N-" prefix above. Look them up via planet_map's force→variant
+    -- map so they get deleted too; otherwise the next team that recycles
+    -- this slot inherits the previous occupants' explored terrain.
+    local variants = (storage.map_force_to_planets or {})[force_name] or {}
+    for _, variant_name in pairs(variants) do
+        local surface = game.surfaces[variant_name]
+        if surface and surface.valid and not seen[surface.name] then
+            seen[surface.name] = true
             deleted[#deleted + 1] = surface.name
             game.delete_surface(surface)
         end
     end
+
     local force = game.forces[force_name]
     if force then
         for _, platform in pairs(force.platforms) do
