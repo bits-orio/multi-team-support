@@ -59,6 +59,14 @@ function M.register()
         if event.force then planet_map.apply_force_locks(event.force) end
     end)
 
+    -- Reactive correction for cross-team logistic-request planet selections.
+    -- The hub's "Import from" dropdown can't be filtered per-force in Factorio
+    -- 2.x. When a team-force entity's logistic slot is edited, rewrite the
+    -- slot's import_from to point at the team's own variant of the same base
+    -- planet. Heavy DIAG logging inside the handler — strip once verified.
+    script.on_event(defines.events.on_entity_logistic_slot_changed,
+        planet_map.on_logistic_slot_changed)
+
     -- Ultracube compat: drive player setup and force-slot recycling.
     ultracube_compat.register_events()
 

@@ -368,4 +368,83 @@ function planet_map.on_research_finished(tech)
     return true
 end
 
+-- ─── Logistic Request Rewrite ────────────────────────────────────────
+--
+-- The hub's "Import from" planet picker can't be filtered per-force in
+-- Factorio 2.x: lock_space_location only gates schedule destinations,
+-- and SpaceLocationPrototype.hidden is a global prototype flag. So
+-- every team's hub still lists every planet variant (and every base
+-- planet) in the dropdown. Reactive correction: when a player edits a
+-- team-owned entity's logistic filter, rewrite the slot's import_from
+-- to the team's own variant of the same base planet.
+--
+-- Event payload (2.0.76):
+--   entity (LuaEntity), section (LuaLogisticSection), slot_index (uint),
+--   player_index (uint, optional — nil when scripted).
+--
+-- import_from may arrive as a string, a {name = "..."} table, or a
+-- LuaSpaceLocationPrototype userdata — all three reduce to the name.
+
+local function planet_name_to_base(name)
+    return name:match("^mts%-(.+)%-%d+$") or name
+end
+
+function planet_map.on_logistic_slot_changed(event)
+    if not space_age.is_active() then return end
+    local entity = event.entity
+    if not (entity and entity.valid) then return end
+    local force = entity.force
+    if not is_team_force(force.name) then return end
+
+    local section = event.section
+    if not (section and section.valid) then return end
+    if not section.is_manual then return end
+
+    local slot = section.get_slot(event.slot_index)
+    if not slot or not slot.value or not slot.import_from then return end
+
+    local current = slot.import_from
+    if type(current) == "table" or type(current) == "userdata" then
+        current = current.name
+    end
+    if type(current) ~= "string" then return end
+
+    local base = planet_name_to_base(current)
+    local own  = planet_map.get_variant(force.name, base)
+    if not own or own == current then return end
+
+    local rewritten = {
+        value                  = slot.value,
+        min                    = slot.min,
+        max                    = slot.max,
+        minimum_delivery_count = slot.minimum_delivery_count,
+        import_from            = own,
+    }
+    local ok, err = pcall(function() section.set_slot(event.slot_index, rewritten) end)
+    if not ok then
+        log("[multi-team-support:planet_map] logistic rewrite failed: " .. tostring(err)
+            .. " force=" .. force.name .. " " .. current .. " -> " .. own)
+        return
+    end
+
+    log("[multi-team-support:planet_map] logistic rewrite: force=" .. force.name
+        .. " " .. current .. " -> " .. own .. " on " .. entity.name)
+
+    if event.player_index then
+        local player = game.get_player(event.player_index)
+        if player and player.connected then
+            -- Colors: prefix cyan, foreign planet orange-red, own planet green,
+            -- explanation dim grey. Matches the colour scheme used by /t and
+            -- other mod chat output. See scripts/commands/team.lua for examples.
+            player.print(
+                "[color=0.45,0.78,1][multi-team-support][/color] "
+                .. "Logistic request rewritten: "
+                .. "[color=1,0.55,0.35]" .. current .. "[/color] -> "
+                .. "[color=0.45,0.9,0.45]" .. own .. "[/color]  "
+                .. "[color=0.7,0.7,0.7](your team only ships from its own planets)[/color]"
+            )
+        end
+    end
+end
+
 return planet_map
