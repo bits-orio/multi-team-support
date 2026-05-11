@@ -201,6 +201,21 @@ function planet_map.apply_force_locks(force)
         end
     end
 
+    -- Lock every OTHER team's variants. Without this, nauvis variants inherit
+    -- the base nauvis "default starting planet, unlocked" state at create time,
+    -- so every team's hub destination list shows all N nauvis variants from
+    -- every team. Non-nauvis variants are usually locked-by-default, but lock
+    -- them here too as defense-in-depth in case the engine ever unlocks one
+    -- (e.g. a modded discovery effect, or a planet prototype change). Foreign
+    -- slots count regardless of occupancy — team-12 still gets team-13's
+    -- variants locked even if slot 13 is empty.
+    local by_variant = storage.map_planet_to_force or {}
+    for variant, owner in pairs(by_variant) do
+        if owner ~= force.name then
+            pcall(function() force.lock_space_location(variant) end)
+        end
+    end
+
     -- Unlock the team's home (nauvis variant)
     if home then
         pcall(function() force.unlock_space_location(home) end)
