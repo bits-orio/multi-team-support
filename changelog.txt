@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.16
+Date: 2026-05-11
+  Bugfixes:
+    - Fixed /mts-disband leaving Space Age planet surfaces behind. The surface
+      cleanup matched the legacy "team-N-<planet>" naming only; Space Age uses
+      "mts-<planet>-N", so variant surfaces were never deleted and the next team
+      to recycle the slot inherited the previous occupants' explored terrain.
+      Now also iterates the planet_map force→variant entries for deletion.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.15
 Date: 2026-05-11
   Bugfixes:
