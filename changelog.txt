@@ -1,4 +1,21 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.17
+Date: 2026-05-11
+  Bugfixes:
+    - Space platform hub schedule destination list no longer shows other teams'
+      planet variants. Each team now sees only their own nauvis / vulcanus /
+      etc. variants when picking a route destination. Previously every team
+      saw every other team's nauvis variant (inherited the base planet's
+      default-unlocked status), and could in principle route a platform to a
+      foreign team's planet.
+    - Cross-team logistic-request planet selections on space-platform hubs are
+      now reactively rewritten to the team's own variant of the same base
+      planet. The "Import from" dropdown can't be filtered per-force in
+      Factorio 2.x, so every team still sees every variant in the picker, but
+      whichever entry the player selects, cargo will ship from their own team's
+      planet. The player gets a coloured chat notification when a rewrite
+      happens so the change isn't silent.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.16
 Date: 2026-05-11
   Bugfixes:
