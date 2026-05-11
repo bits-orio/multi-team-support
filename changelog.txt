@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.15
+Date: 2026-05-11
+  Bugfixes:
+    - Fixed Space Age non-Nauvis planets (Vulcanus, Fulgora, Gleba, Aquilo, modded
+      planets) generating different terrain across teams. clone_mirror needs the
+      base planet's surface to exist when a team variant chunk is first generated;
+      Space Age creates base surfaces lazily, so a team exploring their variant
+      before the base existed got divergent terrain. We now eagerly create every
+      base planet surface at init and on_configuration_changed.
+    - Note: this only repairs terrain for newly generated chunks. Chunks that were
+      already explored on diverged saves remain diverged.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.14
 Date: 2026-05-10
   Bugfixes:
