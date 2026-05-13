@@ -79,6 +79,36 @@ local function anim_milestone(entry, age, progress)
     return entry.base_scale * mul, alpha, 0, dy, orientation
 end
 
+--- Snap in quickly, then keep growing gently across the whole life via
+--- ease_out_cubic so the text feels like it's continuously inflating
+--- while the rainbow cycles. No overshoot, no wobble, just smooth growth.
+local function anim_global_milestone(entry, age, progress)
+    -- Quick snap from small (0.5×) up to base over the first ~8 ticks.
+    local snap_t = age < 8 and age / 8 or 1
+    local snap   = 0.5 + 0.5 * ease_out_quad(snap_t)
+    -- Continuous growth (+0.6× across full life) for the inflating feel.
+    local grow   = 0.6 * ease_out_cubic(progress)
+    local mul    = snap + grow
+    local dy     = -2.0 * ease_out_cubic(progress)
+    local alpha  = progress < 0.85 and 1 or (1 - (progress - 0.85) / 0.15)
+    return entry.base_scale * mul, alpha, 0, dy, nil
+end
+
+--- Convert a hue (0..1) to RGB at full saturation and value.
+local function hsv_hue_to_rgb(h)
+    h = h - math.floor(h)
+    local seg = h * 6
+    local i = math.floor(seg)
+    local f = seg - i
+    if     i == 0 then return 1,     f,     0
+    elseif i == 1 then return 1 - f, 1,     0
+    elseif i == 2 then return 0,     1,     f
+    elseif i == 3 then return 0,     1 - f, 1
+    elseif i == 4 then return f,     0,     1
+    else               return 1,     0,     1 - f
+    end
+end
+
 local function anim_rip(entry, age, progress)
     local mul
     if     age < 4  then mul = 3.5 * ease_out_quad(age / 4)
@@ -124,10 +154,11 @@ function M.tick(now)
         do
             local scale, alpha, dx, dy, orientation
             local at = e.anim_type
-            if     at == "spawn"      then scale, alpha, dx, dy, orientation = anim_spawn(e, age, progress)
-            elseif at == "team_join"  then scale, alpha, dx, dy, orientation = anim_team_join(e, age, progress)
-            elseif at == "milestone"  then scale, alpha, dx, dy, orientation = anim_milestone(e, age, progress)
-            elseif at == "rip"        then scale, alpha, dx, dy, orientation = anim_rip(e, age, progress)
+            if     at == "spawn"             then scale, alpha, dx, dy, orientation = anim_spawn(e, age, progress)
+            elseif at == "team_join"         then scale, alpha, dx, dy, orientation = anim_team_join(e, age, progress)
+            elseif at == "milestone"         then scale, alpha, dx, dy, orientation = anim_milestone(e, age, progress)
+            elseif at == "global_milestone"  then scale, alpha, dx, dy, orientation = anim_global_milestone(e, age, progress)
+            elseif at == "rip"               then scale, alpha, dx, dy, orientation = anim_rip(e, age, progress)
             else
                 text_obj.destroy()
                 if e.shadow_ids then
@@ -141,9 +172,15 @@ function M.tick(now)
             _pos.y = e.anchor_y + dy
             text_obj.target = _pos
             text_obj.scale  = scale
-            _col.r = e.color_r or 1
-            _col.g = e.color_g or 1
-            _col.b = e.color_b or 1
+            if e.rainbow then
+                -- ~3 seconds per full hue cycle (180 ticks).
+                local r, g, b = hsv_hue_to_rgb(age / 180)
+                _col.r = r; _col.g = g; _col.b = b
+            else
+                _col.r = e.color_r or 1
+                _col.g = e.color_g or 1
+                _col.b = e.color_b or 1
+            end
             _col.a = alpha
             text_obj.color = _col
             if orientation then text_obj.orientation = orientation end

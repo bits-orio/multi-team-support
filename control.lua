@@ -27,6 +27,7 @@ local stats_gui        = require("gui.stats")
 local space_age        = require("scripts.space_age")
 local surface_utils    = require("scripts.surface_utils")
 local blueprint_lock   = require("scripts.blueprint_lock")
+local global_milestones = require("scripts.global_milestones")
 
 local ev_ticks            = require("events.ticks")
 local ev_player_lifecycle = require("events.player_lifecycle")
@@ -46,6 +47,7 @@ local function init_events()
     ev_gui_clicks.register()
     ev_gui_state.register()
     ev_chat.register()
+    global_milestones.register()
 end
 
 -- ─── Lifecycle ─────────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ script.on_init(function()
     storage.research_gui_diff_target = {}
     storage.show_offline_players     = {}
     storage.return_button_location   = {}
+    global_milestones.init_storage()
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
@@ -152,6 +155,7 @@ script.on_configuration_changed(function()
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
     storage.show_offline_players     = storage.show_offline_players     or {}
     storage.return_button_location   = storage.return_button_location   or {}
+    global_milestones.init_storage()
     storage.awards_gui_state         = storage.awards_gui_state         or {}
     storage.awards_gui_location      = storage.awards_gui_location      or {}
     storage.team_leader              = storage.team_leader              or {}

@@ -158,6 +158,54 @@ function pop_text.milestone(force, text_str)
     end
 end
 
+-- ─── Preset: global_milestone ─────────────────────────────────────────
+
+-- Server-wide "firsts" pop shown to every connected player on their own
+-- surface. Single text element (no 4-corner shadow) so it stays crisp at
+-- the larger scale, and the colour cycles through the rainbow each tick
+-- via anim_global_milestone for celebration flair.
+function pop_text.global_milestone(text_str)
+    if not admin_gui.flag("popup_text_enabled") then return end
+    pop_text.init_storage()
+
+    for _, player in pairs(game.players) do
+        if not player.connected then goto next_player end
+        local surface = player.surface
+        if not (surface and surface.valid) then goto next_player end
+
+        local x, y = player.position.x, player.position.y - 8
+
+        local obj = rendering.draw_text{
+            text            = text_str,
+            surface         = surface,
+            target          = { x = x, y = y },
+            color           = { r = 1, g = 1, b = 1, a = 1 },
+            scale           = 0.1,
+            font            = "default-game",
+            alignment       = "center",
+            use_rich_text   = true,
+            scale_with_zoom = true,
+            players         = { player.index },
+        }
+        if obj then
+            storage.pop_texts[#storage.pop_texts + 1] = {
+                text_id      = obj.id,
+                created_tick = game.tick,
+                lifetime     = 300,
+                anim_type    = "global_milestone",
+                anchor_x     = x,
+                anchor_y     = y,
+                base_scale   = 2.0,
+                -- Rainbow flag tells the tick loop to recompute color from
+                -- age each frame instead of using stored color_r/g/b.
+                rainbow      = true,
+            }
+        end
+
+        ::next_player::
+    end
+end
+
 -- ─── Preset: rip ──────────────────────────────────────────────────────
 
 -- Fast explosive "RIP!" pop at the death position.

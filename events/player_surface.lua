@@ -1,12 +1,13 @@
 -- events/player_surface.lua
 -- on_player_changed_surface, on_player_controller_changed
 
-local spectator     = require("scripts.spectator")
-local force_utils   = require("scripts.force_utils")
-local teams_gui     = require("gui.teams")
-local return_button = require("gui.return_button")
-local helpers       = require("scripts.helpers")
-local pop_text      = require("scripts.pop_text")
+local spectator         = require("scripts.spectator")
+local force_utils       = require("scripts.force_utils")
+local teams_gui         = require("gui.teams")
+local return_button     = require("gui.return_button")
+local helpers           = require("scripts.helpers")
+local pop_text          = require("scripts.pop_text")
+local global_milestones = require("scripts.global_milestones")
 
 local M = {}
 
@@ -28,6 +29,12 @@ function M.register()
             teams_gui.build_gui(player)
         end
         return_button.update(player)
+
+        -- Snapshot whether this surface change is the player's initial spawn,
+        -- so first-landing announcements can suppress the fanfare for the
+        -- starting planet while still marking it as seen.
+        local was_spawning = (storage.pending_spawn_pop or {})[player.index] ~= nil
+        global_milestones.check_planet_landing(player, was_spawning)
 
         -- Fire spawn/join popups once the player has landed on their team
         -- surface (pending flag set in player_force.lua's on_player_changed_force).

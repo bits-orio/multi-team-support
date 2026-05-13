@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.22
+Date: 2026-05-12
+  Features:
+    - Server-wide celebration announcements: the first rocket launched
+      and the first landing on each planet now broadcast to every
+      player and draw a long, rainbow-cycling pop-text animation on
+      every screen, accompanied by an achievement-unlocked sound
+      (falls back to research-completed when unavailable), regardless
+      of force. Planet detection uses
+      LuaSurface.planet so per-team variants (mts-vulcanus-1 etc.) and
+      modded planets are handled automatically. The starting planet is
+      marked silently on first spawn so it doesn't fanfare during a
+      routine team join, but a later return from a platform won't
+      double-trigger it either.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.21
 Date: 2026-05-12
   Changes:
