@@ -12,6 +12,7 @@ local helpers       = require("scripts.helpers")
 local spectator     = require("scripts.spectator")
 local teams_gui     = require("gui.teams")
 local stats_gui     = require("gui.stats")
+local awards_gui    = require("gui.awards")
 local friendship    = require("gui.friendship")
 local force_utils   = require("scripts.force_utils")
 local blueprint_lock = require("scripts.blueprint_lock")
@@ -38,6 +39,10 @@ function M.register()
 
     script.on_event(defines.events.on_gui_elem_changed, function(event)
         stats_gui.on_gui_elem_changed(event)
+    end)
+
+    script.on_event(defines.events.on_gui_text_changed, function(event)
+        if awards_gui.on_gui_text_changed(event) then return end
     end)
 
     script.on_event(defines.events.on_gui_closed, function(event)

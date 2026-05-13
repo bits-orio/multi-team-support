@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.20
+Date: 2026-05-12
+  Changes:
+    - Team Awards GUI now has a search field that filters the table to
+      rows whose internal name contains the query (case-insensitive).
+      A "N / M match" counter and a clear (×) button appear next to
+      the field while a search is active, and an empty result shows an
+      inline "Clear search" button so a forgotten query is never a
+      dead end.
+    - Achievement icons in Team Awards are now interactive. Hovering an
+      icon shows its localised name; clicking a tech opens the
+      technology screen and clicking an item opens Factoriopedia. Icons
+      were also shrunk to 32 px and row spacing tightened so each row
+      takes much less vertical space than before.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.19
 Date: 2026-05-12
   Changes:

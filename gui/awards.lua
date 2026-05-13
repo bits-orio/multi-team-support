@@ -39,9 +39,10 @@ local function get_state(player)
     storage.awards_gui_state = storage.awards_gui_state or {}
     local s = storage.awards_gui_state[player.index]
     if not s then
-        s = { category = "research" }
+        s = { category = "research", search = "" }
         storage.awards_gui_state[player.index] = s
     end
+    s.search = s.search or ""
     return s
 end
 
@@ -49,7 +50,7 @@ end
 -- Data assembly
 -- ---------------------------------------------------------------------------
 
---- Return an array of {label, record} rows for the Research tab.
+--- Return an array of row tables for the Research tab.
 --- Sorted by first-completion tick (chronological).
 local function build_research_rows()
     local rows = {}
@@ -57,8 +58,10 @@ local function build_research_rows()
     for tech_name, rec in pairs(recs) do
         if rec.first then
             rows[#rows + 1] = {
-                label = helpers.tech_rich_name(tech_name),
-                record = rec,
+                kind     = "tech",
+                name     = tech_name,
+                prefix   = nil,
+                record   = rec,
                 sort_key = rec.first.tick,
             }
         end
@@ -67,16 +70,15 @@ local function build_research_rows()
     return rows
 end
 
---- Build a human-readable label for a milestone (item + threshold).
-local function milestone_label(item_name, threshold)
-    local icon = helpers.item_rich_name(item_name)
+--- Build a human-readable prefix for a milestone (quantity portion only).
+local function milestone_prefix(threshold)
     if threshold == FIRST_THRESHOLD then
-        return "First " .. icon
+        return "First"
     end
-    return string.format("%d × %s", threshold, icon)
+    return string.format("%d ×", threshold)
 end
 
---- Return an array of {label, record} rows for either Science or Resources.
+--- Return an array of row tables for either Science or Resources.
 --- `want_science` = true selects milestones in SCIENCE_CATEGORIES; false selects
 --- everything else.
 --- Within the tab, rows are grouped by item (sorted by first-completion tick
@@ -125,7 +127,9 @@ local function build_milestone_rows(want_science)
         table.sort(grp.entries, function(a, b) return a.threshold < b.threshold end)
         for _, e in ipairs(grp.entries) do
             rows[#rows + 1] = {
-                label  = milestone_label(grp.item_name, e.threshold),
+                kind   = "item",
+                name   = grp.item_name,
+                prefix = milestone_prefix(e.threshold),
                 record = e.record,
             }
         end
@@ -144,9 +148,64 @@ local PLACE_COLOURS = {
     {0.80, 0.55, 0.30},  -- bronze
 }
 
-local function render_rows(parent, rows)
+local ICON_BUTTON_SIZE = 24
+
+--- True when `query` is empty or `name` contains query (case-insensitive).
+--- `query` is expected to already be lowercased.
+local function row_matches(name, query)
+    if not query or query == "" then return true end
+    return string.find(string.lower(name), query, 1, true) ~= nil
+end
+
+--- Resolve the prototype + sprite path + localised name for a row.
+--- Returns nil for the prototype if it no longer exists (modded item removed
+--- mid-game); the caller falls back to a text-only cell in that case.
+local function resolve_row_proto(row)
+    if row.kind == "tech" then
+        local proto = prototypes.technology and prototypes.technology[row.name]
+        if not proto then return nil end
+        return proto, "technology/" .. row.name, proto.localised_name
+    else
+        local proto = prototypes.item and prototypes.item[row.name]
+        if not proto then return nil end
+        return proto, "item/" .. row.name, proto.localised_name
+    end
+end
+
+--- Drop rows whose internal name doesn't contain the (already lowercased) query.
+--- When the query is empty the input array is returned unchanged.
+local function filter_rows(rows, lower_query)
+    if not lower_query or lower_query == "" then return rows end
+    local out = {}
+    for _, row in ipairs(rows) do
+        if row_matches(row.name, lower_query) then
+            out[#out + 1] = row
+        end
+    end
+    return out
+end
+
+local function render_rows(parent, rows, query)
+    local has_query = query and query ~= ""
+
     if #rows == 0 then
-        parent.add{type = "label", caption = "(no records yet)"}
+        if has_query then
+            local row = parent.add{type = "flow", direction = "horizontal"}
+            row.style.vertical_align = "center"
+            row.style.horizontal_spacing = 6
+            row.add{
+                type    = "label",
+                caption = "No achievements match \"" .. query .. "\".",
+            }
+            row.add{
+                type    = "button",
+                name    = "sb_awards_clear_search_inline",
+                caption = "Clear search",
+                style   = "button",
+            }
+        else
+            parent.add{type = "label", caption = "(no records yet)"}
+        end
         return
     end
 
@@ -156,7 +215,7 @@ local function render_rows(parent, rows)
         draw_horizontal_lines = true,
     }
     tbl.style.horizontal_spacing = 12
-    tbl.style.vertical_spacing   = 4
+    tbl.style.vertical_spacing   = 2
 
     -- Header row
     local hdr_ach = tbl.add{type = "label", caption = "Achievement"}
@@ -168,11 +227,37 @@ local function render_rows(parent, rows)
         h.style.minimal_width = 200
     end
 
-    -- Data rows
     for _, row in ipairs(rows) do
-        local name_lbl = tbl.add{type = "label", caption = row.label}
-        name_lbl.style.minimal_width = 100
-        name_lbl.style.single_line = false
+        local cell1 = tbl.add{type = "flow", direction = "horizontal"}
+        cell1.style.vertical_align = "center"
+        cell1.style.horizontal_spacing = 4
+        cell1.style.minimal_width = 100
+
+        local proto, sprite, loc_name = resolve_row_proto(row)
+        if proto then
+            local tags
+            if row.kind == "tech" then
+                tags = { sb_awards_open_tech = row.name }
+            else
+                tags = { sb_awards_open_item = row.name }
+            end
+            local btn = cell1.add{
+                type    = "sprite-button",
+                sprite  = sprite,
+                tooltip = loc_name,
+                tags    = tags,
+                style   = "slot_button",
+            }
+            btn.style.size    = ICON_BUTTON_SIZE
+            btn.style.padding = 0
+        else
+            -- Prototype gone (mod removed): show plain text so the record is still listed.
+            cell1.add{type = "label", caption = row.name}
+        end
+
+        if row.prefix then
+            cell1.add{type = "label", caption = row.prefix}
+        end
 
         local top = records.sorted_entries(row.record)
         for i = 1, 3 do
@@ -198,6 +283,54 @@ end
 -- ---------------------------------------------------------------------------
 -- GUI construction
 -- ---------------------------------------------------------------------------
+
+local function get_rows_for_state(state)
+    if state.category == "research" then
+        return build_research_rows()
+    elseif state.category == "science" then
+        return build_milestone_rows(true)
+    else
+        return build_milestone_rows(false)
+    end
+end
+
+--- Refresh the parts of the GUI that change as the search query changes:
+--- the match-count badge, the clear (×) button visibility, and the filtered
+--- scroll content. Preserves the textfield (and its keyboard focus / caret
+--- position) during search typing.
+local function refresh_content(player)
+    local frame = player.gui.screen.sb_awards_frame
+    if not frame then return end
+    local scroll = frame.sb_awards_scroll
+    if not scroll then return end
+
+    local state = get_state(player)
+    local query = state.search or ""
+    local has_query = query ~= ""
+    local lower_query = has_query and string.lower(query) or nil
+
+    local all_rows = get_rows_for_state(state)
+    local visible_rows = filter_rows(all_rows, lower_query)
+
+    local cat_row = frame.sb_awards_cat_row
+    if cat_row then
+        local count_lbl = cat_row.sb_awards_match_count
+        if count_lbl then
+            if has_query then
+                count_lbl.caption = string.format("%d / %d match",
+                    #visible_rows, #all_rows)
+                count_lbl.visible = true
+            else
+                count_lbl.visible = false
+            end
+        end
+        local clear_btn = cat_row.sb_awards_clear_search
+        if clear_btn then clear_btn.visible = has_query end
+    end
+
+    scroll.clear()
+    render_rows(scroll, visible_rows, query)
+end
 
 function awards_gui.build(player)
     local screen = player.gui.screen
@@ -244,11 +377,16 @@ function awards_gui.build(player)
         tooltip = "Close",
     }
 
-    -- Category tab buttons
-    local cat_row = frame.add{type = "flow", direction = "horizontal"}
+    -- Category tab buttons + search field on the same row
+    local cat_row = frame.add{
+        type      = "flow",
+        name      = "sb_awards_cat_row",
+        direction = "horizontal",
+    }
     cat_row.style.horizontal_spacing = 4
     cat_row.style.top_padding        = 4
     cat_row.style.bottom_padding     = 4
+    cat_row.style.vertical_align     = "center"
 
     for _, cat in ipairs(CATEGORIES) do
         local sel = (cat == state.category)
@@ -260,9 +398,46 @@ function awards_gui.build(player)
         }
     end
 
+    local search_spacer = cat_row.add{type = "empty-widget"}
+    search_spacer.style.horizontally_stretchable = true
+
+    local query = state.search or ""
+    local has_query = query ~= ""
+    local all_rows = get_rows_for_state(state)
+    local visible_rows = filter_rows(all_rows, has_query and string.lower(query) or nil)
+
+    local count_lbl = cat_row.add{
+        type    = "label",
+        name    = "sb_awards_match_count",
+        caption = has_query
+            and string.format("%d / %d match", #visible_rows, #all_rows)
+            or  "",
+    }
+    count_lbl.visible = has_query
+    count_lbl.style.font_color = {0.85, 0.85, 0.5}
+
+    cat_row.add{type = "label", caption = "Search:"}
+    local search_field = cat_row.add{
+        type    = "textfield",
+        name    = "sb_awards_search",
+        text    = query,
+        tooltip = "Filter rows whose internal name contains this text. Case-insensitive (e.g. \"miner\", \"science\").",
+    }
+    search_field.style.width = 180
+
+    local clear_btn = cat_row.add{
+        type    = "sprite-button",
+        name    = "sb_awards_clear_search",
+        sprite  = "utility/close",
+        style   = "tool_button",
+        tooltip = "Clear search",
+    }
+    clear_btn.visible = has_query
+
     -- Scrollable content pane
     local scroll = frame.add{
         type                     = "scroll-pane",
+        name                     = "sb_awards_scroll",
         direction                = "vertical",
         horizontal_scroll_policy = "never",
         vertical_scroll_policy   = "auto",
@@ -271,15 +446,7 @@ function awards_gui.build(player)
     scroll.style.minimal_height = 200
     scroll.style.horizontally_stretchable = true
 
-    local rows
-    if state.category == "research" then
-        rows = build_research_rows()
-    elseif state.category == "science" then
-        rows = build_milestone_rows(true)
-    else
-        rows = build_milestone_rows(false)
-    end
-    render_rows(scroll, rows)
+    render_rows(scroll, visible_rows, query)
 end
 
 -- ---------------------------------------------------------------------------
@@ -304,6 +471,17 @@ function awards_gui.update_all()
     end
 end
 
+local function clear_search(player)
+    local state = get_state(player)
+    if state.search == "" then return end
+    state.search = ""
+    local frame = player.gui.screen.sb_awards_frame
+    local field = frame and frame.sb_awards_cat_row
+        and frame.sb_awards_cat_row.sb_awards_search
+    if field then field.text = "" end
+    refresh_content(player)
+end
+
 function awards_gui.on_gui_click(event)
     local el = event.element
     if not (el and el.valid) then return false end
@@ -317,6 +495,11 @@ function awards_gui.on_gui_click(event)
         return true
     end
 
+    if name == "sb_awards_clear_search" or name == "sb_awards_clear_search_inline" then
+        clear_search(player)
+        return true
+    end
+
     for _, cat in ipairs(CATEGORIES) do
         if name == "sb_awards_cat_" .. cat then
             get_state(player).category = cat
@@ -325,7 +508,29 @@ function awards_gui.on_gui_click(event)
         end
     end
 
+    if el.tags and el.tags.sb_awards_open_tech then
+        player.open_technology_gui(el.tags.sb_awards_open_tech)
+        return true
+    end
+
+    if el.tags and el.tags.sb_awards_open_item then
+        local proto = prototypes.item and prototypes.item[el.tags.sb_awards_open_item]
+        if proto then player.open_factoriopedia_gui(proto) end
+        return true
+    end
+
     return false
+end
+
+function awards_gui.on_gui_text_changed(event)
+    local el = event.element
+    if not (el and el.valid) then return false end
+    if el.name ~= "sb_awards_search" then return false end
+    local player = game.get_player(event.player_index)
+    if not player then return true end
+    get_state(player).search = el.text or ""
+    refresh_content(player)
+    return true
 end
 
 --- Register the nav bar button for this player. Idempotent.
