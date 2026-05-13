@@ -1,115 +1,585 @@
-# Mod Compatibility Strategy
+# Writing Mods for Multi-Force Environments
 
-This is the short version of how Multi-Team Support (MTS) integrates with other mods, especially mods that decorate Nauvis or modify worldgen. Audience: third-party mod authors checking whether they need to do anything for MTS, and MTS admins triaging combos that misbehave.
+A short guide for Factorio mod authors who want their mod to keep working when more than one player force exists, or more than one planet-like surface exists. PvP scenarios, team-vs-team modes, per-team-surface setups, and even some single-player overhauls all qualify.
 
-## The default: it just works
+Most mods are written assuming the vanilla setup: one player force named `"player"`, one starting surface called `"nauvis"`. That's fine for vanilla play, but a few small habits break the moment a player or scenario adds extra forces or extra surfaces. This page lists the common pitfalls and the cheap fixes.
 
-MTS gives every team its own copy of Nauvis (`team-N-nauvis` or, on Space Age, `mts-nauvis-N`). When a chunk is generated on any team surface, MTS automatically:
+## Mental model
 
-1. Generates the matching chunk on the real `nauvis` surface, synchronously firing every third-party mod's `on_chunk_generated` handler. Their `surface.name == "nauvis"` filters accept, their decoration runs.
-2. Clones the resulting tiles, entities, and decoratives from `nauvis` to the team surface via `LuaSurface.clone_area`.
+Vanilla gives you `game.forces.player` and `game.surfaces.nauvis` by default. Treat both as **examples of a kind**, not as singletons:
 
-The mechanism lives in [`compat/clone_mirror.lua`](../compat/clone_mirror.lua). Net effect: whatever your mod puts on `nauvis`, every team surface gets the same. No remote interface to wire up, no surface-name predicate to update, no MTS-aware code path.
+- Other player-controlled forces can exist (any team scenario, PvP mod, console commands).
+- Other planet-class surfaces can exist (Space Age planets, mod-added planets, scenario-created copies of nauvis).
+- A player can switch forces during a game.
+- A single force can have players spread across many surfaces.
 
-**Verified working with:** [dangOreus](https://mods.factorio.com/mod/dangOreus), [VoidBlock](https://mods.factorio.com/mod/VoidBlock), [Alien Biomes](https://mods.factorio.com/mod/alien-biomes), [Periodic Madness](https://mods.factorio.com/mod/periodic-madness), and the vanilla worldgen stack.
+If your code says "the player force" or "nauvis" by name, ask whether you actually meant **the acting force** or **the planet nauvis** — they're often different things.
 
-## When the default isn't enough: runtime gameplay rules
+Each pattern below shows two real scenarios. For each one: the pitfall code, why it breaks, and a fix that's a direct rewrite of the same code. Copy whichever shape matches yours.
 
-Some mods don't only decorate chunks at generation time. They also have rules that fire *after*, e.g.:
+## Which pattern do I need?
 
-- "Block non-miner buildings from being placed on ore tiles" (`on_built_entity`).
-- "Spill container contents when a chest is destroyed" (`on_entity_died`).
-- "Damage players standing on certain tiles" (`on_nth_tick`).
-
-If those handlers filter by `surface.name == "nauvis"`, they silently no-op on team surfaces. clone_mirror gives you the *map*; it doesn't make these runtime rules fire on the cloned terrain.
-
-Three ways to fix this, ranked by author effort:
-
-### 1. Use `surface.planet.name` instead of `surface.name` (~2 lines)
-
-The smallest and most generic option. Replace this:
-
-```lua
-if surface.name == "nauvis" then ... end
+```mermaid
+graph TD
+    Start([Auditing a line of code]) --> Q{What does the line do?}
+    Q -->|Reads or writes game.forces.player| P1[Pattern 1]
+    Q -->|Hardcoded surface name or index| P2[Pattern 2]
+    Q -->|Per-team state in a single value| P3[Pattern 3]
+    Q -->|Mutates one force, should be all| P4[Pattern 4]
+    Q -->|Reusable on_event body| P5[Pattern 5]
+    Q -->|State change others might react to| P6[Pattern 6]
 ```
 
-with:
+- **Pattern 1** — [Don't hardcode `game.forces.player`](#pattern-1-dont-hardcode-gameforcesplayer)
+- **Pattern 2** — [Don't hardcode surface names or indices](#pattern-2-dont-hardcode-surface-names-or-indices)
+- **Pattern 3** — [Key persistent state by force (and by surface)](#pattern-3-key-persistent-state-by-force-and-by-surface)
+- **Pattern 4** — [Iterate, don't assume singular](#pattern-4-iterate-dont-assume-singular)
+- **Pattern 5** — [Expose runtime rules so other mods can reuse them](#pattern-5-expose-runtime-rules-so-other-mods-can-reuse-them)
+- **Pattern 6** — [Emit events for lifecycle hooks](#pattern-6-emit-events-for-lifecycle-hooks)
+
+More than one branch may apply to the same line — e.g. a `storage.points[1]` write that *also* assumes the default force can need both Pattern 2 and Pattern 3. In that case, apply both.
+
+---
+
+## Pattern 1: Don't hardcode `game.forces.player`
+
+### Example 1 — Granting a buff after a quest completes
+
+**Pitfall:**
 
 ```lua
-if surface.planet and surface.planet.name == "nauvis" then ... end
-```
-
-This is correct for vanilla Nauvis, modded planet variants (Maraxsis, Muluna, etc.), MTS team surfaces (each team's Nauvis variant carries `planet="nauvis"`), and skips space platforms (whose `planet` is nil). It's a generic correctness improvement that benefits planet mods even without MTS in the picture. Frame it that way when pitching it.
-
-Use this when: your runtime rule is naturally expressible as "act on this kind of planet."
-
-### 2. Expose your runtime rules as `remote` functions (~10–30 lines)
-
-The cleanest option for runtime rules that don't fit a planet predicate (e.g. spill-on-death — there's no surface check that captures "spill the contents"). Refactor your handler body into a named function and expose it:
-
-```lua
--- Your existing handler, lightly refactored:
-local function apply_no_build_rule(entity)
-    -- existing body
-end
-
-script.on_event(defines.events.on_built_entity, function(event)
-    local entity = event.created_entity or event.entity
-    if entity.surface.name ~= "nauvis" then return end
-    apply_no_build_rule(entity)
-end)
-
--- Expose for multi-surface mods to reuse:
-remote.add_interface("your_mod_name", {
-    apply_no_build_rule = apply_no_build_rule,
-    apply_container_spill = apply_container_spill,
-    apply_floor_is_lava = apply_floor_is_lava,
-})
-```
-
-That's it. Your existing behavior is untouched. MTS (and any other multi-surface mod, like Cargo Ships) can now invoke your runtime rule on its own surfaces:
-
-```lua
--- In MTS's compat shim:
-if remote.interfaces["your_mod_name"] then
-    remote.call("your_mod_name", "apply_no_build_rule", entity)
+local function complete_quest(player)
+    game.forces.player.manual_mining_speed_modifier =
+        game.forces.player.manual_mining_speed_modifier + 0.25
+    game.forces.player.print("Quest complete! +25% mining speed.")
 end
 ```
 
-Use this when: your rule is genuinely behavioral (not a simple predicate) and you'd like multi-surface mods to reuse your exact logic without re-implementing it. Closed-source-friendly: you're exposing your existing logic, not sharing code.
+The player who finished the quest is probably on a team force, not the default `"player"` force. The buff lands on an empty force; the print goes to nobody.
 
-### 3. Subscribe to `mts-v1` events (~5 lines)
-
-The most explicit option, for cases where you want MTS-specific awareness (e.g. "do per-team setup when a team is created"):
+**Fix:**
 
 ```lua
-script.on_init(function()
-    if remote.interfaces["mts-v1"] then
-        local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
-        script.on_event(id, function(event)
-            -- event.surface_name, event.force_name
-            my_mod.setup_surface(game.surfaces[event.surface_name])
-        end)
+local function complete_quest(player)
+    local force = player.force
+    force.manual_mining_speed_modifier =
+        force.manual_mining_speed_modifier + 0.25
+    force.print("Quest complete! +25% mining speed.")
+end
+```
+
+Use `player.force` — the force that actually earned the reward. Everyone on that team gets the buff and the announcement; everyone on other teams is correctly excluded.
+
+### Example 2 — Gating a trade behind research
+
+**Pitfall:**
+
+```lua
+local function can_trade(recipe_name)
+    return game.forces.player.recipes[recipe_name].researched
+end
+
+script.on_event(defines.events.on_gui_click, function(event)
+    if event.element.name == "trade-belt-button" then
+        if can_trade("express-belt") then
+            execute_trade(event.player_index, "express-belt")
+        end
     end
 end)
 ```
 
-The full event and query catalog lives in [`scripts/remote_api.lua`](../scripts/remote_api.lua). Versioned (`mts-v1`); breaking changes ship as a parallel `mts-v2` rather than mutating v1.
+The check reads the default force's research, not the clicker's. Teams that already researched express belts get told "no", teams that haven't but where the default force has, get a free pass.
 
-Use this when: you want first-class awareness of MTS lifecycle (team created, team released, player joined team), or your setup needs to run exactly once per team rather than per-chunk.
+**Fix:**
 
-## Retroactive compat: `/mts-replay`
+```lua
+local function can_trade(force, recipe_name)
+    return force.recipes[recipe_name].researched
+end
 
-If you install a new chunk-gen mod into a save that already has team surfaces, that mod's `on_init` runs but it never sees the existing surfaces. Run `/mts-replay` (admin only) to re-fire `on_surface_created` (and optionally `on_chunk_generated` per existing chunk via `--chunks`) on every team surface. The new mod's handlers get the chance to set up retroactively.
+script.on_event(defines.events.on_gui_click, function(event)
+    if event.element.name == "trade-belt-button" then
+        local player = game.get_player(event.player_index)
+        if can_trade(player.force, "express-belt") then
+            execute_trade(event.player_index, "express-belt")
+        end
+    end
+end)
+```
 
-Replay only helps mods whose handlers actually do something useful when delivered the event. Mods that filter by `surface.name == "nauvis"` will reject the replayed event the same way they reject the natural one — no event trick can spoof `LuaSurface.name`. For those mods you need option 1 or 2 above (or accept that they don't apply to team surfaces).
+The check follows the clicker's force, so each team's trade catalog reflects its own progress.
 
-## What MTS will not do
+---
 
-- **Reverse-engineer or monkey-patch closed-source mods.** Fragile, version-coupled, breaks silently when upstream updates.
-- **Spoof `surface.name`.** Not technically possible, and would lie to every other mod on the server.
-- **Maintain compat shims for every mod that decorates Nauvis.** clone_mirror handles the chunk-gen layer generically. Per-mod shims exist only for runtime rules that the upstream author hasn't yet exposed via predicate or remote interface (and we'd rather delete them as upstream support lands).
+## Pattern 2: Don't hardcode surface names or indices
 
-## Reporting compat issues
+### Example 1 — Filtering an event handler to "the planet nauvis"
 
-If you maintain a mod and want to flag a specific gap, open an issue at https://github.com/bits-orio/multi-team-support/issues with the mod name and a brief description of which handler isn't firing on team surfaces. If you're an admin trying to make a specific combo work, the mod combo plus what doesn't work is enough to triage.
+**Pitfall:**
+
+```lua
+script.on_event(defines.events.on_built_entity, function(event)
+    local entity = event.created_entity
+    if entity.surface.name ~= "nauvis" then return end
+    if entity.name == "boiler" then
+        block_build_with_message(event.player_index, "Boilers banned on Nauvis.")
+        entity.destroy()
+    end
+end)
+```
+
+A scenario or multi-surface mod may create extra nauvis-class surfaces (`team-3-nauvis`, `mts-nauvis-3`). The literal-name check rejects all of them, so the rule never fires on team copies and players can build banned items there.
+
+**Fix:**
+
+```lua
+script.on_event(defines.events.on_built_entity, function(event)
+    local entity = event.created_entity
+    if not (entity.surface.planet
+            and entity.surface.planet.name == "nauvis") then return end
+    if entity.name == "boiler" then
+        block_build_with_message(event.player_index, "Boilers banned on Nauvis.")
+        entity.destroy()
+    end
+end)
+```
+
+`surface.planet.name` is the planet *kind*, stable across copies and modded variants. Skips space platforms automatically (their `planet` is nil).
+
+### Example 2 — Per-surface tint storage
+
+**Pitfall:**
+
+```lua
+script.on_init(function()
+    storage.tints = {
+        [1]  = settings.global["my-mod-nauvis-color"].value,
+        [-1] = settings.global["my-mod-space-color"].value,
+    }
+end)
+
+local function render_chunk(surface, chunk)
+    rendering.draw_rectangle{
+        color    = storage.tints[surface.index],
+        left_top = chunk.area.left_top,
+        right_bottom = chunk.area.right_bottom,
+        surface  = surface,
+    }
+end
+```
+
+Surface indices are not assigned in a guaranteed order. Another mod creating a surface earlier in load shifts everything — `storage.tints[1]` may not be nauvis. Custom surfaces fall through to `nil` and crash the render call.
+
+**Fix:**
+
+```lua
+local DEFAULT_TINT = { r = 0.5, g = 0.5, b = 0.5 }
+
+local function tint_for(surface)
+    local planet = surface.planet and surface.planet.name or "space"
+    local setting = settings.global["my-mod-" .. planet .. "-color"]
+    return setting and setting.value or DEFAULT_TINT
+end
+
+script.on_init(function()
+    storage.tints = {}
+    for _, surface in pairs(game.surfaces) do
+        storage.tints[surface.index] = tint_for(surface)
+    end
+end)
+
+script.on_event(defines.events.on_surface_created, function(event)
+    local surface = game.surfaces[event.surface_index]
+    storage.tints[surface.index] = tint_for(surface)
+end)
+
+local function render_chunk(surface, chunk)
+    rendering.draw_rectangle{
+        color    = storage.tints[surface.index] or DEFAULT_TINT,
+        left_top = chunk.area.left_top,
+        right_bottom = chunk.area.right_bottom,
+        surface  = surface,
+    }
+end
+```
+
+Tint is derived from the *current* surface's planet kind, populated as surfaces appear, and read by the actual current index — no guesses, and unknown surfaces fall back safely instead of crashing.
+
+---
+
+## Pattern 3: Key persistent state by force (and by surface)
+
+### Example 1 — A team score counter
+
+**Pitfall:**
+
+```lua
+script.on_init(function()
+    storage.points = 0
+end)
+
+local function award_points(player, n)
+    storage.points = storage.points + n
+    player.print("Total points: " .. storage.points)
+end
+```
+
+One shared counter. Every team contributes to the same number, so the "score" reflects everyone's combined activity rather than any one team's progress.
+
+**Fix:**
+
+```lua
+script.on_init(function()
+    storage.points = {}
+    for _, force in pairs(game.forces) do
+        storage.points[force.index] = 0
+    end
+end)
+
+script.on_event(defines.events.on_force_created, function(event)
+    storage.points[event.force.index] = 0
+end)
+
+local function award_points(player, n)
+    local idx = player.force.index
+    storage.points[idx] = (storage.points[idx] or 0) + n
+    player.print("Total points: " .. storage.points[idx])
+end
+```
+
+Each force gets its own counter, initialized when the force appears and read off the acting player's force.
+
+### Example 2 — Per-surface chunk ownership
+
+**Pitfall:**
+
+```lua
+script.on_init(function()
+    storage.claimed = {}  -- claimed[chunk_key] = force_name
+end)
+
+local function claim_chunk(force, surface, chunk_key)
+    storage.claimed[chunk_key] = force.name
+end
+
+local function owner_of(chunk_key)
+    return storage.claimed[chunk_key]
+end
+```
+
+The same chunk key collides across surfaces — claiming `(0,0)` on Vulcanus overwrites whatever claim exists at `(0,0)` on Nauvis. A force on one planet can "steal" another force's chunk on a different planet without ever visiting it.
+
+**Fix:**
+
+```lua
+script.on_init(function()
+    storage.claimed = {}  -- claimed[surface_index][chunk_key] = force_name
+end)
+
+script.on_event(defines.events.on_surface_created, function(event)
+    storage.claimed[event.surface_index] = {}
+end)
+
+local function claim_chunk(force, surface, chunk_key)
+    storage.claimed[surface.index] = storage.claimed[surface.index] or {}
+    storage.claimed[surface.index][chunk_key] = force.name
+end
+
+local function owner_of(surface, chunk_key)
+    return (storage.claimed[surface.index] or {})[chunk_key]
+end
+```
+
+Two levels of indexing — surface, then chunk — keep each planet's claims independent. The lookup also takes the surface, so callers can't accidentally drop it.
+
+---
+
+## Pattern 4: Iterate, don't assume singular
+
+### Example 1 — Resetting technology effects after a balance change
+
+**Pitfall:**
+
+```lua
+script.on_configuration_changed(function()
+    game.forces.player.reset_technology_effects()
+end)
+```
+
+Only the default force gets the recalculation. Team forces keep stale modifiers from the previous mod version — their effective bonuses now drift away from what the new tech tree describes.
+
+**Fix:**
+
+```lua
+script.on_configuration_changed(function()
+    for _, force in pairs(game.forces) do
+        if force.name ~= "enemy" and force.name ~= "neutral" then
+            force.reset_technology_effects()
+        end
+    end
+end)
+```
+
+Every player-controlled force is recalculated. Vanilla single-force games still work (the loop runs once); multi-force games stay consistent.
+
+### Example 2 — Refreshing a per-player GUI when a team value changes
+
+**Pitfall:**
+
+```lua
+local function refresh_score_gui(force)
+    for _, player in pairs(game.players) do
+        if player.force == force then
+            local frame = player.gui.screen.score
+            if frame then
+                frame.caption = "Score: " .. storage.points[force.index]
+            end
+        end
+    end
+end
+```
+
+Works, but it's `O(all players)` and easy to forget the `if`. In a 50-player game updating one team's score, this walks 50 players to find the 5 on that team — and any tweak to the loop body is one missed line away from updating *everyone's* GUI.
+
+**Fix:**
+
+```lua
+local function refresh_score_gui(force)
+    for _, player in pairs(force.players) do
+        local frame = player.gui.screen.score
+        if frame then
+            frame.caption = "Score: " .. storage.points[force.index]
+        end
+    end
+end
+```
+
+`force.players` is already the correct subset. Same result, no filter, and the intent reads as "the players on this force" rather than "all players, but really only these."
+
+---
+
+## Pattern 5: Expose runtime rules so other mods can reuse them
+
+The data flow this pattern sets up:
+
+```mermaid
+sequenceDiagram
+    participant You as Your mod
+    participant Iface as remote interface
+    participant Other as Multi-surface mod
+    Note over You: on_init
+    You->>Iface: register spill_on_death
+    Note over Other: needs the rule on its surface
+    Other->>Iface: call spill_on_death(entity)
+    Iface->>You: spill_on_death(entity)
+    You-->>Other: returns
+```
+
+Your existing handler stays in place for the vanilla case; the interface is a second entry point that other mods can drive on demand.
+
+### Example 1 — A "spill on death" rule
+
+**Pitfall:**
+
+```lua
+script.on_event(defines.events.on_entity_died, function(event)
+    local entity = event.entity
+    if entity.surface.name ~= "nauvis" then return end
+    if entity.type ~= "container" then return end
+    spill_inventory_to_ground(entity)
+end)
+```
+
+The behavior is locked inside the handler. A multi-surface mod that wants the same effect on a copy of nauvis cannot reach it without monkey-patching, and the surface filter rejects every alternate nauvis.
+
+**Fix:**
+
+```lua
+local function maybe_spill(entity)
+    if entity.type ~= "container" then return end
+    spill_inventory_to_ground(entity)
+end
+
+script.on_event(defines.events.on_entity_died, function(event)
+    if event.entity.surface.name ~= "nauvis" then return end
+    maybe_spill(event.entity)
+end)
+
+remote.add_interface("my_mod", {
+    spill_on_death = maybe_spill,
+})
+```
+
+Behavior is unchanged for the vanilla case. Other mods can now call `remote.call("my_mod", "spill_on_death", entity)` on surfaces you don't know about, reusing your exact logic without copy-pasting it.
+
+### Example 2 — A "damage entities on hazardous tiles" tick rule
+
+**Pitfall:**
+
+```lua
+script.on_nth_tick(60, function()
+    local surface = game.surfaces.nauvis
+    for _, entity in pairs(surface.find_entities_filtered{type = "character"}) do
+        if is_on_hazard_tile(entity) then
+            entity.damage(5, "neutral", "acid")
+        end
+    end
+end)
+```
+
+The damage tick walks only nauvis. Characters on other surfaces — including modded copies of nauvis where the hazard tiles still exist — are never checked.
+
+**Fix:**
+
+```lua
+local function apply_hazard_damage(surface)
+    for _, entity in pairs(surface.find_entities_filtered{type = "character"}) do
+        if is_on_hazard_tile(entity) then
+            entity.damage(5, "neutral", "acid")
+        end
+    end
+end
+
+script.on_nth_tick(60, function()
+    apply_hazard_damage(game.surfaces.nauvis)
+end)
+
+remote.add_interface("my_mod", {
+    apply_hazard_damage = apply_hazard_damage,
+})
+```
+
+Same per-tick cost in vanilla. Multi-surface mods can call `remote.call("my_mod", "apply_hazard_damage", their_surface)` on their own schedule, against their own surfaces.
+
+---
+
+## Pattern 6: Emit events for lifecycle hooks
+
+The data flow this pattern sets up:
+
+```mermaid
+sequenceDiagram
+    participant You as Your mod
+    participant Bus as Factorio event bus
+    participant Other as Downstream mod
+    Note over You: on_init generates event id
+    Note over Other: on_init subscribes
+    Other->>You: get_event_id
+    You-->>Other: event_id
+    Other->>Bus: on_event(event_id, handler)
+    Note over You: quest completes
+    You->>Bus: raise_event(event_id, payload)
+    Bus->>Other: handler(event)
+```
+
+The event id is looked up once, then the downstream mod reacts on its own without polling your storage.
+
+### Example 1 — Announcing a quest completion
+
+**Pitfall:**
+
+```lua
+local function complete_quest(force, quest_id)
+    storage.completed[force.index] = storage.completed[force.index] or {}
+    storage.completed[force.index][quest_id] = true
+    force.print("Quest complete!")
+end
+```
+
+If another mod wants to react — award a matching achievement, log to a scoreboard, grant a special item — it has to poll `storage.completed` every tick to notice the change. There's no callback shape.
+
+**Fix:**
+
+```lua
+local on_quest_completed = script.generate_event_name()
+
+local function complete_quest(force, quest_id)
+    storage.completed[force.index] = storage.completed[force.index] or {}
+    storage.completed[force.index][quest_id] = true
+    force.print("Quest complete!")
+    script.raise_event(on_quest_completed, {
+        force_name = force.name,
+        quest_id   = quest_id,
+    })
+end
+
+remote.add_interface("my_mod", {
+    get_event_id = function(name)
+        if name == "on_quest_completed" then return on_quest_completed end
+    end,
+})
+```
+
+Other mods subscribe via `remote.call("my_mod", "get_event_id", "on_quest_completed")` and react inside a normal event handler. No polling, no monkey-patching, and your event payload tells them exactly what happened.
+
+### Example 2 — Notifying when a new tier unlocks
+
+**Pitfall:**
+
+```lua
+local function unlock_tier(force, tier)
+    storage.tier[force.index] = tier
+    for _, recipe_name in pairs(tier_recipes[tier]) do
+        force.recipes[recipe_name].enabled = true
+    end
+end
+```
+
+A downstream mod that wants to grant matching starter items when the new tier opens has to either patch this function or scan storage on every tick.
+
+**Fix:**
+
+```lua
+local on_tier_unlocked = script.generate_event_name()
+
+local function unlock_tier(force, tier)
+    storage.tier[force.index] = tier
+    for _, recipe_name in pairs(tier_recipes[tier]) do
+        force.recipes[recipe_name].enabled = true
+    end
+    script.raise_event(on_tier_unlocked, {
+        force_name = force.name,
+        tier       = tier,
+    })
+end
+
+remote.add_interface("my_mod", {
+    get_event_id = function(name)
+        if name == "on_tier_unlocked" then return on_tier_unlocked end
+    end,
+})
+```
+
+Downstream mods now have a clean hook with the data they need (the force that unlocked, the tier number). They subscribe once and react on demand.
+
+---
+
+## Quick audit checklist
+
+Before tagging a release, grep for these patterns. Each is a near-certain code smell in a multi-force or multi-surface setting:
+
+| Pattern in code                        | Likely problem                                                       |
+|----------------------------------------|----------------------------------------------------------------------|
+| `game.forces.player`                   | Use the acting force, or iterate over all player forces.             |
+| `game.forces["player"]`                | Same.                                                                |
+| `"nauvis"` as a string literal         | Should this be `surface.planet.name == "nauvis"` instead?            |
+| `surface.name == "<planet>"`           | Usually wants `surface.planet and surface.planet.name == "<planet>"`.|
+| Surface index literals (`[1]`, `[-1]`) | Resolve at runtime via `on_surface_created`; never pre-seed.         |
+| `storage.<x> = <scalar>` for state     | Probably wants `storage.<x>[force.index]` (or `[surface.index]`).    |
+| `force.print` / `force.add_chart_tag` only on `forces.player` | Use the acting force, or `game.print` for everyone. |
+
+For each match, ask: *what would happen if there were five player forces, or three nauvis-class surfaces?* If the answer is "it breaks" or "it silently misbehaves", apply the matching pattern above.
+
+---
+
+## Why it's worth doing
+
+These fixes aren't just for niche scenarios. Each one is a generic correctness improvement that helps:
+
+- PvP and team-vs-team scenarios (multiple player forces).
+- Mods that create extra surfaces (Cargo Ships, Space Exploration-style, scenario-driven copies).
+- Mods that add extra planet variants in Space Age.
+- Players who use `/c game.create_force(...)` for their own setups.
+- Future-you, when you want to add a "challenge mode" force or a second team without rewriting your buff system.
+
+In every case, the fix is the same: **stop treating `"player"` and `"nauvis"` as the world, and start treating the *acting* force and the *current* surface as the unit of work.** The code gets shorter, more honest about its assumptions, and works in environments you didn't anticipate.
