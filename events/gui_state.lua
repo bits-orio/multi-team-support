@@ -12,7 +12,6 @@ local helpers       = require("scripts.helpers")
 local spectator     = require("scripts.spectator")
 local teams_gui     = require("gui.teams")
 local stats_gui     = require("gui.stats")
-local awards_gui    = require("gui.awards")
 local friendship    = require("gui.friendship")
 local force_utils   = require("scripts.force_utils")
 local blueprint_lock = require("scripts.blueprint_lock")
@@ -68,7 +67,6 @@ function M.register()
                 if player.gui.screen.sb_platforms_frame then teams_gui.build_gui(player) end
                 if player.gui.screen.sb_research_frame  then research_gui.update_all() end
                 if player.gui.screen.sb_stats_frame     then stats_gui.build_stats_gui(player) end
-                if player.gui.screen.sb_awards_frame    then awards_gui.build(player) end
             end
             return
         end

@@ -144,23 +144,7 @@ local PLACE_COLOURS = {
     {0.80, 0.55, 0.30},  -- bronze
 }
 
---- When `show_offline` is false, drop entries from offline teams. Cached so
---- we hit team_has_online_member at most once per team during a render.
-local function filter_top(top, show_offline, online_cache)
-    if show_offline then return top end
-    local out = {}
-    for _, e in ipairs(top) do
-        local online = online_cache[e.team]
-        if online == nil then
-            online = helpers.team_has_online_member(e.team)
-            online_cache[e.team] = online
-        end
-        if online then out[#out + 1] = e end
-    end
-    return out
-end
-
-local function render_rows(parent, rows, show_offline)
+local function render_rows(parent, rows)
     if #rows == 0 then
         parent.add{type = "label", caption = "(no records yet)"}
         return
@@ -184,15 +168,13 @@ local function render_rows(parent, rows, show_offline)
         h.style.minimal_width = 200
     end
 
-    local online_cache = {}
-
     -- Data rows
     for _, row in ipairs(rows) do
         local name_lbl = tbl.add{type = "label", caption = row.label}
         name_lbl.style.minimal_width = 100
         name_lbl.style.single_line = false
 
-        local top = filter_top(records.sorted_entries(row.record), show_offline, online_cache)
+        local top = records.sorted_entries(row.record)
         for i = 1, 3 do
             local e = top[i]
             local cell
@@ -278,8 +260,6 @@ function awards_gui.build(player)
         }
     end
 
-    helpers.add_show_offline_checkbox(frame, player)
-
     -- Scrollable content pane
     local scroll = frame.add{
         type                     = "scroll-pane",
@@ -299,7 +279,7 @@ function awards_gui.build(player)
     else
         rows = build_milestone_rows(false)
     end
-    render_rows(scroll, rows, helpers.show_offline(player))
+    render_rows(scroll, rows)
 end
 
 -- ---------------------------------------------------------------------------

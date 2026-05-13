@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.19
+Date: 2026-05-12
+  Changes:
+    - Team Awards now always ranks all teams regardless of online status.
+      The "show offline" checkbox has been removed from the Awards GUI
+      because filtering it made the leaderboard misleading -- a team
+      could appear to hold first place simply because the actual leader
+      was offline. Records are immutable history, so they no longer
+      hide behind a session-state toggle.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.18
 Date: 2026-05-12
   Changes:
