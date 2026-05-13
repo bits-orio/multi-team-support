@@ -43,6 +43,7 @@ function M.register()
 
     script.on_event(defines.events.on_gui_text_changed, function(event)
         if awards_gui.on_gui_text_changed(event) then return end
+        if team_settings.on_gui_text_changed(event) then return end
     end)
 
     script.on_event(defines.events.on_gui_closed, function(event)

@@ -33,9 +33,9 @@ function teams_gui.build_gui(player)
         tooltip = "Close panel",
     }
 
-    frame.style.maximal_height = 600
-    frame.style.minimal_width  = 480
-    frame.style.maximal_width  = 560
+    frame.style.maximal_height = 900
+    frame.style.minimal_width  = 360
+    frame.style.maximal_width  = 400
 
     local show_offline = helpers.show_offline(player)
     helpers.add_show_offline_checkbox(frame, player)
@@ -47,7 +47,7 @@ function teams_gui.build_gui(player)
         horizontal_scroll_policy = "never",
         vertical_scroll_policy   = "auto-and-reserve-space",
     }
-    scroll.style.maximal_height           = 520
+    scroll.style.maximal_height           = 820
     scroll.style.horizontally_stretchable = true
 
     local viewer_force_name = spectator.get_effective_force(player)

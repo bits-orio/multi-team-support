@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.21
+Date: 2026-05-12
+  Changes:
+    - Teams GUI is now a taller, slimmer panel: width clamped to
+      360-400 px (down from 480-560) and height allowed up to 900 px
+      (up from 600). Players reported the previous panel hogged
+      horizontal screen real estate; going vertical fits more team
+      cards on screen without spilling sideways.
+    - Maximum team name length reduced from 32 to 16 characters, both
+      in the team-settings rename field and in /mts-rename, so long
+      names cannot push the slimmer Teams GUI back out. The team-name
+      textfield now shows a "N / 16" counter that turns red at the
+      limit, truncates input as you type, and rejects over-limit
+      submissions with a clear message instead of silently truncating.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.20
 Date: 2026-05-12
   Changes:

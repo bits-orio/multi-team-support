@@ -22,7 +22,7 @@ local NAV_BTN_NAME = "sb_team_settings_btn"
 local FRAME_NAME   = "sb_team_settings_frame"
 
 -- Max length for a custom team name (matches /mts-rename).
-local MAX_TEAM_NAME_LEN = 32
+local MAX_TEAM_NAME_LEN = 16
 
 -- ─── Storage ──────────────────────────────────────────────────────────
 
@@ -102,13 +102,28 @@ function team_settings.build_gui(player)
     local name_lbl = name_row.add{type = "label", caption = "Team name"}
     name_lbl.style.minimal_width = 90
 
+    local current_name = helpers.display_name(force_name)
+
     local name_field = name_row.add{
-        type = "textfield",
-        name = "sb_team_settings_name",
-        text = helpers.display_name(force_name),
+        type    = "textfield",
+        name    = "sb_team_settings_name",
+        text    = current_name,
+        tooltip = "Team name (max " .. MAX_TEAM_NAME_LEN .. " characters)",
     }
     name_field.style.width = 160
     name_field.enabled     = leader
+
+    local at_limit = #current_name >= MAX_TEAM_NAME_LEN
+    local counter = name_row.add{
+        type    = "label",
+        name    = "sb_team_settings_name_counter",
+        caption = string.format("%d / %d", #current_name, MAX_TEAM_NAME_LEN),
+    }
+    counter.style.font = at_limit and "default-bold" or "default"
+    counter.style.font_color = at_limit and {1, 0.4, 0.4} or {0.7, 0.7, 0.7}
+    if at_limit then
+        name_field.style.font_color = {0.85, 0.15, 0.15}
+    end
 
     local save_btn = name_row.add{
         type    = "button",
@@ -198,7 +213,8 @@ local function try_rename(player, raw_text)
         return
     end
     if #new_name > MAX_TEAM_NAME_LEN then
-        new_name = new_name:sub(1, MAX_TEAM_NAME_LEN)
+        player.print("Team name is too long (max " .. MAX_TEAM_NAME_LEN .. " characters).")
+        return
     end
 
     local force_name = player.force.name
@@ -247,6 +263,31 @@ function team_settings.on_gui_click(event)
     end
 
     return false
+end
+
+--- Live-enforce the team-name length cap as the user types: truncates to
+--- MAX_TEAM_NAME_LEN and recolours the field + counter when at the limit.
+--- Returns true if the event was for our textfield.
+function team_settings.on_gui_text_changed(event)
+    local el = event.element
+    if not (el and el.valid and el.name == "sb_team_settings_name") then return false end
+
+    local text = el.text or ""
+    if #text > MAX_TEAM_NAME_LEN then
+        text = text:sub(1, MAX_TEAM_NAME_LEN)
+        el.text = text
+    end
+
+    local at_limit = #text >= MAX_TEAM_NAME_LEN
+    el.style.font_color = at_limit and {0.85, 0.15, 0.15} or {0, 0, 0}
+
+    local counter = el.parent and el.parent.sb_team_settings_name_counter
+    if counter and counter.valid then
+        counter.caption = string.format("%d / %d", #text, MAX_TEAM_NAME_LEN)
+        counter.style.font = at_limit and "default-bold" or "default"
+        counter.style.font_color = at_limit and {1, 0.4, 0.4} or {0.7, 0.7, 0.7}
+    end
+    return true
 end
 
 --- Handle textfield confirm (Enter key). Same as clicking Save.

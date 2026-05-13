@@ -140,7 +140,7 @@ function M.register()
                 caller.print("Usage: /mts-rename <new name>"); return
             end
             new_name = new_name:match("^%s*(.-)%s*$")
-            if #new_name > 32 then new_name = new_name:sub(1, 32) end
+            if #new_name > 16 then new_name = new_name:sub(1, 16) end
 
             storage.team_names = storage.team_names or {}
             for fn, name in pairs(storage.team_names) do
