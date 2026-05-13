@@ -15,8 +15,9 @@
 --
 -- Fix: immediately after clone_mirror copies a chunk to a team Nauvis
 -- surface, set force="neutral" and minable=true on all crash-site entities
--- in the chunk. Real nauvis is left untouched. K2-specific entity names
--- silently return no results when K2 base is not loaded.
+-- in the chunk. Real nauvis is left untouched. The K2-specific names are
+-- filtered out at runtime when K2 isn't loaded — find_entities_filtered
+-- raises on unknown entity names rather than ignoring them.
 
 local k2 = {}
 
@@ -50,12 +51,30 @@ local function base_planet_of(surface_name)
         or surface_name:match("^team%-%d+%-(.+)$")
 end
 
+-- Cached filtered list of crash-site entity names that actually exist as
+-- prototypes in the current mod stack. Rebuilt per Lua state (i.e. each
+-- save load), which is when the prototype set can change.
+local existing_crash_site_entities
+local function get_existing_crash_site_entities()
+    if existing_crash_site_entities then return existing_crash_site_entities end
+    existing_crash_site_entities = {}
+    for _, name in ipairs(CRASH_SITE_ENTITIES) do
+        if prototypes.entity[name] then
+            existing_crash_site_entities[#existing_crash_site_entities + 1] = name
+        end
+    end
+    return existing_crash_site_entities
+end
+
 function k2.on_chunk_generated(event)
     local surface = event.surface
     if not (surface and surface.valid) then return end
     if base_planet_of(surface.name) ~= "nauvis" then return end
 
-    for _, entity in pairs(surface.find_entities_filtered{ area = event.area, name = CRASH_SITE_ENTITIES }) do
+    local names = get_existing_crash_site_entities()
+    if #names == 0 then return end
+
+    for _, entity in pairs(surface.find_entities_filtered{ area = event.area, name = names }) do
         if entity.valid then
             entity.force        = "neutral"
             entity.minable      = true

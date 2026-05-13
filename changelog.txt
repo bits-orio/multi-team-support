@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.23
+Date: 2026-05-12
+  Bugfixes:
+    - Fixed crash on first spawn when Krastorio 2 is not installed.
+      compat/krastorio2.lua passed K2-specific entity names
+      (kr-spaceship-reactor, kr-spaceship-research-computer, etc.) to
+      find_entities_filtered every chunk; the engine raises "Unknown
+      entity name" rather than silently ignoring missing prototypes,
+      so any team Nauvis chunk-gen crashed the mod. The crash-site
+      entity list is now filtered against prototypes.entity once per
+      Lua state and shrinks to the vanilla names when K2 is absent.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.22
 Date: 2026-05-12
   Features:
