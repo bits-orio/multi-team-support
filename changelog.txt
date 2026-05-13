@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.18
+Date: 2026-05-12
+  Changes:
+    - Teams GUI no longer auto-reopens after the player closes it and then
+      changes surface via the remote map. The panel only refreshes when it
+      is already open.
+    - The "Exit remote view" button has been split out of the Teams GUI into
+      its own small standalone frame. It now appears only when a compat that
+      keeps players permanently in remote mode is active (Platformer today)
+      and the player is remote-viewing another team's surface. Clicking it
+      returns the remote view to your own physical character without leaving
+      remote mode, matching what Esc does.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.17
 Date: 2026-05-11
   Bugfixes:

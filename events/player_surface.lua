@@ -1,11 +1,12 @@
 -- events/player_surface.lua
 -- on_player_changed_surface, on_player_controller_changed
 
-local spectator   = require("scripts.spectator")
-local force_utils = require("scripts.force_utils")
-local teams_gui   = require("gui.teams")
-local helpers     = require("scripts.helpers")
-local pop_text    = require("scripts.pop_text")
+local spectator     = require("scripts.spectator")
+local force_utils   = require("scripts.force_utils")
+local teams_gui     = require("gui.teams")
+local return_button = require("gui.return_button")
+local helpers       = require("scripts.helpers")
+local pop_text      = require("scripts.pop_text")
 
 local M = {}
 
@@ -21,7 +22,12 @@ function M.register()
         end
         spectator.on_player_changed_surface(player)
         force_utils.bounce_if_foreign(player)
-        teams_gui.build_gui(player)
+        -- Refresh Teams GUI only when already open: surface changes shouldn't
+        -- force the panel back onto players who closed it for screen space.
+        if player.gui.screen.sb_platforms_frame then
+            teams_gui.build_gui(player)
+        end
+        return_button.update(player)
 
         -- Fire spawn/join popups once the player has landed on their team
         -- surface (pending flag set in player_force.lua's on_player_changed_force).
@@ -77,6 +83,7 @@ function M.register()
 
         spectator.on_controller_changed(player, event.old_type)
         force_utils.bounce_if_foreign(player)
+        return_button.update(player)
         helpers.diag("on_player_controller_changed (after handlers)", player)
     end)
 end

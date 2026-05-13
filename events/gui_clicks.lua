@@ -14,6 +14,7 @@ local team_settings = require("gui.team_settings")
 local stats_gui     = require("gui.stats")
 local awards_gui    = require("gui.awards")
 local teams_gui     = require("gui.teams")
+local return_button = require("gui.return_button")
 local helpers       = require("scripts.helpers")
 
 local M = {}
@@ -24,6 +25,7 @@ function M.register()
         if not el or not el.valid then return end
 
         if nav.dispatch_click(event) then return end
+        if return_button.on_gui_click(event) then return end
         if confirm_gui.on_gui_click(event) then return end
         if follow_cam.on_gui_click(event) then teams_gui.update_all(); return end
 

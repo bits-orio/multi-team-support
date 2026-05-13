@@ -10,8 +10,16 @@ local helpers         = require("scripts.helpers")
 local space_age       = require("scripts.space_age")
 local planet_map      = require("scripts.planet_map")
 local ultracube_compat = require("compat.ultracube")
+local platformer      = require("compat.platformer")
 
 local compat_utils = {}
+
+--- True when an active compat keeps players permanently in remote
+--- controller (no walkable character to Esc back to). Platformer is the
+--- canonical case; future compats with the same constraint should OR in here.
+function compat_utils.is_compat_remote_only_mode()
+    return platformer.is_active()
+end
 
 --- Default character starting items for vanilla / VoidBlock modes.
 --- Mirrors the Factorio freeplay starting loadout.

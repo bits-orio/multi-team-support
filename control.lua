@@ -86,6 +86,7 @@ script.on_init(function()
     storage.research_gui_expanded    = {}
     storage.research_gui_diff_target = {}
     storage.show_offline_players     = {}
+    storage.return_button_location   = {}
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
@@ -150,6 +151,7 @@ script.on_configuration_changed(function()
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
     storage.show_offline_players     = storage.show_offline_players     or {}
+    storage.return_button_location   = storage.return_button_location   or {}
     storage.awards_gui_state         = storage.awards_gui_state         or {}
     storage.awards_gui_location      = storage.awards_gui_location      or {}
     storage.team_leader              = storage.team_leader              or {}

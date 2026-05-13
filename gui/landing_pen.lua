@@ -101,7 +101,8 @@ function landing_pen.return_to_pen(player)
     if player.gui.screen.sb_buddy_req_frame then
         player.gui.screen.sb_buddy_req_frame.destroy()
     end
-    for _, frame_name in pairs({"sb_platforms_frame", "sb_research_frame", "sb_stats_frame"}) do
+    for _, frame_name in pairs({"sb_platforms_frame", "sb_research_frame",
+                                "sb_stats_frame", "sb_return_button_frame"}) do
         if player.gui.screen[frame_name] then player.gui.screen[frame_name].destroy() end
     end
 
