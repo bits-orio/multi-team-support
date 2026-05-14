@@ -6,8 +6,9 @@
 -- Pattern follows RedMew (redmew-data): type="sprite", flags={"not-compressed"},
 -- mipmap_count matching the pre-built horizontal mipmap sprite sheet.
 --
---   sb-discord  - 847x128 Discord logo with text     -> graphics/Discord_Logo_Blurple_PMS.png
---   sb-qr-code  - 504x256 mipmap sheet (base 256x256) -> graphics/qr-code.png
+--   sb-discord    - 847x128 Discord logo with text     -> graphics/Discord_Logo_Blurple_PMS.png
+--   sb-qr-code    - 504x256 mipmap sheet (base 256x256) -> graphics/qr-code.png
+--   sb-legendary  - 64x64 legendary starburst           -> graphics/legendary.png
 --
 -- Regenerate with: python tools/gen_qr_matrix.py "https://discord.gg/URL" --png
 
@@ -26,5 +27,12 @@ data:extend({
         size          = 256,
         mipmap_count  = 6,
         flags         = {"not-compressed"},
+    },
+    {
+        type          = "sprite",
+        name          = "sb-legendary",
+        filename      = "__multi-team-support__/graphics/legendary.png",
+        size          = 64,
+        flags         = {"not-compressed", "gui-icon"},
     },
 })

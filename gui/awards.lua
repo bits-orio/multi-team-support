@@ -535,14 +535,9 @@ end
 
 --- Register the nav bar button for this player. Idempotent.
 function awards_gui.on_player_created(player)
-    -- Prefer the Quality DLC's "legendary" starburst icon; fall back to the
-    -- rocket-silo if the Quality mod is disabled on this save.
-    local sprite = (prototypes.quality and prototypes.quality["legendary"])
-        and "quality/legendary"
-        or  "item/rocket-silo"
     nav.add_top_button(player, {
         name    = "sb_awards_btn",
-        sprite  = sprite,
+        sprite  = "sb-legendary",
         tooltip = "Team Awards",
     })
 end

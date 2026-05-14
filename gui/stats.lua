@@ -13,11 +13,25 @@ stats_gui.set_custom              = stats_data.set_custom
 stats_gui.invalidate_categories   = stats_data.invalidate_categories
 stats_gui.get_category_item_names = stats_data.get_category_item_names
 
-local MAX_COLS     = stats_data.MAX_COLS
 local ALLTIME      = stats_data.ALLTIME
 local TIME_PERIODS = stats_data.TIME_PERIODS
 local CATEGORIES   = stats_data.CATEGORIES
 local CAT_LABELS   = stats_data.CAT_LABELS
+
+-- Slot button sizing scales down as the column count grows, so that auto
+-- categories (ores / plates / science) with many overhaul-mod prototypes
+-- stay within a reasonable horizontal footprint. The 16-col tier preserves
+-- the full button size for the curated tabs (intermediates / custom), which
+-- max out at CURATED_COLS = 16.
+local function slot_metrics(cols)
+    local btn
+    if     cols <= 16 then btn = 40
+    elseif cols <= 24 then btn = 32
+    else                   btn = 26
+    end
+    local sort_h = (btn <= 26) and 16 or 20
+    return btn, sort_h
+end
 
 -- ─── GUI Construction ──────────────────────────────────────────────────
 
@@ -34,9 +48,11 @@ function stats_gui.build_stats_gui(player, leaving_index)
         saved_pos = storage.stats_gui_location[player.index]
     end
 
-    local state      = stats_data.get_state(player)
-    local item_names = stats_data.get_category_item_names(player.index, state.category)
-    local all_pf     = stats_data.player_forces(leaving_index)
+    local state        = stats_data.get_state(player)
+    local item_names   = stats_data.get_category_item_names(player.index, state.category)
+    local cols         = stats_data.get_target_cols(player.index, state.category)
+    local btn_size, sort_h = slot_metrics(cols)
+    local all_pf       = stats_data.player_forces(leaving_index)
     local show_offline = helpers.show_offline(player)
     local my_name    = helpers.display_name(player.force.name)
     local pf = {}
@@ -99,7 +115,12 @@ function stats_gui.build_stats_gui(player, leaving_index)
         horizontal_scroll_policy = "auto", vertical_scroll_policy = "auto",
     }
     scroll.style.maximal_height = 500
-    scroll.style.maximal_width  = 900
+    -- Let the scroll pane grow to fit wider tables (many cols × small buttons),
+    -- with a hard ceiling so the frame never exceeds typical screen widths.
+    local desired_w = 160 + cols * (btn_size + 4) + 40
+    if desired_w < 900  then desired_w = 900  end
+    if desired_w > 1500 then desired_w = 1500 end
+    scroll.style.maximal_width = desired_w
 
     if #pf == 0 then
         scroll.add{type = "label", caption = "(no players yet)"}
@@ -108,14 +129,14 @@ function stats_gui.build_stats_gui(player, leaving_index)
 
     local tbl = scroll.add{
         type = "table", name = "sb_stats_table",
-        column_count = MAX_COLS + 1, draw_horizontal_lines = true,
+        column_count = cols + 1, draw_horizontal_lines = true,
     }
     tbl.style.horizontal_spacing = 4
     tbl.style.vertical_spacing   = 2
 
-    -- Header row: blank corner + MAX_COLS choose-elem-buttons
+    -- Header row: blank corner + per-column choose-elem-buttons.
     tbl.add{type = "label", caption = ""}
-    for col_idx = 1, MAX_COLS do
+    for col_idx = 1, cols do
         local item_name = item_names[col_idx]
         local btn = tbl.add{
             type      = "choose-elem-button",
@@ -123,10 +144,24 @@ function stats_gui.build_stats_gui(player, leaving_index)
             elem_type = "item",
             style     = "slot_button",
             tags      = {sb_stats_col = col_idx, sb_stats_cat = state.category},
-            tooltip   = item_name and "Click to change this column"
-                                   or "Click to add an item to this column",
         }
-        if item_name then btn.elem_value = item_name end
+        if item_name then
+            btn.elem_value = item_name
+            local proto = prototypes.item[item_name]
+            -- Big icon + localised name (large-bold font scales both up so the
+            -- icon stays readable when the slot button itself has been shrunk),
+            -- then the click hint on a new line.
+            btn.tooltip = {"",
+                "[font=default-large-bold][item=" .. item_name .. "]  ",
+                proto and proto.localised_name or item_name,
+                "[/font]\nClick to change this column",
+            }
+        else
+            btn.tooltip = "Click to add an item to this column"
+        end
+        btn.style.width   = btn_size
+        btn.style.height  = btn_size
+        btn.style.padding = 0
     end
 
     -- Sort button row
@@ -139,7 +174,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
     local sort_lbl = sort_cell.add{type = "label", caption = "sort →"}
     sort_lbl.style.font       = "default-small"
     sort_lbl.style.font_color = {0.6, 0.6, 0.6}
-    for col_idx = 1, MAX_COLS do
+    for col_idx = 1, cols do
         local item_name = item_names[col_idx]
         if item_name then
             local active  = sort_col == col_idx
@@ -154,8 +189,8 @@ function stats_gui.build_stats_gui(player, leaving_index)
                                             or "Sorted low→high (click to clear sort)")
                     or  "Sort by this column (high→low)",
             }
-            btn.style.width   = 36
-            btn.style.height  = 20
+            btn.style.width   = btn_size
+            btn.style.height  = sort_h
             btn.style.padding = 0
         else
             tbl.add{type = "label", caption = ""}
@@ -166,7 +201,7 @@ function stats_gui.build_stats_gui(player, leaving_index)
     local row_counts = {}
     for i, entry in ipairs(pf) do
         row_counts[i] = {}
-        for col_idx = 1, MAX_COLS do
+        for col_idx = 1, cols do
             local item_name = item_names[col_idx]
             if item_name then
                 row_counts[i][col_idx] = stats_data.get_count(entry.force, item_name, state.precision)
@@ -203,12 +238,13 @@ function stats_gui.build_stats_gui(player, leaving_index)
             off_lbl.style.font       = "default-small"
             off_lbl.style.font_color = {0.45, 0.45, 0.45}
         end
-        for col_idx = 1, MAX_COLS do
+        for col_idx = 1, cols do
             local count = row_counts[i][col_idx]
             if count then
                 local cell = tbl.add{type = "label", caption = stats_data.fmt(count)}
-                cell.style.minimal_width    = 38
+                cell.style.minimal_width    = btn_size
                 cell.style.horizontal_align = "right"
+                if btn_size <= 26 then cell.style.font = "default-small" end
             else
                 tbl.add{type = "label", caption = ""}
             end

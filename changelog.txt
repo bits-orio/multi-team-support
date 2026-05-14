@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.24
+Date: 2026-05-14
+  Features:
+    - Team Stats: the Ores, Plates, and Science tabs now auto-expand
+      to fit every item their respective prototype scans turn up,
+      capped at 48 columns. Overhaul mods that introduce dozens of
+      science packs / ores / plates (Krastorio 2, Periodic Madness,
+      etc.) no longer truncate at the old 12-slot ceiling. Curated
+      tabs (Intermediates, Custom) keep their 16-slot layout with
+      trailing empty slots for ad-hoc additions.
+    - Stats columns within every tab are now ordered by tech-unlock
+      depth — the length of the longest prerequisite chain to the
+      earliest tech that unlocks the item's primary recipe — instead
+      of raw prototype order. Items available from game start sit on
+      the left; deeper-tech items slide to the right. Trace
+      byproducts no longer yank their parent items to the front of
+      the sort. Items the modder has hidden (e.g. PM's vanilla
+      science-pack stubs) are filtered out.
+    - Slot buttons in the Stats GUI shrink in two tiers (40 → 32 →
+      26 px) once a tab exceeds 16 or 24 columns, so wide overhaul
+      tables stay within a reasonable horizontal footprint. The
+      scroll-pane width grows to match the table up to a 1500 px
+      ceiling. Column header tooltips now show a large item icon and
+      its localised name above the click hint.
+  Changes:
+    - The Team Awards top-bar button now uses a bundled legendary
+      starburst sprite (graphics/legendary.png) instead of probing
+      for the Quality DLC's icon at runtime, so the button looks
+      identical regardless of whether Quality is enabled.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.23
 Date: 2026-05-12
   Bugfixes:
