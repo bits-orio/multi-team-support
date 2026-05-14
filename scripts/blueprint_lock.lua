@@ -3,11 +3,16 @@
 -- button) on the Default permission group while leaving in-game blueprint
 -- creation (alt-shift-click, copy-paste of placed entities) untouched.
 --
--- Mechanism: Factorio's permissions API. The two input_action types covered
+-- Mechanism: Factorio's permissions API. The input_action types covered
 -- below fire ONLY when an external import is being confirmed:
---   - import_blueprint_string: GUI "Import string" button + the auto-popup
---     dialog that appears when a blueprint string is pasted into chat.
---   - open_blueprint_library_gui: opens the personal/server blueprint library.
+--   - import_blueprint_string: the "Import string" popup confirm path
+--     (toolbar button and the dialog that opens on chat paste).
+--   - import_blueprint: confirm of a blueprint-record import (e.g. from
+--     the library) into the cursor / inventory.
+--   - import_blueprints_filtered: same as import_blueprint but for the
+--     filtered variant used when a filter is set on the import.
+--   - open_blueprint_library_gui: opens the personal/server blueprint
+--     library.
 -- Creating blueprints from world entities uses different actions and is
 -- unaffected.
 --
@@ -19,6 +24,8 @@ local M = {}
 
 local BLOCKED_ACTIONS = {
     defines.input_action.import_blueprint_string,
+    defines.input_action.import_blueprint,
+    defines.input_action.import_blueprints_filtered,
     defines.input_action.open_blueprint_library_gui,
 }
 
