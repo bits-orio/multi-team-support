@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.25
+Date: 2026-05-14
+  Bugfixes:
+    - Blueprint import lock now also blocks the import_blueprint and
+      import_blueprints_filtered input actions. The previous Default
+      permission lock only covered import_blueprint_string and
+      open_blueprint_library_gui, leaving the toolbar import-string
+      button and the chat-paste path usable as cross-team blueprint
+      transfer routes.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.24
 Date: 2026-05-14
   Features:
