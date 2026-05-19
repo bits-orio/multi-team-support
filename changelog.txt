@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.27
+Date: 2026-05-19
+  Bugfixes:
+    - Re-release of 0.4.26 — the previous mod-portal upload was rejected
+      because the packaged zip included link-mod.sh at the repo root, and
+      the portal rejects any zip containing .sh / .py / .bat / .ps1 / .exe
+      files. The release workflow now strips those extensions at packaging
+      time. No in-game behaviour changes from 0.4.26; all 0.4.26 fixes are
+      bundled in this release.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.26
 Date: 2026-05-19
   Bugfixes:

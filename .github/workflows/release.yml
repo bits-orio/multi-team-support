@@ -119,11 +119,21 @@ jobs:
         run: |
           FOLDER="${{ steps.info.outputs.folder }}"
           mkdir -p "build/${FOLDER}"
+          # The Factorio mod portal rejects any zip containing files with
+          # extensions exe / bat / ps1 / sh / py. Strip those at packaging
+          # time so the workflow doesn't depend on every script living under
+          # tools/ (link-mod.sh sits at the repo root for ergonomic reasons
+          # and would otherwise leak into the zip).
           rsync -a --exclude='.git' \
                    --exclude='.github' \
                    --exclude='.gitignore' \
                    --exclude='.luarc.json' \
                    --exclude='tools' \
+                   --exclude='*.sh' \
+                   --exclude='*.py' \
+                   --exclude='*.bat' \
+                   --exclude='*.ps1' \
+                   --exclude='*.exe' \
                    ./ "build/${FOLDER}/"
           cd build
           zip -r "../${FOLDER}.zip" "${FOLDER}"
