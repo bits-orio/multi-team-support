@@ -15,7 +15,7 @@ Vanilla gives you `game.forces.player` and `game.surfaces.nauvis` by default. Tr
 
 If your code says "the player force" or "nauvis" by name, ask whether you actually meant **the acting force** or **the planet nauvis** — they're often different things.
 
-Each pattern below shows two real scenarios. For each one: the pitfall code, why it breaks, and a fix that's a direct rewrite of the same code. Copy whichever shape matches yours.
+Each pattern below shows the pitfall code, why it breaks, and a fix that's a direct rewrite of the same code. Copy whichever shape matches yours.
 
 ## Which pattern do I need?
 
@@ -128,7 +128,7 @@ script.on_event(defines.events.on_built_entity, function(event)
 end)
 ```
 
-A scenario or multi-surface mod may create extra nauvis-class surfaces (`team-3-nauvis`, `mts-nauvis-3`). The literal-name check rejects all of them, so the rule never fires on team copies and players can build banned items there.
+A scenario or multi-surface mod may create extra surfaces that still belong to the nauvis planet (`team-3-nauvis`, `mts-nauvis-3`). The literal-name check rejects all of them, so the rule never fires on those copies and players can build banned items there.
 
 **Fix:**
 
@@ -144,7 +144,7 @@ script.on_event(defines.events.on_built_entity, function(event)
 end)
 ```
 
-`surface.planet.name` is the planet *kind*, stable across copies and modded variants. Skips space platforms automatically (their `planet` is nil).
+`surface.planet.name` identifies the planet itself, not the surface, so the rule fires on every surface that belongs to that planet — including scenario-created copies of nauvis. Skips space platforms automatically (their `planet` is nil). Note that a separate planet prototype derived from nauvis (e.g. a mod that adds a `nauvis-remix` planet) has its own name and won't match — if you want the rule to cover those too, list them explicitly or check against a set of planet names you maintain.
 
 ### Example 2 — Per-surface tint storage
 
@@ -313,14 +313,12 @@ Only the default force gets the recalculation. Team forces keep stale modifiers 
 ```lua
 script.on_configuration_changed(function()
     for _, force in pairs(game.forces) do
-        if force.name ~= "enemy" and force.name ~= "neutral" then
-            force.reset_technology_effects()
-        end
+        force.reset_technology_effects()
     end
 end)
 ```
 
-Every player-controlled force is recalculated. Vanilla single-force games still work (the loop runs once); multi-force games stay consistent.
+Every force gets the recalculation, including enemy and neutral — some mods put research on those forces (for example, evolution-scaled enemy bonuses), so skipping them would leave their modifiers stale too. Vanilla single-force games still work (the loop runs once); multi-force games stay consistent.
 
 ### Example 2 — Refreshing a per-player GUI when a team value changes
 
@@ -377,7 +375,7 @@ sequenceDiagram
 
 Your existing handler stays in place for the vanilla case; the interface is a second entry point that other mods can drive on demand.
 
-### Example 1 — A "spill on death" rule
+### A "spill on death" rule
 
 **Pitfall:**
 
@@ -412,45 +410,6 @@ remote.add_interface("my_mod", {
 
 Behavior is unchanged for the vanilla case. Other mods can now call `remote.call("my_mod", "spill_on_death", entity)` on surfaces you don't know about, reusing your exact logic without copy-pasting it.
 
-### Example 2 — A "damage entities on hazardous tiles" tick rule
-
-**Pitfall:**
-
-```lua
-script.on_nth_tick(60, function()
-    local surface = game.surfaces.nauvis
-    for _, entity in pairs(surface.find_entities_filtered{type = "character"}) do
-        if is_on_hazard_tile(entity) then
-            entity.damage(5, "neutral", "acid")
-        end
-    end
-end)
-```
-
-The damage tick walks only nauvis. Characters on other surfaces — including modded copies of nauvis where the hazard tiles still exist — are never checked.
-
-**Fix:**
-
-```lua
-local function apply_hazard_damage(surface)
-    for _, entity in pairs(surface.find_entities_filtered{type = "character"}) do
-        if is_on_hazard_tile(entity) then
-            entity.damage(5, "neutral", "acid")
-        end
-    end
-end
-
-script.on_nth_tick(60, function()
-    apply_hazard_damage(game.surfaces.nauvis)
-end)
-
-remote.add_interface("my_mod", {
-    apply_hazard_damage = apply_hazard_damage,
-})
-```
-
-Same per-tick cost in vanilla. Multi-surface mods can call `remote.call("my_mod", "apply_hazard_damage", their_surface)` on their own schedule, against their own surfaces.
-
 ---
 
 ## Pattern 6: Emit events for lifecycle hooks
@@ -474,7 +433,7 @@ sequenceDiagram
 
 The event id is looked up once, then the downstream mod reacts on its own without polling your storage.
 
-### Example 1 — Announcing a quest completion
+### Announcing a quest completion
 
 **Pitfall:**
 
@@ -511,46 +470,6 @@ remote.add_interface("my_mod", {
 ```
 
 Other mods subscribe via `remote.call("my_mod", "get_event_id", "on_quest_completed")` and react inside a normal event handler. No polling, no monkey-patching, and your event payload tells them exactly what happened.
-
-### Example 2 — Notifying when a new tier unlocks
-
-**Pitfall:**
-
-```lua
-local function unlock_tier(force, tier)
-    storage.tier[force.index] = tier
-    for _, recipe_name in pairs(tier_recipes[tier]) do
-        force.recipes[recipe_name].enabled = true
-    end
-end
-```
-
-A downstream mod that wants to grant matching starter items when the new tier opens has to either patch this function or scan storage on every tick.
-
-**Fix:**
-
-```lua
-local on_tier_unlocked = script.generate_event_name()
-
-local function unlock_tier(force, tier)
-    storage.tier[force.index] = tier
-    for _, recipe_name in pairs(tier_recipes[tier]) do
-        force.recipes[recipe_name].enabled = true
-    end
-    script.raise_event(on_tier_unlocked, {
-        force_name = force.name,
-        tier       = tier,
-    })
-end
-
-remote.add_interface("my_mod", {
-    get_event_id = function(name)
-        if name == "on_tier_unlocked" then return on_tier_unlocked end
-    end,
-})
-```
-
-Downstream mods now have a clean hook with the data they need (the force that unlocked, the tier number). They subscribe once and react on demand.
 
 ---
 
