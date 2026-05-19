@@ -1,4 +1,23 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.26
+Date: 2026-05-19
+  Bugfixes:
+    - Naturally-generated structures stuck on force="player" can now be
+      mined by team forces on every planet. On vanilla Fulgora the
+      Fulgoran lightning attractors and ruined buildings, and on Nauvis
+      the freeplay crash-site ship + chests, used to spawn on
+      force="player" and were not mineable by any team because
+      force="player" entities ignore cease_fire + friend diplomacy. A
+      generic on_chunk_generated sweep now reassigns every force="player"
+      entity on a team surface to the surface's owning team force, so the
+      team naturally owns the structure (mineable, repairable, wires into
+      the team's electric grid, etc.). Replaces the older Nauvis-only
+      crash-site name allowlist (compat/krastorio2.lua) and extends the
+      fix to every planet variant — including future modded planets and
+      any future modded entity that ships on force="player". minable
+      and destructible are no longer overwritten, so scenarios that
+      intentionally mark an entity unmineable are preserved.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.25
 Date: 2026-05-14
   Bugfixes:
