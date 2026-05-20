@@ -1,6 +1,6 @@
 # Multi-Team Support: Integration API
 
-This document covers MTS-specific integration points: how MTS handles third-party chunk-gen mods automatically, the public `mts-v1` remote interface (events + queries), and the `/mts-replay` admin command for retroactive setup.
+This document covers MTS-specific integration points: how MTS handles third-party chunk-gen mods automatically and the public `mts-v1` remote interface (events + queries).
 
 For *generic* advice on making your mod work in any multi-force environment (not specific to MTS), see [COMPAT.md](COMPAT.md). This document assumes your mod is already reasonably force- and surface-aware, and you want to plug into MTS lifecycle directly.
 
@@ -132,22 +132,18 @@ end
 
 ---
 
-## 3. Retroactive setup: `/mts-replay`
+## 3. Mods added to an existing save
 
-Installing a new chunk-gen or surface-decorating mod into a save that already has team surfaces creates a chicken-and-egg problem: the new mod's `on_init` runs, but its `on_chunk_generated` / `on_surface_created` handlers never see the *existing* team surfaces — those events already fired long ago.
+MTS makes one promise about timing, and it deliberately matches vanilla: **lifecycle events fire for every team and surface created from the moment the mod is installed onward.** A mod added mid-save takes effect on subsequently-created teams and surfaces, not retroactively on ones that already exist.
 
-`/mts-replay` (admin only) re-fires lifecycle events against the existing team surfaces so the new mod's handlers get a second chance:
+This is the same boundary Factorio itself enforces — adding a worldgen or decoration mod to a running save does not redecorate already-generated chunks. MTS does not promise more than the base game, and there is **no admin command** to force retroactive setup.
 
-```
-/mts-replay              -- re-fires on_surface_created on every team surface
-/mts-replay --chunks     -- additionally re-fires on_chunk_generated for every existing chunk
-```
+Why there's no retroactive mechanism:
 
-The `--chunks` form is much heavier (it's O(chunks generated) per team), but it's the right option for mods whose decoration runs in `on_chunk_generated` rather than `on_surface_created`.
+- **It can't help the mods that need it most.** A handler that filters `surface.name == "nauvis"` rejects a re-fired event exactly as it rejects the live one — no event trick can spoof `LuaSurface.name`. Those mods need a real fix (generalize the filter, or subscribe to `on_team_surface_created`), not a replay.
+- **Retroactive grants are wrong, not just unsafe.** Re-firing `on_team_created` against a team that's been playing for hours would dump a starting kit onto an established base. New teams get their setup live; existing teams correctly don't.
 
-**Limit of the technique:** replay only helps mods whose handlers actually do something useful when delivered the event. A mod that filters by `surface.name == "nauvis"` will reject the replayed event the same way it rejects the natural one — no event trick can spoof `LuaSurface.name`. For mods that filter hard, fix the filter (Pattern 5 in COMPAT.md) or subscribe to `on_team_surface_created` directly.
-
-Implementation: [`scripts/event_replay.lua`](../scripts/event_replay.lua).
+So: write your integration against the `mts-v1` events (§2) and it works for every team created while your mod is installed. If you need a mod's terrain on surfaces that predate its install, regenerate those surfaces (recycle the slot) — the same answer vanilla gives.
 
 ---
 

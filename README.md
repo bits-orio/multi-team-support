@@ -84,7 +84,7 @@ local owner = remote.call("mts-v1", "get_surface_owner", "team-3-nauvis")
 
 **Queries:** `get_team_list`, `get_team_info`, `is_team_surface`, `get_surface_owner`, `list_team_surfaces`.
 
-The interface name is versioned (`mts-v1`); breaking changes will ship as a parallel `mts-v2` rather than mutating v1. See [`scripts/remote_api.lua`](scripts/remote_api.lua) for the full contract and payload shapes, and [`docs/COMPAT.md`](docs/COMPAT.md) for the broader compatibility strategy (zero-cooperation event replay, the `surface.planet.name` upstream pitch, and when each layer is the right tool). If you maintain a chunk-gen or surface-modifying mod and need an extension point, open an issue.
+The interface name is versioned (`mts-v1`); breaking changes will ship as a parallel `mts-v2` rather than mutating v1. See [`scripts/remote_api.lua`](scripts/remote_api.lua) for the full contract and payload shapes, and [`docs/COMPAT.md`](docs/COMPAT.md) for the broader compatibility strategy (the `surface.planet.name` upstream pitch and when each layer is the right tool). If you maintain a chunk-gen or surface-modifying mod and need an extension point, open an issue.
 
 ## 📄 License
 
