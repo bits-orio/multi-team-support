@@ -11,6 +11,7 @@ local space_age       = require("scripts.space_age")
 local planet_map      = require("scripts.planet_map")
 local ultracube_compat = require("compat.ultracube")
 local platformer      = require("compat.platformer")
+local space_is_fake   = require("compat.space_is_fake")
 
 local compat_utils = {}
 
@@ -51,6 +52,7 @@ function compat_utils.process_pending_teleports()
                 -- Player is now on their team surface. Run any post-teleport
                 -- setup that depends on player.surface being correct.
                 ultracube_compat.after_spawn(player)
+                space_is_fake.after_spawn(player)
                 storage.pending_vanilla_tp[player_index] = nil
             end
         else

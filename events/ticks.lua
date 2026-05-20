@@ -12,6 +12,7 @@ local remote_api     = require("scripts.remote_api")
 local teams_gui      = require("gui.teams")
 local planet_map     = require("scripts.planet_map")
 local ultracube_compat = require("compat.ultracube")
+local space_is_fake  = require("compat.space_is_fake")
 local milestones     = require("milestones.engine")
 local awards_gui     = require("gui.awards")
 local follow_cam     = require("gui.follow_cam")
@@ -73,6 +74,10 @@ function M.register()
 
     -- Ultracube compat: drive player setup and force-slot recycling.
     ultracube_compat.register_events()
+
+    -- Space Is Fake compat: clear the per-surface starting-area guard on slot
+    -- recycle so reused Nauvis variants get set up again.
+    space_is_fake.register_events()
 
     -- dangOreus compat: block non-miners on ore, spill on destroyed containers.
     if dangoreus.is_active() then

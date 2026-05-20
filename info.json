@@ -12,6 +12,7 @@
     "? platformer",
     "? VoidBlock",
     "? dangOreus",
-    "? PlanetsLib"
+    "? PlanetsLib",
+    "? space-is-fake"
   ]
 }

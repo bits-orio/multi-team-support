@@ -34,6 +34,16 @@ local clone_mirror = {}
 
 local CHUNK_SIZE = 32
 
+-- Space Is Fake puts demolisher territories on Nauvis, and clone_area destroys
+-- segmented units like demolishers. SiF is a total Nauvis conversion (it never
+-- coexists with the surface-name-filtering Nauvis overhauls clone exists for —
+-- VoidBlock, dangOreus), so when it's active we skip cloning entirely: every
+-- variant generates natively from its pinned per-base seed (see
+-- surface_utils.normalize_variant_seed), keeping terrain identical across teams
+-- AND letting demolishers survive. Outer planets are already native, so this
+-- only changes Nauvis. Auto-detected so no user-facing setting is needed.
+local NATIVE_GEN = script.active_mods["space-is-fake"] ~= nil
+
 --- Identify a team-owned planet variant and return the source planet
 --- name to clone from, or nil if the surface is not a team variant.
 ---
@@ -70,6 +80,7 @@ end
 --- with no per-mod compat code. dangOreus, VoidBlock, Alien Biomes,
 --- and (vanilla) modded resource autoplaces all benefit equally.
 function clone_mirror.on_chunk_generated(event)
+    if NATIVE_GEN then return end
     local team_surface = event.surface
     if not (team_surface and team_surface.valid) then return end
 
