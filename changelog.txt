@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.33
+Date: 2026-05-20
+  Bugfixes:
+    - Team variant surfaces now generate terrain based on the host's chosen map seed instead of
+      a fixed hash of the planet name. Previously all games produced the same terrain regardless
+      of the seed selected at map creation; now each game's seed is respected and all teams still
+      share identical terrain for each planet.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.32
 Date: 2026-05-20
   Bugfixes:

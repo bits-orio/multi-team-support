@@ -19,14 +19,17 @@ local function variant_base_planet(name)
 end
 
 -- Deterministic seed per base planet, so every team's variant of that planet
--- generates identical terrain. Polynomial string hash kept in uint32 range;
--- no bitwise ops, for Lua 5.2 compatibility.
+-- generates identical terrain reflecting the host's chosen map seed.
+-- Reads the base surface's seed directly when it exists (nauvis always does).
+-- Outer planet base surfaces are lazy (created on first visit), so fall back
+-- to nauvis's seed which equals the game's chosen map seed.
 local function seed_for_base(base)
-    local h = 0
-    for i = 1, #base do
-        h = (h * 31 + base:byte(i)) % 4294967296
+    local base_surface = game.surfaces[base]
+    if base_surface and base_surface.valid then
+        return base_surface.map_gen_settings.seed
     end
-    return h
+    local nauvis = game.surfaces["nauvis"]
+    return nauvis and nauvis.map_gen_settings.seed or 0
 end
 
 --- Given a surface, return the force name that owns it, or nil.
