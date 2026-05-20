@@ -4,14 +4,18 @@
 -- announcement is broadcast to every player + drawn on every screen via
 -- pop_text.global_milestone.
 --
--- LuaSurface.planet.name is used to identify the planet, which works
--- transparently for per-team planet variants (mts-vulcanus-1 etc. all
--- report "vulcanus") and for modded planets (any prototype registered
--- as a planet is detected automatically).
+-- LuaSurface.planet.name identifies the planet, but each per-team variant
+-- is its own planet prototype (mts-vulcanus-1, mts-vulcanus-2, ...), so the
+-- name is normalized back to its canonical base ("vulcanus") via
+-- space_age.parse_variant. Without this every team's variant counts as a
+-- distinct planet and the "first landing" celebration fires once per team
+-- instead of once per save. Modded planets (any prototype registered as a
+-- planet) are detected automatically and normalized the same way.
 
 local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local pop_text    = require("scripts.pop_text")
+local space_age   = require("scripts.space_age")
 
 local M = {}
 
@@ -68,7 +72,10 @@ local function planet_name_of(surface)
     if not (surface and surface.valid) then return nil end
     local planet = surface.planet
     if not (planet and planet.valid) then return nil end
-    return planet.name
+    -- Collapse per-team variants (mts-vulcanus-1) to their base (vulcanus)
+    -- so the first-landing gate is shared across every team's copy.
+    local base = space_age.parse_variant(planet.name)
+    return base or planet.name
 end
 
 --- Called from the existing on_player_changed_surface handler. `was_spawning`
