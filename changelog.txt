@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.31
+Date: 2026-05-20
+  Bugfixes:
+    - Gridlocked no longer crashes on team surfaces. Gridlocked tracks its
+      per-chunk "gl-unclaimed-chunk" markers by entity unit_number, and MTS's
+      terrain cloning replaced each registered marker with an unregistered copy,
+      so charting a team chunk hit a nil render entry and crashed
+      (gridlocked::on_chunk_charted). MTS now detects Gridlocked and generates
+      team surfaces natively (no cloning), the same path used for Space Is Fake,
+      so Gridlocked manages its own markers per surface. As with that path, it's
+      mutually exclusive with Nauvis terrain mods that decorate by surface name
+      (VoidBlock, dangOreus) in the same run.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.30
 Date: 2026-05-20
   Bugfixes:
