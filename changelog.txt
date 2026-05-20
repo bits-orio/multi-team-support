@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.32
+Date: 2026-05-20
+  Bugfixes:
+    - Gridlocked: recycled teams no longer inherit the previous occupant's chunk-point
+      balance. When MTS reuses a force slot, it now calls Gridlocked's reset_force API
+      to restore the starting point count and refresh every member's HUD label, so each
+      new team begins from a clean slate regardless of what the previous team researched.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.31
 Date: 2026-05-20
   Bugfixes:
