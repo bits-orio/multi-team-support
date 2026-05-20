@@ -42,6 +42,10 @@ function M.register()
     script.on_event(defines.events.on_surface_created, function(event)
         local surface = game.surfaces[event.surface_index]
         if not surface then return end
+        -- Pin team variant surfaces to a per-base-planet seed BEFORE any chunk
+        -- generates, so every team's copy of a planet generates identical
+        -- terrain natively (outer planets aren't cloned).
+        surface_utils.normalize_variant_seed(surface)
         surface_utils.on_surface_created(surface)
         local owner = surface_utils.get_owner(surface)
         if owner then

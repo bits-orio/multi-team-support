@@ -8,7 +8,9 @@
 --
 -- Each variant is a full planet prototype with:
 --   • unique name: "mts-<base>-<slot>" e.g. "mts-nauvis-1"
---   • randomized map_seed_offset so terrain differs per team
+--   • the base planet's own map_seed_offset (kept from the deepcopy), so
+--     every team's variant generates identical terrain — including
+--     territory demolishers, which clone_mirror can't replicate
 --   • orientation offset so they don't overlap visually in the solar
 --     system view
 --
@@ -62,13 +64,15 @@ for _, base_name in ipairs(space_age.list_base_planets_data()) do
             local variant = table.deepcopy(base)
             variant.name = space_age.variant_name(base_name, slot)
 
-            -- Randomize map seed so each team's terrain differs.
-            -- Note: with clone_mirror enabled (which is the default),
-            -- this seed is mostly cosmetic — clone_mirror overwrites
-            -- chunks from the real base planet anyway. The seed
-            -- still matters for mods that read map_seed_offset
-            -- directly (e.g. some autoplace controls).
-            variant.map_seed_offset = math.random(2 ^ 24)
+            -- Use the base planet's own seed (not a random one). With the same
+            -- seed and the same map_gen_settings, every team's variant generates
+            -- byte-identical terrain on its own — including territory demolishers,
+            -- which clone_mirror cannot replicate (clone_area destroys segmented
+            -- units). This keeps the outer planets consistent across teams WITHOUT
+            -- cloning, so their native demolishers survive. Nauvis is still cloned
+            -- (its base surface always exists), so its variants stay identical via
+            -- clone_mirror regardless of seed.
+            variant.map_seed_offset = base.map_seed_offset
 
             -- Keep the variant's order grouped with its base planet
             -- in menus (so e.g. "mts-nauvis-1..N" appear next to

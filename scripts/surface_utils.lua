@@ -10,6 +10,25 @@ local helpers = require("scripts.helpers")
 
 local surface_utils = {}
 
+-- Extract the base planet name from a team surface name, or nil if it isn't
+-- a team variant. Recognizes "mts-<planet>-<N>" (Space Age) and
+-- "team-<N>-<planet>" (base 2.0 clone).
+local function variant_base_planet(name)
+    if type(name) ~= "string" then return nil end
+    return name:match("^mts%-(.+)%-%d+$") or name:match("^team%-%d+%-(.+)$")
+end
+
+-- Deterministic seed per base planet, so every team's variant of that planet
+-- generates identical terrain. Polynomial string hash kept in uint32 range;
+-- no bitwise ops, for Lua 5.2 compatibility.
+local function seed_for_base(base)
+    local h = 0
+    for i = 1, #base do
+        h = (h * 31 + base:byte(i)) % 4294967296
+    end
+    return h
+end
+
 --- Given a surface, return the force name that owns it, or nil.
 function surface_utils.get_owner(surface)
     if not surface or not surface.valid then return nil end
@@ -41,6 +60,23 @@ function surface_utils.get_owner(surface)
     end
 
     return nil
+end
+
+--- Pin a team variant surface to a per-base-planet seed so every team's copy
+--- of that planet generates identical terrain natively. MUST be called from
+--- on_surface_created, before any chunk generates. No-op for non-variant
+--- surfaces. Harmless on nauvis variants (those are clone-mirrored, so the
+--- clone overwrites generation anyway); it matters for the natively-generated
+--- outer planets (vulcanus, gleba, …) where terrain isn't cloned.
+function surface_utils.normalize_variant_seed(surface)
+    if not (surface and surface.valid) then return end
+    local base = variant_base_planet(surface.name)
+    if not base then return end
+    local mgs = surface.map_gen_settings
+    local seed = seed_for_base(base)
+    if mgs.seed == seed then return end
+    mgs.seed = seed
+    surface.map_gen_settings = mgs
 end
 
 --- Find a player's home surface, preferring their actual primary
