@@ -61,7 +61,14 @@ function M.register()
         if event.force then planet_map.apply_force_locks(event.force) end
     end)
     script.on_event(defines.events.on_technology_effects_reset, function(event)
-        if event.force then planet_map.apply_force_locks(event.force) end
+        if event.force then
+            -- A tech-effects reset preserves research but re-points each
+            -- discovery tech's unlock at the BASE planet. apply_force_locks
+            -- then clean-slates the variants, so re-derive the team's unlocks
+            -- from its researched discovery techs or its earned planets relock.
+            planet_map.apply_force_locks(event.force)
+            planet_map.reapply_discovery_unlocks(event.force)
+        end
     end)
 
     -- Reactive correction for cross-team logistic-request planet selections.

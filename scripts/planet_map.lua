@@ -229,6 +229,44 @@ function planet_map.apply_all_force_locks()
     end
 end
 
+--- Re-derive a team's planet-discovery unlocks from the techs it has ACTUALLY
+--- researched, and re-apply them. apply_force_locks() clean-slates every
+--- non-home variant — correct when research was wiped (fresh world, slot
+--- recycle), but WRONG after a technology-effects reset or a configuration
+--- change (e.g. a mod update). Those preserve research yet make the engine
+--- re-point each discovery tech's unlock at the BASE planet, while the
+--- redirect that unlocks the team's VARIANT only ever runs on
+--- on_research_finished. So without this, a team that researched and reached
+--- (say) Vulcanus loses its variant unlock on the next reset — the planet
+--- relocks and goes dark — until manually unlocked.
+---
+--- Calling this after apply_force_locks restores the variant unlocks from the
+--- researched discovery techs (re-running the on_research_finished redirect for
+--- every already-completed one). Safe in every context: if research was wiped,
+--- no discovery tech is researched and this is a no-op, so it never resurrects
+--- a previous slot occupant's planets on recycle.
+function planet_map.reapply_discovery_unlocks(force)
+    if not space_age.is_active() then return end
+    if not is_team_force(force.name) then return end
+    for tech_name, base in pairs(storage.discovery_tech_map or {}) do
+        local tech = force.technologies[tech_name]
+        if tech and tech.researched then
+            local variant = planet_map.get_variant(force.name, base)
+            if variant then
+                pcall(function() force.unlock_space_location(variant) end)
+                pcall(function() force.lock_space_location(base) end)
+            end
+        end
+    end
+end
+
+--- Re-derive discovery unlocks for every team force.
+function planet_map.reapply_all_discovery_unlocks()
+    for _, force in pairs(game.forces) do
+        planet_map.reapply_discovery_unlocks(force)
+    end
+end
+
 -- ─── Surface Creation ────────────────────────────────────────────────
 
 --- Get or create the surface for a planet by name. Returns nil on failure.
