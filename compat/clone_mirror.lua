@@ -34,15 +34,27 @@ local clone_mirror = {}
 
 local CHUNK_SIZE = 32
 
--- Space Is Fake puts demolisher territories on Nauvis, and clone_area destroys
--- segmented units like demolishers. SiF is a total Nauvis conversion (it never
--- coexists with the surface-name-filtering Nauvis overhauls clone exists for —
--- VoidBlock, dangOreus), so when it's active we skip cloning entirely: every
--- variant generates natively from its pinned per-base seed (see
--- surface_utils.normalize_variant_seed), keeping terrain identical across teams
--- AND letting demolishers survive. Outer planets are already native, so this
--- only changes Nauvis. Auto-detected so no user-facing setting is needed.
-local NATIVE_GEN = script.active_mods["space-is-fake"] ~= nil
+-- Mods whose generated chunks carry script-managed entities that clone_area
+-- cannot safely replicate. For these MTS must NOT clone team surfaces — each
+-- variant generates natively from its pinned per-base seed instead (see
+-- surface_utils.normalize_variant_seed), which keeps terrain identical across
+-- teams while leaving the mod's own per-surface generation and state intact:
+--   • space-is-fake — demolisher territories on Nauvis; clone_area drops
+--     segmented units (demolishers), so cloning wipes them.
+--   • gridlocked    — per-chunk "gl-unclaimed-chunk" markers whose render data
+--     is keyed by entity unit_number; cloning leaves an unregistered copy and
+--     crashes its on_chunk_charted handler.
+-- Auto-detected (no user-facing setting). Outer planets are already native, so
+-- in practice this only switches Nauvis to native. Mutually exclusive with
+-- surface-name-filtering Nauvis terrain mods (VoidBlock, dangOreus), which need
+-- cloning to reach the variants.
+local NATIVE_GEN = false
+for _, mod_name in pairs({ "space-is-fake", "gridlocked" }) do
+    if script.active_mods[mod_name] then
+        NATIVE_GEN = true
+        break
+    end
+end
 
 --- Identify a team-owned planet variant and return the source planet
 --- name to clone from, or nil if the surface is not a team variant.
