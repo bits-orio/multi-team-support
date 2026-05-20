@@ -1,4 +1,25 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.28
+Date: 2026-05-20
+  Changes:
+    - Removed the /mts-replay admin command and its internal event-replay
+      code. It only reached mods that had already generalized their
+      surface-name filters (better served by the mts-v1 lifecycle events),
+      and replaying setup events retroactively risked double-applying or
+      wrongly re-granting per-team setup. Mods added mid-save now take effect
+      on teams and surfaces created from that point on — the same boundary
+      vanilla worldgen has.
+  Bugfixes:
+    - Demolisher territories work on team surfaces again (Space Age). On
+      Vulcanus and other territory planets, team copies had lost their
+      demolishers: those surfaces were terrain-cloned from the base planet,
+      and the clone silently drops segmented units like demolishers (a
+      regression from eagerly pre-creating base planet surfaces, which
+      switched cloning on for the outer planets). Team copies of the outer
+      planets now generate natively from a shared per-planet seed instead, so
+      every team gets identical terrain AND working demolisher territories.
+      Nauvis is still cloned for terrain-mod compatibility and is unchanged.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.27
 Date: 2026-05-19
   Bugfixes:
