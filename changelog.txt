@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.29
+Date: 2026-05-20
+  Features:
+    - Space Is Fake compatibility. When space-is-fake is active each team's
+      Nauvis generates natively from its pinned per-base seed instead of being
+      terrain-cloned, so terrain stays identical across teams while SiF's
+      demolisher territories survive (clone_area destroys segmented units). A
+      new optional dependency makes MTS deep-copy the Nauvis prototype after
+      SiF's data-final-fixes so the variant carries SiF's full map (terrain,
+      ores, enemies, cliffs, demolishers). SiF's one-time starting area
+      (chest, trees, lava-ash tiles, ruin attractor) is re-placed on each
+      team's Nauvis after spawn. Inert without SiF; mutually exclusive with
+      surface-name-filtering Nauvis overhauls, and SiF's obsidiax sub-mode is
+      unsupported.
+  Bugfixes:
+    - Stopped the "Logistic request rewritten" chat notification from spamming
+      when players set logistic requests on ground chests. The cross-team
+      import_from rewrite now only acts on entities sitting on a space
+      platform, where shipping cargo from a foreign team's planet is actually
+      possible. A chest can still carry an import_from value copied from a hub
+      via blueprint, paste-settings, or a shared logistic group, but on a
+      planet surface that value is inert; rewriting it did nothing except
+      print a message (once per logistic-group member, so a single placement
+      could fire several identical lines).
+    - Fixed the first-landing celebration firing once per team instead of once
+      per save. surface.planet.name returns the per-team variant name
+      (mts-vulcanus-1), not the canonical base, so the landing gate keyed on a
+      distinct value for every team; all teams' copies of a planet now share
+      one first-landing flag.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.28
 Date: 2026-05-20
   Changes:
@@ -19,15 +49,6 @@ Date: 2026-05-20
       planets now generate natively from a shared per-planet seed instead, so
       every team gets identical terrain AND working demolisher territories.
       Nauvis is still cloned for terrain-mod compatibility and is unchanged.
-    - Stopped the "Logistic request rewritten" chat notification from spamming
-      when players set logistic requests on ground chests. The cross-team
-      import_from rewrite now only acts on entities sitting on a space
-      platform, where shipping cargo from a foreign team's planet is actually
-      possible. A chest can still carry an import_from value copied from a hub
-      via blueprint, paste-settings, or a shared logistic group, but on a
-      planet surface that value is inert; rewriting it did nothing except
-      print a message (once per logistic-group member, so a single placement
-      could fire several identical lines).
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.27
 Date: 2026-05-19
