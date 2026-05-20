@@ -19,6 +19,15 @@ Date: 2026-05-20
       planets now generate natively from a shared per-planet seed instead, so
       every team gets identical terrain AND working demolisher territories.
       Nauvis is still cloned for terrain-mod compatibility and is unchanged.
+    - Stopped the "Logistic request rewritten" chat notification from spamming
+      when players set logistic requests on ground chests. The cross-team
+      import_from rewrite now only acts on entities sitting on a space
+      platform, where shipping cargo from a foreign team's planet is actually
+      possible. A chest can still carry an import_from value copied from a hub
+      via blueprint, paste-settings, or a shared logistic group, but on a
+      planet surface that value is inert; rewriting it did nothing except
+      print a message (once per logistic-group member, so a single placement
+      could fire several identical lines).
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.27
 Date: 2026-05-19

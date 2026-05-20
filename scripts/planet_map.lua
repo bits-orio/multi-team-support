@@ -354,8 +354,16 @@ end
 -- and SpaceLocationPrototype.hidden is a global prototype flag. So
 -- every team's hub still lists every planet variant (and every base
 -- planet) in the dropdown. Reactive correction: when a player edits a
--- team-owned entity's logistic filter, rewrite the slot's import_from
+-- team-owned space-platform request, rewrite the slot's import_from
 -- to the team's own variant of the same base planet.
+--
+-- import_from is only meaningful for space-platform requests. A ground
+-- logistic chest can still carry the field — it rides along when a
+-- request section is copied from a hub via blueprint, paste-settings,
+-- or a shared logistic group — but on a planet surface it's inert
+-- residue. Rewriting it there does nothing except spam the player
+-- (and, through logistic-group propagation, once per group member),
+-- so we gate on the entity being on a space platform before touching it.
 --
 -- Event payload (2.0.76):
 --   entity (LuaEntity), section (LuaLogisticSection), slot_index (uint),
@@ -374,6 +382,13 @@ function planet_map.on_logistic_slot_changed(event)
     if not (entity and entity.valid) then return end
     local force = entity.force
     if not is_team_force(force.name) then return end
+
+    -- Only space-platform requests can ship cargo across planets, so only
+    -- they can leak to a foreign team. surface.platform is nil on planet
+    -- surfaces, which skips ground chests carrying inert import_from copied
+    -- from a hub (blueprint / paste-settings / shared logistic group).
+    local surface = entity.surface
+    if not (surface and surface.valid and surface.platform) then return end
 
     local section = event.section
     if not (section and section.valid) then return end
