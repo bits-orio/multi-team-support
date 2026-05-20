@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.30
+Date: 2026-05-20
+  Bugfixes:
+    - Space Age planets no longer relock after being unlocked. A team that
+      researched and reached a planet (Vulcanus, etc.) could find it locked and
+      dark again after a technology-effects reset or a mod update — both
+      recompute tech effects, which re-points each discovery tech's unlock at
+      the shared base planet, while MTS clean-slated the per-team variant locks
+      and nothing rebuilt the team's variant unlock. MTS now re-derives each
+      team's planet unlocks from the discovery techs it has actually researched
+      whenever locks are reset, so earned planets stay unlocked. Updating to
+      this version auto-repairs an already-bugged save on first load.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.29
 Date: 2026-05-20
   Features:
