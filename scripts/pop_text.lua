@@ -206,6 +206,45 @@ function pop_text.global_milestone(text_str)
     end
 end
 
+-- ─── Preset: notify ──────────────────────────────────────────────────
+
+-- Gentle snap-in pop above the player for informational nudges. Player-only.
+function pop_text.notify(player, text_str)
+    if not admin_gui.flag("popup_text_enabled") then return end
+    pop_text.init_storage()
+    local surface = player.surface
+    if not (surface and surface.valid) then return end
+
+    local c = player.chat_color
+    local x, y = player.position.x, player.position.y - 4
+    local obj = rendering.draw_text{
+        text            = text_str,
+        surface         = surface,
+        target          = { x = x, y = y },
+        color           = { r = c.r, g = c.g, b = c.b, a = 1 },
+        scale           = 0.1,
+        font            = "default-bold",
+        alignment       = "center",
+        use_rich_text   = true,
+        scale_with_zoom = true,
+        players         = { player.index },
+    }
+    if not obj then return end
+
+    storage.pop_texts[#storage.pop_texts + 1] = {
+        text_id      = obj.id,
+        created_tick = game.tick,
+        lifetime     = 90,
+        anim_type    = "team_join",
+        anchor_x     = x,
+        anchor_y     = y,
+        base_scale   = 1.0,
+        color_r      = c.r,
+        color_g      = c.g,
+        color_b      = c.b,
+    }
+end
+
 -- ─── Preset: rip ──────────────────────────────────────────────────────
 
 -- Fast explosive "RIP!" pop at the death position.

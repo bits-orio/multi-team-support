@@ -19,6 +19,7 @@
 
 local space_age = require("scripts.space_age")
 local helpers   = require("scripts.helpers")
+local pop_text  = require("scripts.pop_text")
 
 -- NOTE: We deliberately do NOT require("scripts.force_utils") here because
 -- force_utils requires this module at load time — a circular require
@@ -465,15 +466,10 @@ function planet_map.on_logistic_slot_changed(event)
     if event.player_index then
         local player = game.get_player(event.player_index)
         if player and player.connected then
-            -- Colors: prefix cyan, foreign planet orange-red, own planet green,
-            -- explanation dim grey. Matches the colour scheme used by /t and
-            -- other mod chat output. See scripts/commands/team.lua for examples.
-            player.print(
-                "[color=0.45,0.78,1][multi-team-support][/color] "
-                .. "Logistic request rewritten: "
-                .. "[color=1,0.55,0.35]" .. current .. "[/color] -> "
-                .. "[color=0.45,0.9,0.45]" .. own .. "[/color]  "
-                .. "[color=0.7,0.7,0.7](your team only ships from its own planets)[/color]"
+            pop_text.notify(player,
+                "[color=1,0.55,0.35]" .. current .. "[/color]"
+                .. " → "
+                .. "[color=0.45,0.9,0.45]" .. own .. "[/color]"
             )
         end
     end
