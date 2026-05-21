@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.34
+Date: 2026-05-20
+  Changes:
+    - The logistic import_from rewrite notification is now a floating pop text
+      instead of a chat message. When MTS silently reroutes a space-platform
+      logistic request to the team's own planet variant, the old and new planet
+      names appear briefly above the player and fade away, leaving chat uncluttered.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.33
 Date: 2026-05-20
   Bugfixes:
