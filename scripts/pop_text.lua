@@ -216,7 +216,7 @@ function pop_text.notify(player, text_str)
     if not (surface and surface.valid) then return end
 
     local c = player.chat_color
-    local x, y = player.position.x, player.position.y - 15
+    local x, y = player.position.x, player.position.y - 20
     local obj = rendering.draw_text{
         text            = text_str,
         surface         = surface,
@@ -238,7 +238,7 @@ function pop_text.notify(player, text_str)
         anim_type    = "notify",
         anchor_x     = x,
         anchor_y     = y,
-        base_scale   = 1.0,
+        base_scale   = 1.8,
         color_r      = c.r,
         color_g      = c.g,
         color_b      = c.b,
