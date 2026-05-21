@@ -109,6 +109,14 @@ local function hsv_hue_to_rgb(h)
     end
 end
 
+local function anim_notify(entry, age, progress)
+    -- Quick snap-in over 6 ticks; then hold in place; fade only at the end.
+    local pop = age < 6 and (0.5 + 0.5 * ease_out_quad(age / 6)) or 1.0
+    local dy    = -0.5 * ease_out_cubic(progress)  -- barely drifts; already near top
+    local alpha = progress < 0.75 and 1 or (1 - (progress - 0.75) / 0.25)
+    return entry.base_scale * pop, alpha, 0, dy, nil
+end
+
 local function anim_rip(entry, age, progress)
     local mul
     if     age < 4  then mul = 3.5 * ease_out_quad(age / 4)
@@ -158,6 +166,7 @@ function M.tick(now)
             elseif at == "team_join"         then scale, alpha, dx, dy, orientation = anim_team_join(e, age, progress)
             elseif at == "milestone"         then scale, alpha, dx, dy, orientation = anim_milestone(e, age, progress)
             elseif at == "global_milestone"  then scale, alpha, dx, dy, orientation = anim_global_milestone(e, age, progress)
+            elseif at == "notify"            then scale, alpha, dx, dy, orientation = anim_notify(e, age, progress)
             elseif at == "rip"               then scale, alpha, dx, dy, orientation = anim_rip(e, age, progress)
             else
                 text_obj.destroy()

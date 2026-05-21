@@ -216,7 +216,7 @@ function pop_text.notify(player, text_str)
     if not (surface and surface.valid) then return end
 
     local c = player.chat_color
-    local x, y = player.position.x, player.position.y - 4
+    local x, y = player.position.x, player.position.y - 15
     local obj = rendering.draw_text{
         text            = text_str,
         surface         = surface,
@@ -234,8 +234,8 @@ function pop_text.notify(player, text_str)
     storage.pop_texts[#storage.pop_texts + 1] = {
         text_id      = obj.id,
         created_tick = game.tick,
-        lifetime     = 90,
-        anim_type    = "team_join",
+        lifetime     = 180,
+        anim_type    = "notify",
         anchor_x     = x,
         anchor_y     = y,
         base_scale   = 1.0,
