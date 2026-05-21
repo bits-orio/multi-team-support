@@ -121,6 +121,7 @@ local function check_milestone(tracker, item_name, force, threshold)
         remote_api.emit_to_bridge("mts.milestone_first", {
             team        = team_name,
             achievement = plain(achievement),
+            text        = string.format("%s was the first to %s", team_name, plain(achievement)),
         })
     elseif result.is_fastest then
         local prev = result.previous_fastest
@@ -132,12 +133,19 @@ local function check_milestone(tracker, item_name, force, threshold)
             prev.elapsed
         )
         pop_text.milestone(force, build_popup("New record!", item_name, threshold))
+        local prev_team = (storage.team_names or {})[prev.team] or prev.team
         remote_api.emit_to_bridge("mts.milestone_record", {
             team             = team_name,
             achievement      = plain(achievement),
             elapsed          = new_entry.elapsed,
-            previous_team    = (storage.team_names or {})[prev.team] or prev.team,
+            previous_team    = prev_team,
             previous_elapsed = prev.elapsed,
+            text             = string.format(
+                "%s is now fastest to %s in %s (previous: %s in %s)",
+                team_name, plain(achievement),
+                helpers.format_elapsed(new_entry.elapsed),
+                prev_team, helpers.format_elapsed(prev.elapsed)
+            ),
         })
     end
     return true

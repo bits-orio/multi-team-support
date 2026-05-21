@@ -106,6 +106,27 @@ local function bridge_payload(payload)
     return data
 end
 
+--- Build a human-readable sentence for the bridge to show. MTS owns this phrasing;
+--- the bridge just displays the `text` field. Returns nil for unknown events (the
+--- bridge then falls back to a key=value summary).
+local function bridge_text(name, d)
+    local team = d.team or d.force_name
+    local who  = d.player or (d.player_index and ("player " .. d.player_index))
+    if name == "on_team_created" then
+        return who and string.format("%s created %s", who, team)
+            or  string.format("%s was created", team)
+    elseif name == "on_team_released" then
+        return string.format("%s was released", team)
+    elseif name == "on_player_joined_team" then
+        return string.format("%s joined %s", who or "A player", team)
+    elseif name == "on_player_left_team" then
+        return string.format("%s left %s", who or "A player", team)
+    elseif name == "on_team_surface_created" then
+        return string.format("Surface %s was created for %s", d.surface_name, team)
+    end
+    return nil
+end
+
 -- ═══ Internal raise helpers ═══════════════════════════════════════════
 --
 -- Called from mts code at the points where the corresponding state
@@ -117,7 +138,9 @@ local function raise(name, payload)
     payload = payload or {}
     local id = remote_api.events[name]
     if id then script.raise_event(id, payload) end
-    remote_api.emit_to_bridge("mts." .. name:gsub("^on_", ""), bridge_payload(payload))
+    local data = bridge_payload(payload)
+    data.text = bridge_text(name, data)
+    remote_api.emit_to_bridge("mts." .. name:gsub("^on_", ""), data)
 end
 
 function remote_api.raise_team_created(force_name, leader_player_index)
