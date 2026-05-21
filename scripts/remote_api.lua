@@ -57,15 +57,67 @@ remote_api.events = {
     -- on_team_surfaces_cleaned = script.generate_event_name(),
 }
 
+-- ═══ Open Discord Bridge forwarding ═══════════════════════════════════
+--
+-- Mirror MTS events to the Open Discord Bridge (interface open-discord-bridge-v1)
+-- when it is installed. The remote.interfaces guard keeps the bridge an OPTIONAL
+-- dependency of MTS — nothing breaks if it isn't present.
+
+local BRIDGE_INTERFACE = "open-discord-bridge-v1"
+
+--- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed).
+function remote_api.emit_to_bridge(event, data)
+    if remote.interfaces[BRIDGE_INTERFACE] then
+        remote.call(BRIDGE_INTERFACE, "emit", { event = event, data = data or {} })
+    end
+end
+
+--- Declare the mts.* event catalog so the bridge / control plane can offer
+--- routable toggles without hardcoding MTS. Mutates the bridge's storage, so
+--- call only from on_init / on_configuration_changed (never from on_load).
+function remote_api.register_with_bridge()
+    if not remote.interfaces[BRIDGE_INTERFACE] then return end
+    remote.call(BRIDGE_INTERFACE, "register_source", {
+        namespace = "mts",
+        events = {
+            { key = "team_created",         description = "A team was created" },
+            { key = "team_released",        description = "A team was released" },
+            { key = "player_joined_team",   description = "A player joined a team" },
+            { key = "player_left_team",     description = "A player left a team" },
+            { key = "team_surface_created", description = "A team surface was created" },
+            { key = "milestone_first",      description = "A team set a first-to-produce record" },
+            { key = "milestone_record",     description = "A team set a production speed record" },
+        },
+    })
+end
+
+--- Enrich a raise payload with Discord-friendly names (player + team display name)
+--- without mutating the original event payload.
+local function bridge_payload(payload)
+    local data = {}
+    for k, v in pairs(payload) do data[k] = v end
+    if payload.player_index then
+        local p = game.get_player(payload.player_index)
+        if p then data.player = p.name end
+    end
+    if payload.force_name then
+        data.team = (storage.team_names or {})[payload.force_name] or payload.force_name
+    end
+    return data
+end
+
 -- ═══ Internal raise helpers ═══════════════════════════════════════════
 --
 -- Called from mts code at the points where the corresponding state
 -- transition completes. Guarded against missing IDs so commenting an
--- event out of `remote_api.events` doesn't crash the callers.
+-- event out of `remote_api.events` doesn't crash the callers. Each raise also
+-- mirrors to the bridge under the mts.* namespace (with the on_ prefix stripped).
 
 local function raise(name, payload)
+    payload = payload or {}
     local id = remote_api.events[name]
-    if id then script.raise_event(id, payload or {}) end
+    if id then script.raise_event(id, payload) end
+    remote_api.emit_to_bridge("mts." .. name:gsub("^on_", ""), bridge_payload(payload))
 end
 
 function remote_api.raise_team_created(force_name, leader_player_index)

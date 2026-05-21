@@ -28,6 +28,7 @@ local space_age        = require("scripts.space_age")
 local surface_utils    = require("scripts.surface_utils")
 local blueprint_lock   = require("scripts.blueprint_lock")
 local global_milestones = require("scripts.global_milestones")
+local remote_api        = require("scripts.remote_api")
 
 local ev_ticks            = require("events.ticks")
 local ev_player_lifecycle = require("events.player_lifecycle")
@@ -115,6 +116,7 @@ script.on_init(function()
 
     commands_mod.register()
     init_events()
+    remote_api.register_with_bridge()
 end)
 
 script.on_load(function()
@@ -131,6 +133,7 @@ script.on_configuration_changed(function()
     spawn_labels.init_storage()
     debug_engine.init_storage()
     pop_text.init_storage()
+    remote_api.register_with_bridge()
 
     -- Resume any forces stuck in a paused state from a removed auto-pause feature.
     local to_resume = {}

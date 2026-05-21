@@ -13,6 +13,13 @@ local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local config      = require("milestones.config")
 local pop_text    = require("scripts.pop_text")
+local remote_api  = require("scripts.remote_api")
+
+--- Strip Factorio rich-text tags (e.g. "[item=foo]" -> "foo") so milestone text
+--- reads cleanly in Discord, which can't render them.
+local function plain(s)
+    return (s:gsub("%[%a+=([%w%-_./]+)%]", "%1"))
+end
 
 local engine = {}
 
@@ -106,10 +113,15 @@ local function check_milestone(tracker, item_name, force, threshold)
 
     local team_tag    = helpers.team_tag(force.name)
     local achievement = build_achievement_desc(tracker, item_name, threshold)
+    local team_name   = (storage.team_names or {})[force.name] or force.name
 
     if result.is_first then
         announce_first(team_tag, achievement)
         pop_text.milestone(force, build_popup("First!", item_name, threshold))
+        remote_api.emit_to_bridge("mts.milestone_first", {
+            team        = team_name,
+            achievement = plain(achievement),
+        })
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
@@ -120,6 +132,13 @@ local function check_milestone(tracker, item_name, force, threshold)
             prev.elapsed
         )
         pop_text.milestone(force, build_popup("New record!", item_name, threshold))
+        remote_api.emit_to_bridge("mts.milestone_record", {
+            team             = team_name,
+            achievement      = plain(achievement),
+            elapsed          = new_entry.elapsed,
+            previous_team    = (storage.team_names or {})[prev.team] or prev.team,
+            previous_elapsed = prev.elapsed,
+        })
     end
     return true
 end
