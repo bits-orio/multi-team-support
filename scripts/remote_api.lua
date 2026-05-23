@@ -87,8 +87,12 @@ function remote_api.register_with_bridge()
             { key = "team_surface_created", description = "A team surface was created" },
             { key = "milestone_first",      description = "A team set a first-to-produce record" },
             { key = "milestone_record",     description = "A team set a production speed record" },
+            { key = "research_finished",    description = "A team finished a technology" },
         },
     })
+    -- We announce research ourselves (with team info), so turn off the bridge's team-less
+    -- baseline research event.
+    remote.call(BRIDGE_INTERFACE, "set_baseline", { event = "research_finished", enabled = false })
 end
 
 --- Enrich a raise payload with Discord-friendly names (player + team display name)

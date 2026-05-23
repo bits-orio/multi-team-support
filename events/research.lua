@@ -6,6 +6,7 @@ local force_utils  = require("scripts.force_utils")
 local research_gui = require("gui.research")
 local teams_gui    = require("gui.teams")
 local awards_gui   = require("gui.awards")
+local remote_api   = require("scripts.remote_api")
 
 local M = {}
 
@@ -16,6 +17,19 @@ function M.register()
         research_gui.update_all()
         teams_gui.update_all()
         if records_changed then awards_gui.update_all() end
+
+        -- Announce team research to the Open Discord Bridge (team-aware, replaces the
+        -- bridge's team-less baseline research event, which we disable on init).
+        local research = event.research
+        if research and research.valid and research.force.name:find("^team%-") then
+            local team = (storage.team_names or {})[research.force.name] or research.force.name
+            remote_api.emit_to_bridge("mts.research_finished", {
+                team  = team,
+                tech  = research.name,
+                level = research.level,
+                text  = string.format("%s researched %s", team, research.name),
+            })
+        end
     end)
 
     local function on_queue_changed() teams_gui.update_all() end
