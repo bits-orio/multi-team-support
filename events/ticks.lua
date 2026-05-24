@@ -107,6 +107,10 @@ function M.register()
 
     -- Pending teleports and admin check run every tick.
     script.on_event(defines.events.on_tick, function()
+        -- Self-healing bridge registration: applies once per session even when on_init /
+        -- on_configuration_changed didn't fire (plain save reload, or the bridge was added
+        -- to an already-running save). Cheap no-op after the first tick.
+        remote_api.ensure_bridge_registered()
         pop_text.tick(game.tick)
         landing_pen.process_pending_teleports()
         if platformer.is_active() then

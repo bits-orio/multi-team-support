@@ -13,6 +13,7 @@
     "? VoidBlock",
     "? dangOreus",
     "? PlanetsLib",
-    "? space-is-fake"
+    "? space-is-fake",
+    "? open-discord-bridge"
   ]
 }

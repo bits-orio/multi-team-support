@@ -116,7 +116,7 @@ script.on_init(function()
 
     commands_mod.register()
     init_events()
-    remote_api.register_with_bridge()
+    remote_api.ensure_bridge_registered()
 end)
 
 script.on_load(function()
@@ -133,7 +133,7 @@ script.on_configuration_changed(function()
     spawn_labels.init_storage()
     debug_engine.init_storage()
     pop_text.init_storage()
-    remote_api.register_with_bridge()
+    remote_api.ensure_bridge_registered()
 
     -- Resume any forces stuck in a paused state from a removed auto-pause feature.
     local to_resume = {}

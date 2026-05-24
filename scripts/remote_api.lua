@@ -29,6 +29,7 @@
 --   end
 
 local surface_utils = require("scripts.surface_utils")
+local helpers       = require("scripts.helpers")
 
 local remote_api = {}
 
@@ -65,10 +66,39 @@ remote_api.events = {
 
 local BRIDGE_INTERFACE = "open-discord-bridge-v1"
 
---- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed).
+-- Emoji shown in the bridge's "[mts → …]" category tag, keyed by mts.* event suffix.
+-- Applied by emit_to_bridge unless the caller passes its own data.label. Emoji rules
+-- (the bridge sends these to Discord verbatim from a bot):
+--   • Unicode emoji (🔬, 🚀, …) always render — simplest, no setup.
+--   • A bare :shortcode: does NOT render from a bot; it shows literally.
+--   • A CUSTOM emoji must be its raw form <:name:id> AND live on a server the bot is in
+--     (your own). Other servers' emoji (e.g. the official Factorio server's) won't render,
+--     regardless of bot permissions — it's server membership, not a permission. Same-server
+--     custom emoji need no special permission.
+--   • Get the raw <:name:id>: type "\:lab:" (backslash first) in Discord and send it.
+local BRIDGE_LABELS = {
+    research_finished    = "<:lab:1507982217102753962>", -- a :lab: uploaded to our own server
+    player_joined        = "📥",
+    player_left          = "📤",
+    player_joined_team   = "➕",
+    player_left_team     = "➖",
+    player_switched_team = "🔀",
+    team_created         = "🏁",
+    team_released        = "🏳️",
+    team_surface_created = "🌎",
+    milestone_first      = "🥇",
+    milestone_record     = "⏱️",
+}
+
+--- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed). Fills in
+--- the category-tag emoji from BRIDGE_LABELS unless the caller already set data.label.
 function remote_api.emit_to_bridge(event, data)
     if remote.interfaces[BRIDGE_INTERFACE] then
-        remote.call(BRIDGE_INTERFACE, "emit", { event = event, data = data or {} })
+        data = data or {}
+        if data.label == nil then
+            data.label = BRIDGE_LABELS[(event:gsub("^mts%.", ""))]
+        end
+        remote.call(BRIDGE_INTERFACE, "emit", { event = event, data = data })
     end
 end
 
@@ -88,11 +118,29 @@ function remote_api.register_with_bridge()
             { key = "milestone_first",      description = "A team set a first-to-produce record" },
             { key = "milestone_record",     description = "A team set a production speed record" },
             { key = "research_finished",    description = "A team finished a technology" },
+            { key = "player_joined",        description = "A player joined the game (team-aware)" },
+            { key = "player_left",          description = "A player left the game (team-aware)" },
+            { key = "player_switched_team", description = "A player switched teams mid-game" },
         },
     })
-    -- We announce research ourselves (with team info), so turn off the bridge's team-less
-    -- baseline research event.
-    remote.call(BRIDGE_INTERFACE, "set_baseline", { event = "research_finished", enabled = false })
+    -- We announce these ourselves with team info, so turn off the bridge's team-less
+    -- baseline versions. The bridge only suppresses a baseline event while we're loaded.
+    for _, key in ipairs({ "research_finished", "player_joined", "player_left" }) do
+        remote.call(BRIDGE_INTERFACE, "set_baseline", { event = key, enabled = false })
+    end
+end
+
+-- ensure_bridge_registered re-applies register_with_bridge once per session. on_init /
+-- on_configuration_changed don't fire on a plain save reload (no version/mod-list change),
+-- so a save that was running before the bridge existed — or a content-only mod edit during
+-- development — would otherwise never (re)disable the baselines. Driving it from on_tick
+-- (storage mutation is allowed there) makes the registration self-healing every session.
+-- The flag is a module-load local, so it resets to false on each load.
+local bridge_registered_this_session = false
+function remote_api.ensure_bridge_registered()
+    if bridge_registered_this_session then return end
+    bridge_registered_this_session = true
+    remote_api.register_with_bridge()
 end
 
 --- Enrich a raise payload with Discord-friendly names (player + team display name)
@@ -138,10 +186,16 @@ end
 -- event out of `remote_api.events` doesn't crash the callers. Each raise also
 -- mirrors to the bridge under the mts.* namespace (with the on_ prefix stripped).
 
-local function raise(name, payload)
+-- raise() fires the frozen mts-v1 script event for third-party mods and (unless
+-- opts.no_bridge) mirrors it to the Open Discord Bridge. The force-change events set
+-- no_bridge because their bridge presentation is handled specially in
+-- on_player_changed_force (deduped against the connect/disconnect messages).
+local function raise(name, payload, opts)
+    opts = opts or {}
     payload = payload or {}
     local id = remote_api.events[name]
     if id then script.raise_event(id, payload) end
+    if opts.no_bridge then return end
     local data = bridge_payload(payload)
     data.text = bridge_text(name, data)
     remote_api.emit_to_bridge("mts." .. name:gsub("^on_", ""), data)
@@ -162,14 +216,14 @@ function remote_api.raise_player_joined_team(player_index, force_name)
     raise("on_player_joined_team", {
         player_index = player_index,
         force_name   = force_name,
-    })
+    }, { no_bridge = true })
 end
 
 function remote_api.raise_player_left_team(player_index, force_name)
     raise("on_player_left_team", {
         player_index = player_index,
         force_name   = force_name,
-    })
+    }, { no_bridge = true })
 end
 
 function remote_api.raise_team_surface_created(surface_name, force_name)
@@ -232,12 +286,83 @@ function remote_api.on_player_changed_force(event)
     local old_name = event.force and event.force.name
     local player   = game.get_player(event.player_index)
     local new_name = player and player.force and player.force.name
-    if is_team_force_name(old_name) then
-        remote_api.raise_player_left_team(event.player_index, old_name)
+    local old_team = is_team_force_name(old_name)
+    local new_team = is_team_force_name(new_name)
+
+    -- Always fire the frozen mts-v1 script events for third-party mods (both halves of a
+    -- switch). These no longer auto-bridge; the bridge presentation is decided below.
+    if old_team then remote_api.raise_player_left_team(event.player_index, old_name) end
+    if new_team then remote_api.raise_player_joined_team(event.player_index, new_name) end
+
+    -- Bridge presentation: one deduped sentence per force change.
+    local who = player and player.name or ("player " .. event.player_index)
+    if old_team and new_team then
+        -- Mid-game switch between two teams → a single "switched" line.
+        remote_api.emit_to_bridge("mts.player_switched_team", {
+            player = who,
+            from   = helpers.team_display(old_name),
+            to     = helpers.team_display(new_name),
+            text   = string.format("%s switched to %s", who, helpers.team_display(new_name)),
+        })
+    elseif new_team then
+        -- Joined a team from a non-team force. The initial auto-claim on connect
+        -- coincides with the mts.player_joined connect message, so it's suppressed
+        -- (flag set by the lifecycle handler); deliberate later joins still announce.
+        local suppress = storage.odb_suppress_claim
+        if suppress and suppress[event.player_index] then
+            suppress[event.player_index] = nil
+        else
+            remote_api.emit_to_bridge("mts.player_joined_team", {
+                player = who,
+                team   = helpers.team_display(new_name),
+                text   = string.format("%s joined %s", who, helpers.team_display(new_name)),
+            })
+        end
+    elseif old_team then
+        -- Left a team to a non-team force (e.g. spectator). Disconnects don't reach
+        -- here (disconnecting doesn't change force) — those go through mts.player_left.
+        remote_api.emit_to_bridge("mts.player_left_team", {
+            player = who,
+            team   = helpers.team_display(old_name),
+            text   = string.format("%s left %s", who, helpers.team_display(old_name)),
+        })
     end
-    if is_team_force_name(new_name) then
-        remote_api.raise_player_joined_team(event.player_index, new_name)
+end
+
+-- ═══ Server connect/disconnect (team-aware) ═══════════════════════════
+--
+-- Called from the player-lifecycle handlers. These replace the bridge's team-less
+-- baseline player_joined/player_left (which register_with_bridge disables), tagging the
+-- player's current team when they're on one.
+
+local function connection_text(verb, player)
+    local fn = player.force and player.force.name
+    if is_team_force_name(fn) then
+        return string.format("%s %s — %s", player.name, verb, helpers.team_display(fn))
     end
+    return string.format("%s %s", player.name, verb)
+end
+
+function remote_api.emit_player_joined(player)
+    if not (player and player.valid) then return end
+    local fn = player.force and player.force.name
+    remote_api.emit_to_bridge("mts.player_joined", {
+        player       = player.name,
+        team         = is_team_force_name(fn) and helpers.team_display(fn) or nil,
+        online_count = #game.connected_players,
+        text         = connection_text("joined the game", player),
+    })
+end
+
+function remote_api.emit_player_left(player)
+    if not (player and player.valid) then return end
+    local fn = player.force and player.force.name
+    remote_api.emit_to_bridge("mts.player_left", {
+        player       = player.name,
+        team         = is_team_force_name(fn) and helpers.team_display(fn) or nil,
+        online_count = #game.connected_players,
+        text         = connection_text("left the game", player),
+    })
 end
 
 -- ═══ Query implementations ════════════════════════════════════════════

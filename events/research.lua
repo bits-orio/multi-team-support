@@ -27,7 +27,10 @@ function M.register()
                 team  = team,
                 tech  = research.name,
                 level = research.level,
-                text  = string.format("%s researched %s", team, research.name),
+                -- The "[mts → 🔬]" tag emoji comes from BRIDGE_LABELS in remote_api.lua.
+                -- Code-pill the tech name (Discord inline-code). Renders in plain mode
+                -- (embed:false); inside the embed:true ANSI block the backticks show literally.
+                text  = string.format("%s researched `%s`", team, research.name),
             })
         end
     end)

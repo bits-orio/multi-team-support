@@ -9,6 +9,7 @@ local spectator    = require("scripts.spectator")
 local force_utils  = require("scripts.force_utils")
 local follow_cam   = require("gui.follow_cam")
 local teams_gui    = require("gui.teams")
+local remote_api   = require("scripts.remote_api")
 
 local M = {}
 
@@ -23,6 +24,10 @@ function M.register()
             if spec_force then player.force = spec_force end
             landing_pen.place_player(player)
         else
+            -- The auto-claim on first connect coincides with on_player_joined_game's
+            -- team-aware bridge message, so flag it to suppress the duplicate team-join.
+            storage.odb_suppress_claim = storage.odb_suppress_claim or {}
+            storage.odb_suppress_claim[player.index] = true
             force_utils.claim_team_slot(player)
             storage.spawned_players = storage.spawned_players or {}
             storage.spawned_players[player.index] = true
@@ -64,12 +69,19 @@ function M.register()
                 end
                 helpers.broadcast(msg)
             end
+
+            -- Team-aware connect announcement to the Open Discord Bridge (replaces the
+            -- bridge's team-less baseline player_joined, which we disable on init).
+            remote_api.emit_player_joined(player)
         end
     end)
 
     script.on_event(defines.events.on_player_left_game, function(event)
         local player = game.get_player(event.player_index)
         if player then
+            -- Team-aware disconnect announcement to the bridge (replaces the team-less
+            -- baseline player_left). Emitted while the player's force is still their team.
+            remote_api.emit_player_left(player)
             spectator.on_player_left(player)
             follow_cam.on_player_left(player)
             storage.player_last_seen = storage.player_last_seen or {}
