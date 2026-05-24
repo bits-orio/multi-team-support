@@ -9,6 +9,7 @@ local planet_map  = require("scripts.planet_map")
 local friendship  = require("gui.friendship")
 local remote_api  = require("scripts.remote_api")
 local spawn_labels = require("scripts.spawn_labels")
+local team_clock  = require("scripts.team_clock")
 
 local M = {}
 
@@ -162,6 +163,7 @@ function M.claim_team_slot(player)
         log("[multi-team-support] team clock started for " .. force_name
             .. " at tick " .. game.tick)
     end
+    team_clock.on_claim(force_name)
 
     planet_map.apply_force_locks(force)
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
@@ -206,6 +208,7 @@ function M.release_team_slot(force_name)
     storage.team_leader[force_name] = nil
     storage.team_clock_start = storage.team_clock_start or {}
     storage.team_clock_start[force_name] = nil
+    team_clock.on_release(force_name)
 
     M.wipe_slot_state(force_name)
 

@@ -46,6 +46,10 @@ function M.register()
         if team_settings.on_gui_text_changed(event) then return end
     end)
 
+    script.on_event(defines.events.on_gui_switch_state_changed, function(event)
+        awards_gui.on_gui_switch_state_changed(event)
+    end)
+
     script.on_event(defines.events.on_gui_closed, function(event)
         if research_gui.on_gui_closed(event) then return end
         welcome_gui.on_gui_closed(event)

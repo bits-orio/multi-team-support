@@ -7,6 +7,7 @@ local ultracube_compat = require("compat.ultracube")
 local force_utils      = require("scripts.force_utils")
 local pen_gui          = require("gui.pen_gui")
 local pen_ops          = require("gui.pen_ops")
+local team_clock       = require("scripts.team_clock")
 
 local M = {}
 
@@ -127,7 +128,11 @@ function M.accept_buddy_request(target, requester_index)
     helpers.broadcast("[Team] " .. leader_tag .. " accepted " .. requester_tag
         .. " into " .. team_tag .. ".")
 
+    local prev_force_name = requester.force.name
     requester.force = target.force
+    -- Settle online clocks for the team the requester left and the one joined.
+    team_clock.refresh(prev_force_name)
+    team_clock.refresh(target.force.name)
     local default_group = game.permissions.get_group("Default")
     if default_group then default_group.add_player(requester) end
     pen_ops.finish_spawn(requester)

@@ -15,6 +15,7 @@ local spawn_labels     = require("scripts.spawn_labels")
 local debug_engine     = require("scripts.debug")
 local pop_text         = require("scripts.pop_text")
 local force_utils      = require("scripts.force_utils")
+local team_clock       = require("scripts.team_clock")
 local planet_map       = require("scripts.planet_map")
 local tech_records     = require("scripts.tech_records")
 local milestones       = require("milestones.engine")
@@ -95,6 +96,7 @@ script.on_init(function()
     spectator.init()
     spectator.init_storage()
     force_pause.init_storage()
+    team_clock.init_storage()
     team_settings.init_storage()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
@@ -128,6 +130,7 @@ end)
 script.on_configuration_changed(function()
     log("[multi-team-support] on_configuration_changed fired")
     force_pause.init_storage()
+    team_clock.init_storage()
     team_settings.init_storage()
     chunk_trim.init_storage()
     spawn_labels.init_storage()
@@ -179,6 +182,11 @@ script.on_configuration_changed(function()
            and player.surface and player.surface.name ~= "landing-pen" then
             storage.spawned_players[player.index] = true
         end
+    end
+    -- Start the per-team online clock from this upgrade onward (no retroactive
+    -- back-fill): stamp online_since for teams that already have members online.
+    for slot, status in pairs(storage.team_pool or {}) do
+        if status == "occupied" then team_clock.refresh("team-" .. slot) end
     end
 
     stats_gui.invalidate_categories()

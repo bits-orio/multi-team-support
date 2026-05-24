@@ -16,6 +16,7 @@ local awards_gui    = require("gui.awards")
 local teams_gui     = require("gui.teams")
 local return_button = require("gui.return_button")
 local helpers       = require("scripts.helpers")
+local team_clock    = require("scripts.team_clock")
 
 local M = {}
 
@@ -44,6 +45,7 @@ function M.register()
                 storage.pending_spawn_pop[player.index] = player.force.name
                 h.spawn_into_world(player)
                 force_utils.start_player_clock(player)
+                team_clock.refresh(player.force.name)
                 helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
                     .. " has joined " .. helpers.team_tag(player.force.name) .. ".")
                 h.refresh_all_gameplay_guis()

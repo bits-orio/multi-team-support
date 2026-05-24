@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.36
+Date: 2026-05-24
+  Features:
+    - Track each team's "online time" — wall-clock time the team had at least one member
+      connected (it freezes while the whole team is offline, so logging off for the night
+      doesn't penalise a team). Shown in the research overview, and selectable as the
+      ranking basis in Team Awards. Server-elapsed time stays the official basis for records.
+  Changes:
+    - Team Awards: the clock basis (Server vs Online time) is now a slider switch instead of
+      a button, so it no longer blends in with the category tab buttons.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.35
 Date: 2026-05-24
   Features:

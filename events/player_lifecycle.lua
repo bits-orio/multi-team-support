@@ -10,6 +10,7 @@ local force_utils  = require("scripts.force_utils")
 local follow_cam   = require("gui.follow_cam")
 local teams_gui    = require("gui.teams")
 local remote_api   = require("scripts.remote_api")
+local team_clock   = require("scripts.team_clock")
 
 local M = {}
 
@@ -35,6 +36,7 @@ function M.register()
             storage.pending_spawn_pop[player.index] = player.force.name
             h.spawn_into_world(player)
             force_utils.start_player_clock(player)
+            team_clock.refresh(player.force.name)
         end
         teams_gui.update_all()
     end)
@@ -73,6 +75,9 @@ function M.register()
             -- Team-aware connect announcement to the Open Discord Bridge (replaces the
             -- bridge's team-less baseline player_joined, which we disable on init).
             remote_api.emit_player_joined(player)
+
+            -- Resume the team's online clock if this is the first member back.
+            team_clock.refresh(player.force.name)
         end
     end)
 
@@ -86,6 +91,10 @@ function M.register()
             follow_cam.on_player_left(player)
             storage.player_last_seen = storage.player_last_seen or {}
             storage.player_last_seen[player.index] = game.tick
+            -- Freeze the team's online clock if this was the last member online.
+            -- Exclude the leaver: the engine may not have dropped them from
+            -- connected_players yet at this point.
+            team_clock.refresh(spectator.get_effective_force(player), player.index)
         end
         h.rebuild_for_connectivity(event.player_index)
     end)

@@ -30,6 +30,7 @@
 
 local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
+local team_clock    = require("scripts.team_clock")
 
 local remote_api = {}
 
@@ -400,6 +401,7 @@ local function get_team_info_impl(force_name)
         member_count   = team_member_count(force),
         is_paused      = is_paused,
         clock_start_tick = clock_start,
+        online_ticks   = team_clock.online_ticks(force_name),
     }
 end
 

@@ -2,9 +2,11 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Togglable "Team Awards" window. Shows leaderboards (top 3 by fastest
--- elapsed-since-team-birth) for completed achievements, grouped into three
--- sections: Research, Science, Resources.
+-- Togglable "Team Awards" window. Shows leaderboards (top 3) for completed
+-- achievements, grouped into three sections: Research, Science, Resources.
+-- A per-player clock toggle ranks either by server time (elapsed since team
+-- birth — the official awards basis) or by team online time (how long the team
+-- was actually online when they finished — fairer across play schedules).
 --
 -- Data sources:
 --   storage.tech_records      — keyed by tech_name
@@ -39,11 +41,17 @@ local function get_state(player)
     storage.awards_gui_state = storage.awards_gui_state or {}
     local s = storage.awards_gui_state[player.index]
     if not s then
-        s = { category = "research", search = "" }
+        s = { category = "research", search = "", clock = "server" }
         storage.awards_gui_state[player.index] = s
     end
     s.search = s.search or ""
+    s.clock  = s.clock  or "server"
     return s
+end
+
+--- The record-entry field this player's clock mode ranks/displays by.
+local function clock_field(state)
+    return state.clock == "online" and "online_elapsed" or "elapsed"
 end
 
 -- ---------------------------------------------------------------------------
@@ -185,8 +193,9 @@ local function filter_rows(rows, lower_query)
     return out
 end
 
-local function render_rows(parent, rows, query)
+local function render_rows(parent, rows, query, sort_field)
     local has_query = query and query ~= ""
+    local online    = sort_field == "online_elapsed"
 
     if #rows == 0 then
         if has_query then
@@ -259,16 +268,18 @@ local function render_rows(parent, rows, query)
             cell1.add{type = "label", caption = row.prefix}
         end
 
-        local top = records.sorted_entries(row.record)
+        local top = records.sorted_entries(row.record, sort_field)
         for i = 1, 3 do
             local e = top[i]
             local cell
             if e then
+                local value    = online and e.online_elapsed or e.elapsed
+                local time_str = value and helpers.format_elapsed(value) or "—"
                 cell = tbl.add{
                     type    = "label",
                     caption = helpers.team_tag_with_leader(e.team)
                               .. "  "
-                              .. helpers.format_elapsed(e.elapsed),
+                              .. time_str,
                 }
                 cell.style.font_color = PLACE_COLOURS[i]
             else
@@ -329,7 +340,7 @@ local function refresh_content(player)
     end
 
     scroll.clear()
-    render_rows(scroll, visible_rows, query)
+    render_rows(scroll, visible_rows, query, clock_field(state))
 end
 
 function awards_gui.build(player)
@@ -398,6 +409,21 @@ function awards_gui.build(player)
         }
     end
 
+    -- Clock basis as a slider switch (visually distinct from the category buttons,
+    -- which it used to blend into when both were "green_button").
+    local clock_label = cat_row.add{type = "label", caption = "Rank by:"}
+    clock_label.tooltip = "Which clock ranks the finishers. Server time is the official"
+        .. " awards basis; Online time is fairer across different play schedules."
+    cat_row.add{
+        type               = "switch",
+        name               = "sb_awards_clock_switch",
+        switch_state       = state.clock == "online" and "right" or "left",
+        left_label_caption  = "Server",
+        right_label_caption = "Online",
+        left_label_tooltip  = "Elapsed since each team started, the official awards basis.",
+        right_label_tooltip = "How long each team was actually online.",
+    }
+
     local search_spacer = cat_row.add{type = "empty-widget"}
     search_spacer.style.horizontally_stretchable = true
 
@@ -446,7 +472,7 @@ function awards_gui.build(player)
     scroll.style.minimal_height = 200
     scroll.style.horizontally_stretchable = true
 
-    render_rows(scroll, visible_rows, query)
+    render_rows(scroll, visible_rows, query, clock_field(state))
 end
 
 -- ---------------------------------------------------------------------------
@@ -520,6 +546,16 @@ function awards_gui.on_gui_click(event)
     end
 
     return false
+end
+
+function awards_gui.on_gui_switch_state_changed(event)
+    local el = event.element
+    if not (el and el.valid) or el.name ~= "sb_awards_clock_switch" then return false end
+    local player = game.get_player(event.player_index)
+    if not player then return true end
+    get_state(player).clock = (el.switch_state == "right") and "online" or "server"
+    awards_gui.build(player)
+    return true
 end
 
 function awards_gui.on_gui_text_changed(event)

@@ -7,15 +7,21 @@
 --
 -- Record structure:
 --   records[key] = {
---     first   = { team = force_name, tick = game.tick, elapsed = ticks },
---     fastest = { team = force_name, tick = game.tick, elapsed = ticks },
---     entries = { [force_name] = { team, tick, elapsed } }   -- every finisher
+--     first   = { team, tick, elapsed, online_elapsed },
+--     fastest = { team, tick, elapsed, online_elapsed },
+--     entries = { [force_name] = { team, tick, elapsed, online_elapsed } }
 --   }
 --
 -- `elapsed` is measured from the team's clock start (team birth), so a team
--- that joins the game later isn't penalized for absolute time.
+-- that joins the game later isn't penalized for absolute time. This is the
+-- official basis for first/fastest awards.
+-- `online_elapsed` is the team's accumulated online time at the moment of
+-- completion (see scripts/team_clock.lua) — an alternate, schedule-fair ranking
+-- the Awards GUI can sort by. May be nil on entries from saves predating it.
 -- `entries` is keyed by force_name so each team is counted once per achievement;
 -- the Awards GUI consumes this to render top-N leaderboards.
+
+local team_clock = require("scripts.team_clock")
 
 local records = {}
 
@@ -37,6 +43,7 @@ function records.update(records_table, key, force_name, tick)
 
     local elapsed = get_elapsed(force_name, tick)
     if not elapsed then return { is_first = false, is_fastest = false } end
+    local online_elapsed = team_clock.online_ticks(force_name)
 
     -- Backfill entries from first/fastest for saves created before the
     -- leaderboard tracking was added.
@@ -51,34 +58,54 @@ function records.update(records_table, key, force_name, tick)
     -- Record this team's completion (only the first time — second calls for
     -- the same team are no-ops; callers already dedupe per-threshold).
     if not entry.entries[force_name] then
-        entry.entries[force_name] = { team = force_name, tick = tick, elapsed = elapsed }
+        entry.entries[force_name] = {
+            team = force_name, tick = tick,
+            elapsed = elapsed, online_elapsed = online_elapsed,
+        }
     end
 
     -- First record for this key?
     if not entry.first then
-        entry.first   = { team = force_name, tick = tick, elapsed = elapsed }
-        entry.fastest = { team = force_name, tick = tick, elapsed = elapsed }
+        local rec = {
+            team = force_name, tick = tick,
+            elapsed = elapsed, online_elapsed = online_elapsed,
+        }
+        entry.first   = rec
+        entry.fastest = rec
         -- Skip announcing "fastest" on the initial record (it's implied by "first")
         return { is_first = true, is_fastest = false }
     end
 
-    -- New fastest record?
+    -- New fastest record? (Official ranking stays on server-elapsed.)
     if elapsed < entry.fastest.elapsed then
         local previous = entry.fastest
-        entry.fastest = { team = force_name, tick = tick, elapsed = elapsed }
+        entry.fastest = {
+            team = force_name, tick = tick,
+            elapsed = elapsed, online_elapsed = online_elapsed,
+        }
         return { is_first = false, is_fastest = true, previous_fastest = previous }
     end
 
     return { is_first = false, is_fastest = false }
 end
 
---- Return an array of all finishers for a record, sorted by elapsed ascending.
---- Empty array if the record doesn't exist or has no finishers yet.
-function records.sorted_entries(record)
+--- Return an array of all finishers for a record, sorted ascending by `field`
+--- ("elapsed" = server time, the default; "online_elapsed" = team online time).
+--- Entries missing the chosen field (saves predating online tracking) sort last,
+--- tie-broken by server elapsed. Empty array if the record has no finishers.
+function records.sorted_entries(record, field)
+    field = field or "elapsed"
     local out = {}
     if not (record and record.entries) then return out end
     for _, e in pairs(record.entries) do out[#out + 1] = e end
-    table.sort(out, function(a, b) return a.elapsed < b.elapsed end)
+    table.sort(out, function(a, b)
+        local av, bv = a[field], b[field]
+        if av == nil and bv == nil then return a.elapsed < b.elapsed end
+        if av == nil then return false end
+        if bv == nil then return true end
+        if av ~= bv then return av < bv end
+        return a.elapsed < b.elapsed
+    end)
     return out
 end
 

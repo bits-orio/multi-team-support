@@ -4,6 +4,7 @@
 
 local helpers       = require("scripts.helpers")
 local research_diff = require("gui.research_diff")
+local team_clock    = require("scripts.team_clock")
 
 local M = {}
 
@@ -35,11 +36,18 @@ end
 
 -- ─── Time / data helpers ──────────────────────────────────────────────
 
-local function fmt_play_time(clock_tick)
+-- Headline play-time caption. Shows server-elapsed time (the official basis for
+-- records/awards), and — once a team has been offline at all — appends the
+-- team's online time so the competition reads fairly across schedules.
+local function fmt_play_time(clock_tick, online_ticks)
     if not clock_tick then return "not yet spawned" end
     local elapsed = game.tick - clock_tick
     if elapsed < 0 then elapsed = 0 end
-    return research_diff.fmt_duration(elapsed) .. " playing"
+    local caption = research_diff.fmt_duration(elapsed) .. " playing"
+    if online_ticks and online_ticks < elapsed then
+        caption = caption .. " (" .. research_diff.fmt_duration(online_ticks) .. " online)"
+    end
+    return caption
 end
 
 --- Return sorted list of researched techs for a force.
@@ -85,6 +93,7 @@ local function get_player_forces()
                     color       = helpers.force_color(force),
                     online      = #force.connected_players > 0,
                     clock_start = (storage.team_clock_start or {})[force_name],
+                    online_time = team_clock.online_ticks(force_name),
                 }
                 ::next_force::
             end
@@ -152,7 +161,12 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
         local spacer = hdr.add{type = "empty-widget"}
         spacer.style.horizontally_stretchable = true
 
-        local start_lbl = hdr.add{type = "label", caption = fmt_play_time(info.clock_start)}
+        local start_lbl = hdr.add{
+            type    = "label",
+            caption = fmt_play_time(info.clock_start, info.online_time),
+            tooltip = "Server time since this team started (records/awards use this)."
+                .. "\nIn parentheses: time at least one member was online — pauses while the whole team is offline.",
+        }
         start_lbl.style.font       = "default-small"
         start_lbl.style.font_color = {0.6, 0.8, 0.6}
 
