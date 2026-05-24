@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.35
+Date: 2026-05-24
+  Features:
+    - Optional integration with the Open Discord Bridge mod. When present, MTS announces
+      team-aware join/leave/switch events, team research completions, and other game events
+      to the bridge as human-readable sentences, with per-team label emoji.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.34
 Date: 2026-05-20
   Changes:
