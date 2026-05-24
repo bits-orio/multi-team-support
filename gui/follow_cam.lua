@@ -51,11 +51,57 @@ end
 function follow_cam.close(viewer)
     if not (viewer and viewer.valid) then return end
     if viewer.gui.screen[FRAME_NAME] then
-        storage.follow_cam_location = storage.follow_cam_location or {}
-        storage.follow_cam_location[viewer.index] = viewer.gui.screen[FRAME_NAME].location
+        local state = storage.follow_cam and storage.follow_cam[viewer.index]
+        -- Don't persist the top-left position of a maximized window.
+        if not (state and state.maximized) then
+            storage.follow_cam_location = storage.follow_cam_location or {}
+            storage.follow_cam_location[viewer.index] = viewer.gui.screen[FRAME_NAME].location
+        end
         viewer.gui.screen[FRAME_NAME].destroy()
     end
     clear_state(viewer.index)
+end
+
+--- Toggle the maximized (fill-screen) layout for the viewer's follow cam.
+function follow_cam.toggle_maximize(viewer)
+    if not (viewer and viewer.valid) then return end
+    local state = ensure_state(viewer.index)
+    local frame = viewer.gui.screen[FRAME_NAME]
+    if not (frame and frame.valid) then return end
+    if not state.maximized then
+        -- Remember where the normal window sat so Restore can return it there.
+        storage.follow_cam_location = storage.follow_cam_location or {}
+        storage.follow_cam_location[viewer.index] = frame.location
+        state.maximized = true
+    else
+        state.maximized = false
+    end
+    fcf.rebuild_frame(viewer, state)
+end
+
+--- Esc handler: a maximized follow cam restores to its original size instead
+--- of closing. Returns true if it consumed the close.
+function follow_cam.on_gui_closed(event)
+    if event.gui_type ~= defines.gui_type.custom then return false end
+    local el = event.element
+    if not (el and el.valid and el.name == FRAME_NAME) then return false end
+    local state = storage.follow_cam and storage.follow_cam[event.player_index]
+    if not (state and state.maximized) then return false end
+    local viewer = game.get_player(event.player_index)
+    if not viewer then return false end
+    state.maximized = false
+    fcf.rebuild_frame(viewer, state)
+    return true
+end
+
+--- Re-fit a maximized follow cam after the viewer resizes the game window
+--- (or changes UI scale). No-op for normal or closed cams.
+function follow_cam.on_display_changed(viewer)
+    if not (viewer and viewer.valid) then return end
+    local state = storage.follow_cam and storage.follow_cam[viewer.index]
+    if not (state and state.maximized) then return end
+    if not viewer.gui.screen[FRAME_NAME] then return end
+    fcf.rebuild_frame(viewer, state)
 end
 
 --- Return true if the viewer is currently following target_index.
@@ -119,6 +165,12 @@ function follow_cam.on_gui_click(event)
     if el.name == "sb_follow_cam_close" then
         local player = game.get_player(event.player_index)
         if player then follow_cam.close(player) end
+        return true
+    end
+
+    if el.name == "sb_follow_cam_maximize" then
+        local player = game.get_player(event.player_index)
+        if player then follow_cam.toggle_maximize(player) end
         return true
     end
 

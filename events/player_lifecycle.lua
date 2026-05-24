@@ -81,6 +81,15 @@ function M.register()
         end
     end)
 
+    -- Re-fit a maximized follow cam when the player resizes the window or
+    -- changes UI scale, so it keeps filling the screen.
+    local function refit_follow_cam(event)
+        local player = game.get_player(event.player_index)
+        if player then follow_cam.on_display_changed(player) end
+    end
+    script.on_event(defines.events.on_player_display_resolution_changed, refit_follow_cam)
+    script.on_event(defines.events.on_player_display_scale_changed, refit_follow_cam)
+
     script.on_event(defines.events.on_player_left_game, function(event)
         local player = game.get_player(event.player_index)
         if player then

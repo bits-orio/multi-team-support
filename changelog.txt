@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.37
+Date: 2026-05-24
+  Features:
+    - Follow Cam: a Maximize button on the title bar fills the screen with the followed
+      players' cameras. They split the screen evenly — two players get half each — so
+      spectators (and players) get a much larger live view. Restore the panel with the
+      same button, close it, or press Esc to return it to its previous size and position.
+    - The maximized Follow Cam re-fits automatically when you resize the game window or
+      change the UI scale, so it always fills the screen.
+  Changes:
+    - Follow Cam panels now use thin dividers between cameras instead of the heavy framed
+      borders.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.36
 Date: 2026-05-24
   Features:

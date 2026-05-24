@@ -16,6 +16,7 @@ local awards_gui    = require("gui.awards")
 local friendship    = require("gui.friendship")
 local force_utils   = require("scripts.force_utils")
 local blueprint_lock = require("scripts.blueprint_lock")
+local follow_cam    = require("gui.follow_cam")
 
 local M = {}
 
@@ -51,6 +52,7 @@ function M.register()
     end)
 
     script.on_event(defines.events.on_gui_closed, function(event)
+        if follow_cam.on_gui_closed(event) then return end
         if research_gui.on_gui_closed(event) then return end
         welcome_gui.on_gui_closed(event)
         -- Pressing Esc on a space-platform hub closes the hub UI instead of
