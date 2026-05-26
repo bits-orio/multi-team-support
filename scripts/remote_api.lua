@@ -550,6 +550,39 @@ function remote_api.register()
         -- Team Settings tab registration (see on_team_tab_built event).
         register_team_tab  = function(spec) remote_api.register_team_tab(spec) end,
 
+        -- Disband a team: move every member back to the landing pen, release
+        -- the slot, and clean up the team's surfaces. Lets a mod implement a
+        -- loss condition (e.g. a critical structure destroyed). Lazy requires
+        -- avoid load-time circular deps with the GUI / slot modules.
+        disband_team = function(force_name)
+            if type(force_name) ~= "string"
+               or not force_name:match("^team%-%d+$") then return end
+            local force = game.forces[force_name]
+            if not (force and force.valid) then return end
+
+            local team_slots  = require("scripts.team_slots")
+            local landing_pen = require("gui.landing_pen")
+            local spectator   = require("scripts.spectator")
+
+            local members = {}
+            for _, p in pairs(force.players) do members[#members + 1] = p end
+
+            if #members == 0 then
+                team_slots.cleanup_force_surfaces(force_name)
+                team_slots.release_team_slot(force_name)
+                return
+            end
+            -- remove_from_team disbands + cleans up on the last member removed;
+            -- return_to_pen relocates each player to the selection ring.
+            for _, p in pairs(members) do
+                if p and p.valid then
+                    if spectator.is_spectating(p) then spectator.exit(p) end
+                    team_slots.remove_from_team(p)
+                    landing_pen.return_to_pen(p)
+                end
+            end
+        end,
+
         -- ── v2 candidates (uncomment alongside the matching impl) ────
         -- get_team_home_surface = get_team_home_surface_impl,
         -- is_team_paused        = is_team_paused_impl,
