@@ -13,6 +13,11 @@ Date: 2026-05-25
       register its tab once (in on_init / on_configuration_changed) and it survives
       reloads and mid-game joins — no per-session re-registration on a one-shot tick,
       which was not multiplayer-safe.
+    - Modding API (mts-v1): mods can now anchor their own widgets into the native space
+      platform hub GUI. register_platform_hub_widget{ name, caption, order, position }
+      adds a relative-GUI frame, and the on_platform_hub_gui_built event hands the mod
+      that frame (plus the hub entity) to fill each time a player opens a hub. Same
+      persisted, multiplayer-safe registry as the team tabs.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.37
 Date: 2026-05-24

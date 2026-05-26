@@ -55,6 +55,13 @@ remote_api.events = {
     -- `element` is the empty content frame the registering mod should populate.
     on_team_tab_built        = script.generate_event_name(),
 
+    -- Raised once per registered widget each time a player opens a space
+    -- platform hub. Payload: { player_index, widget_name, element, entity },
+    -- where `element` is the empty content frame anchored into the hub GUI for
+    -- the registering mod to fill, and `entity` is the platform hub being
+    -- opened (use entity.surface.platform for the platform / its location).
+    on_platform_hub_gui_built = script.generate_event_name(),
+
     -- ── v2 candidates (uncomment to enable) ──────────────────────────
     -- on_team_leader_changed   = script.generate_event_name(),
     -- on_team_paused           = script.generate_event_name(),
@@ -98,6 +105,38 @@ end
 function remote_api.get_team_tabs()
     local list = {}
     for _, def in pairs(tab_registry()) do list[#list + 1] = def end
+    table.sort(list, function(a, b)
+        if a.order ~= b.order then return a.order < b.order end
+        return a.name < b.name
+    end)
+    return list
+end
+
+-- Space platform hub widgets: any mod can anchor its own UI into the native
+-- space-platform-hub GUI (e.g. an "establish base" action). Register ONCE in
+-- on_init / on_configuration_changed; the registry persists in storage so it
+-- survives reloads/joins and is identical on every peer (same multiplayer-safe
+-- design as the team tabs above). Listen to on_platform_hub_gui_built to fill
+-- the anchored frame each time a player opens a hub.
+local function hub_widget_registry()
+    storage.mts_hub_widgets = storage.mts_hub_widgets or {}
+    return storage.mts_hub_widgets
+end
+
+function remote_api.register_platform_hub_widget(spec)
+    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
+    hub_widget_registry()[spec.name] = {
+        name     = spec.name,
+        caption  = spec.caption,              -- optional frame caption
+        order    = spec.order or spec.name,
+        position = spec.position or "right",  -- relative_gui_position key
+    }
+end
+
+--- Registered platform-hub widgets, sorted by order then name.
+function remote_api.get_platform_hub_widgets()
+    local list = {}
+    for _, def in pairs(hub_widget_registry()) do list[#list + 1] = def end
     table.sort(list, function(a, b)
         if a.order ~= b.order then return a.order < b.order end
         return a.name < b.name
@@ -558,6 +597,10 @@ function remote_api.register()
 
         -- Team Settings tab registration (see on_team_tab_built event).
         register_team_tab  = function(spec) remote_api.register_team_tab(spec) end,
+
+        -- Space platform hub widget registration (see on_platform_hub_gui_built).
+        register_platform_hub_widget =
+            function(spec) remote_api.register_platform_hub_widget(spec) end,
 
         -- Disband a team: move every member back to the landing pen, release
         -- the slot, and clean up the team's surfaces. Lets a mod implement a

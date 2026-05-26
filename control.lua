@@ -25,6 +25,7 @@ local commands_mod     = require("scripts.commands")
 local landing_pen      = require("gui.landing_pen")
 local teams_gui        = require("gui.teams")
 local stats_gui        = require("gui.stats")
+local platform_hub_gui = require("gui.platform_hub")
 local space_age        = require("scripts.space_age")
 local surface_utils    = require("scripts.surface_utils")
 local blueprint_lock   = require("scripts.blueprint_lock")
@@ -51,6 +52,7 @@ local function init_events()
     ev_gui_state.register()
     ev_chat.register()
     global_milestones.register()
+    platform_hub_gui.register()
 end
 
 -- ─── Lifecycle ─────────────────────────────────────────────────────────
