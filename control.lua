@@ -30,6 +30,7 @@ local surface_utils    = require("scripts.surface_utils")
 local blueprint_lock   = require("scripts.blueprint_lock")
 local global_milestones = require("scripts.global_milestones")
 local remote_api        = require("scripts.remote_api")
+require("scripts.team_disband")  -- injects remote_api.disband_impl (mts-v1 disband_team)
 
 local ev_ticks            = require("events.ticks")
 local ev_player_lifecycle = require("events.player_lifecycle")
