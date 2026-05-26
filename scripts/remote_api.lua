@@ -67,18 +67,27 @@ remote_api.events = {
 -- ═══ Custom Team Settings tabs ════════════════════════════════════════
 --
 -- Other mods can add their own tab to the Team Settings panel. They register
--- once per session (remote.call is illegal in on_load, so they defer it to a
--- one-shot tick) via:
+-- ONCE, in their on_init / on_configuration_changed (where remote.call is
+-- legal) via:
 --     remote.call("mts-v1", "register_team_tab",
 --         { name = "my-mod", caption = "My Mod", order = "z" })
 -- and listen to the on_team_tab_built event to populate the content frame they
--- are handed. The registry is session-scoped (rebuilt each load as mods
--- re-register), so it deliberately lives outside `storage`.
-local custom_tabs = {}
+-- are handed.
+--
+-- The registry lives in `storage` so it survives save/load and is identical on
+-- every peer. This is what makes the API multiplayer-safe: a client joining
+-- mid-game (or any reload) can't remote.call in on_load to re-register, so a
+-- session-scoped registry would be empty on the joiner while populated on the
+-- host -- a handler-identity mismatch / desync risk. Persisting it sidesteps
+-- that: the spec is plain data and rides along in the save.
+local function tab_registry()
+    storage.mts_custom_tabs = storage.mts_custom_tabs or {}
+    return storage.mts_custom_tabs
+end
 
 function remote_api.register_team_tab(spec)
     if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
-    custom_tabs[spec.name] = {
+    tab_registry()[spec.name] = {
         name    = spec.name,
         caption = spec.caption or spec.name,
         order   = spec.order or spec.name,
@@ -88,7 +97,7 @@ end
 --- Registered custom tabs, sorted by order then name.
 function remote_api.get_team_tabs()
     local list = {}
-    for _, def in pairs(custom_tabs) do list[#list + 1] = def end
+    for _, def in pairs(tab_registry()) do list[#list + 1] = def end
     table.sort(list, function(a, b)
         if a.order ~= b.order then return a.order < b.order end
         return a.name < b.name

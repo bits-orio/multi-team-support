@@ -8,6 +8,11 @@ Date: 2026-05-25
       event hands the mod the content element to fill each time a player's panel is built.
     - Modding API (mts-v1): added disband_team(force_name) so mods can implement their
       own loss conditions and tear a team back down.
+    - Modding API (mts-v1): registered team tabs now persist in the save instead of a
+      session-scoped table, so the registry is identical on every peer. A mod can
+      register its tab once (in on_init / on_configuration_changed) and it survives
+      reloads and mid-game joins — no per-session re-registration on a one-shot tick,
+      which was not multiplayer-safe.
 ---------------------------------------------------------------------------------------------------
 Version: 0.4.37
 Date: 2026-05-24
