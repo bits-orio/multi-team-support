@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.38
+Date: 2026-05-25
+  Features:
+    - Modding API (mts-v1): mods can now add their own tabs to the Team Settings panel.
+      The panel is a tabbed pane (built-in "Team" tab plus one tab per registered mod);
+      register_team_tab{ name, caption, order } adds a tab, and the on_team_tab_built
+      event hands the mod the content element to fill each time a player's panel is built.
+    - Modding API (mts-v1): added disband_team(force_name) so mods can implement their
+      own loss conditions and tear a team back down.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.37
 Date: 2026-05-24
   Features:
