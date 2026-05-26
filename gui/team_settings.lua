@@ -15,6 +15,7 @@ local force_utils = require("scripts.force_utils")
 local teams_gui   = require("gui.teams")
 local awards_gui  = require("gui.awards")
 local spawn_labels = require("scripts.spawn_labels")
+local remote_api  = require("scripts.remote_api")
 
 local team_settings = {}
 
@@ -45,34 +46,12 @@ end
 
 -- ─── GUI ──────────────────────────────────────────────────────────────
 
---- Build (or rebuild) the team settings panel for one player.
-function team_settings.build_gui(player)
-    if not is_on_team(player) then return end
-    storage.team_settings_location = storage.team_settings_location or {}
-
-    local force_name = player.force.name
-    local leader     = is_leader(player)
-    local team_tag   = helpers.team_tag(force_name)
-
-    local frame = helpers.reuse_or_create_frame(
-        player, FRAME_NAME, storage.team_settings_location, {x = 340, y = 240})
-
-    local title_bar = helpers.add_title_bar(frame, "Team Settings")
-    title_bar.add{
-        type    = "sprite-button",
-        name    = "sb_team_settings_close",
-        sprite  = "utility/close",
-        style   = "close_button",
-        tooltip = "Close panel",
-    }
-
-    frame.style.minimal_width = 340
-
-    local content = frame.add{type = "flow", direction = "vertical"}
-    content.style.left_padding    = 8
-    content.style.right_padding   = 8
-    content.style.top_padding     = 8
-    content.style.bottom_padding  = 8
+--- Build the built-in "Team" tab (rename) into the given content element.
+local function build_team_tab(content, force_name, leader, team_tag)
+    content.style.left_padding     = 8
+    content.style.right_padding    = 8
+    content.style.top_padding      = 8
+    content.style.bottom_padding   = 8
     content.style.vertical_spacing = 8
 
     -- Current team header (rich-text so the force's chat color shows).
@@ -133,6 +112,59 @@ function team_settings.build_gui(player)
         tooltip = "Rename the team (leader only, max " .. MAX_TEAM_NAME_LEN .. " chars)",
     }
     save_btn.enabled = leader
+end
+
+--- Build (or rebuild) the team settings panel for one player. The panel is a
+--- tabbed pane: a built-in "Team" tab plus one tab per mod that registered via
+--- remote.call("mts-v1", "register_team_tab", ...). Each custom tab gets an
+--- empty content frame and an on_team_tab_built event so its mod can fill it.
+function team_settings.build_gui(player)
+    if not is_on_team(player) then return end
+    storage.team_settings_location = storage.team_settings_location or {}
+
+    local force_name = player.force.name
+    local leader     = is_leader(player)
+    local team_tag   = helpers.team_tag(force_name)
+
+    local frame = helpers.reuse_or_create_frame(
+        player, FRAME_NAME, storage.team_settings_location, {x = 340, y = 240})
+
+    local title_bar = helpers.add_title_bar(frame, "Team Settings")
+    title_bar.add{
+        type    = "sprite-button",
+        name    = "sb_team_settings_close",
+        sprite  = "utility/close",
+        style   = "close_button",
+        tooltip = "Close panel",
+    }
+
+    frame.style.minimal_width = 340
+
+    local pane = frame.add{type = "tabbed-pane", name = "sb_team_tabs"}
+
+    -- Built-in Team tab.
+    local team_tab     = pane.add{type = "tab", caption = "Team"}
+    local team_content = pane.add{type = "flow", direction = "vertical"}
+    pane.add_tab(team_tab, team_content)
+    build_team_tab(team_content, force_name, leader, team_tag)
+
+    -- Custom tabs registered by other mods.
+    for _, def in ipairs(remote_api.get_team_tabs()) do
+        local tab = pane.add{type = "tab", caption = def.caption}
+        local tab_content = pane.add{
+            type      = "frame",
+            name      = "sb_team_tab_" .. def.name,
+            direction = "vertical",
+            style     = "inside_shallow_frame",
+        }
+        tab_content.style.padding = 8
+        pane.add_tab(tab, tab_content)
+        script.raise_event(remote_api.events.on_team_tab_built, {
+            player_index = player.index,
+            tab_name     = def.name,
+            element      = tab_content,
+        })
+    end
 end
 
 --- Close this player's settings frame (if any). Saves frame location.

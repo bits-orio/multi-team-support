@@ -50,6 +50,11 @@ remote_api.events = {
     on_player_left_team      = script.generate_event_name(),
     on_team_surface_created  = script.generate_event_name(),
 
+    -- Raised once per registered custom tab each time a player's Team Settings
+    -- panel is (re)built. Payload: { player_index, tab_name, element }, where
+    -- `element` is the empty content frame the registering mod should populate.
+    on_team_tab_built        = script.generate_event_name(),
+
     -- ── v2 candidates (uncomment to enable) ──────────────────────────
     -- on_team_leader_changed   = script.generate_event_name(),
     -- on_team_paused           = script.generate_event_name(),
@@ -58,6 +63,38 @@ remote_api.events = {
     -- on_friendship_broken     = script.generate_event_name(),
     -- on_team_surfaces_cleaned = script.generate_event_name(),
 }
+
+-- ═══ Custom Team Settings tabs ════════════════════════════════════════
+--
+-- Other mods can add their own tab to the Team Settings panel. They register
+-- once per session (remote.call is illegal in on_load, so they defer it to a
+-- one-shot tick) via:
+--     remote.call("mts-v1", "register_team_tab",
+--         { name = "my-mod", caption = "My Mod", order = "z" })
+-- and listen to the on_team_tab_built event to populate the content frame they
+-- are handed. The registry is session-scoped (rebuilt each load as mods
+-- re-register), so it deliberately lives outside `storage`.
+local custom_tabs = {}
+
+function remote_api.register_team_tab(spec)
+    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
+    custom_tabs[spec.name] = {
+        name    = spec.name,
+        caption = spec.caption or spec.name,
+        order   = spec.order or spec.name,
+    }
+end
+
+--- Registered custom tabs, sorted by order then name.
+function remote_api.get_team_tabs()
+    local list = {}
+    for _, def in pairs(custom_tabs) do list[#list + 1] = def end
+    table.sort(list, function(a, b)
+        if a.order ~= b.order then return a.order < b.order end
+        return a.name < b.name
+    end)
+    return list
+end
 
 -- ═══ Open Discord Bridge forwarding ═══════════════════════════════════
 --
@@ -509,6 +546,9 @@ function remote_api.register()
         is_team_surface    = is_team_surface_impl,
         get_surface_owner  = get_surface_owner_impl,
         list_team_surfaces = list_team_surfaces_impl,
+
+        -- Team Settings tab registration (see on_team_tab_built event).
+        register_team_tab  = function(spec) remote_api.register_team_tab(spec) end,
 
         -- ── v2 candidates (uncomment alongside the matching impl) ────
         -- get_team_home_surface = get_team_home_surface_impl,
