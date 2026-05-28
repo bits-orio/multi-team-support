@@ -55,6 +55,13 @@ remote_api.events = {
     -- `element` is the empty content frame the registering mod should populate.
     on_team_tab_built        = script.generate_event_name(),
 
+    -- Raised once per registered welcome tab each time the welcome screen is
+    -- (re)built. Payload: { player_index, tab_name, element }, where `element`
+    -- is the empty content frame the registering mod should populate. Registered
+    -- (downstream-mod) tabs are shown FIRST, before MTS's own About/Discord, and
+    -- the first one is selected by default -- so a scenario like Expanse leads.
+    on_welcome_tab_built     = script.generate_event_name(),
+
     -- Raised once per registered widget each time a player opens a space
     -- platform hub. Payload: { player_index, widget_name, element, entity },
     -- where `element` is the empty content frame anchored into the hub GUI for
@@ -117,6 +124,42 @@ end
 function remote_api.get_team_tabs()
     local list = {}
     for _, def in pairs(tab_registry()) do list[#list + 1] = def end
+    table.sort(list, function(a, b)
+        if a.order ~= b.order then return a.order < b.order end
+        return a.name < b.name
+    end)
+    return list
+end
+
+-- ═══ Custom welcome-screen tabs ═══════════════════════════════════════
+--
+-- Same contract as the team tabs above, for the centered welcome screen. A
+-- downstream mod (e.g. a scenario like Expanse) registers ONCE in its on_init /
+-- on_configuration_changed via:
+--     remote.call("mts-v1", "register_welcome_tab",
+--         { name = "my-mod", caption = "My Mod", order = "a" })
+-- and listens to on_welcome_tab_built to fill the content frame it is handed.
+-- Registered tabs render BEFORE MTS's own About/Discord and the first is
+-- selected by default, so the host scenario leads the welcome screen. Registry
+-- lives in storage for the same multiplayer-safe reason as the team tabs.
+local function welcome_tab_registry()
+    storage.mts_welcome_tabs = storage.mts_welcome_tabs or {}
+    return storage.mts_welcome_tabs
+end
+
+function remote_api.register_welcome_tab(spec)
+    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
+    welcome_tab_registry()[spec.name] = {
+        name    = spec.name,
+        caption = spec.caption or spec.name,
+        order   = spec.order or spec.name,
+    }
+end
+
+--- Registered welcome tabs, sorted by order then name.
+function remote_api.get_welcome_tabs()
+    local list = {}
+    for _, def in pairs(welcome_tab_registry()) do list[#list + 1] = def end
     table.sort(list, function(a, b)
         if a.order ~= b.order then return a.order < b.order end
         return a.name < b.name
@@ -656,6 +699,10 @@ function remote_api.register()
 
         -- Team Settings tab registration (see on_team_tab_built event).
         register_team_tab  = function(spec) remote_api.register_team_tab(spec) end,
+
+        -- Welcome-screen tab registration (see on_welcome_tab_built event).
+        -- Registered tabs lead the welcome screen, before MTS's About/Discord.
+        register_welcome_tab = function(spec) remote_api.register_welcome_tab(spec) end,
 
         -- Space platform hub widget registration (see on_platform_hub_gui_built).
         register_platform_hub_widget =

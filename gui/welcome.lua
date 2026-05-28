@@ -17,8 +17,9 @@
 --   Registered as sprite "sb-qr-code" in data.lua.
 --   Discord icon: graphics/discord-icon.png → sprite "sb-discord".
 
-local nav       = require("gui.nav")
-local space_age = require("scripts.space_age")
+local nav        = require("gui.nav")
+local space_age  = require("scripts.space_age")
+local remote_api = require("scripts.remote_api")
 
 local welcome_gui = {}
 
@@ -219,7 +220,28 @@ local function draw_frame(player)
     tabs.style.vertically_stretchable   = true
     tabs.style.top_margin               = 4
 
-    -- Tab 1: About
+    -- Downstream-mod tabs first (e.g. a scenario like Expanse), so the host
+    -- scenario leads the welcome screen. Each gets an empty content frame and an
+    -- on_welcome_tab_built event for the registering mod to populate.
+    for _, def in ipairs(remote_api.get_welcome_tabs()) do
+        local mod_tab = tabs.add{type = "tab", caption = def.caption}
+        local mod_content = tabs.add{
+            type      = "frame",
+            name      = "sb_welcome_tab_" .. def.name,
+            direction = "vertical",
+            style     = "inside_shallow_frame",
+        }
+        mod_content.style.horizontally_stretchable = true
+        mod_content.style.vertically_stretchable   = true
+        tabs.add_tab(mod_tab, mod_content)
+        script.raise_event(remote_api.events.on_welcome_tab_built, {
+            player_index = player.index,
+            tab_name     = def.name,
+            element      = mod_content,
+        })
+    end
+
+    -- About (Multi-Team Support itself)
     local about_tab = tabs.add{type = "tab", caption = "  About  "}
     local about_content = tabs.add{
         type      = "frame",
@@ -231,7 +253,7 @@ local function draw_frame(player)
     draw_about(about_content)
     tabs.add_tab(about_tab, about_content)
 
-    -- Tab 2: Discord (icon in caption via rich text)
+    -- Discord (icon in caption via rich text)
     local discord_tab = tabs.add{type = "tab", caption = "  Discord  "}
     local discord_content = tabs.add{
         type      = "frame",
@@ -242,6 +264,8 @@ local function draw_frame(player)
     discord_content.style.vertically_stretchable   = true
     draw_discord(discord_content)
     tabs.add_tab(discord_tab, discord_content)
+
+    -- Select the first tab -- the leading downstream-mod tab if any, else About.
     tabs.selected_tab_index = 1
 
     -- Allow Esc to close
