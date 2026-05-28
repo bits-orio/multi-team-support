@@ -9,6 +9,7 @@ local spectator    = require("scripts.spectator")
 local confirm      = require("gui.confirm")
 local awards_gui   = require("gui.awards")
 local spawn_labels = require("scripts.spawn_labels")
+local remote_api   = require("scripts.remote_api")
 
 local M = {}
 
@@ -154,6 +155,7 @@ function M.register()
             spawn_labels.refresh_for_force(caller.force.name)
             teams_gui.update_all()
             awards_gui.update_all()
+            remote_api.raise_team_renamed(caller.force.name, new_name)
         end)
 
     commands.add_command("mts-teams",

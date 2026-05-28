@@ -4,6 +4,7 @@
 --   landing_pen → buddy_requests → pen_ops  (no back-edge to landing_pen)
 
 local admin_gui     = require("gui.admin")
+local remote_api    = require("scripts.remote_api")
 local platformer    = require("compat.platformer")
 local voidblock     = require("compat.voidblock")
 local deep_core_ops = require("compat.deep_core_ops")
@@ -14,6 +15,9 @@ local M = {}
 
 function M.grant_starter_items(player)
     if not player.character then return end
+    -- A delivery-override consumer (e.g. Brave New MTS) delivers starter items to
+    -- the team's logistic chests at base placement, so skip the character grant.
+    if remote_api.starter_delivery_override() then return end
     local items = admin_gui.get_starter_items()
     if not items then
         if platformer.is_active() then

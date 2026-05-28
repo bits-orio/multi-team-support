@@ -20,6 +20,15 @@ function M.register()
         h.register_nav_buttons(player)
         admin_gui.auto_populate_starter_items(player)
 
+        -- With a delivery override (e.g. Brave New MTS), starter items go to the
+        -- team's logistic chests, not the player. auto_populate (above) has just
+        -- captured the map's default loadout into the admin list, so now empty the
+        -- character: the player should arrive in the pen / on their team carrying
+        -- nothing.
+        if player and player.character and remote_api.starter_delivery_override() then
+            player.character.clear_items_inside()
+        end
+
         if admin_gui.flag("landing_pen_enabled") then
             local spec_force = game.forces["spectator"]
             if spec_force then player.force = spec_force end

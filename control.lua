@@ -33,6 +33,15 @@ local global_milestones = require("scripts.global_milestones")
 local remote_api        = require("scripts.remote_api")
 require("scripts.team_disband")  -- injects remote_api.disband_impl (mts-v1 disband_team)
 
+-- Inject starter-item delivery hooks into admin_flags. It can't require
+-- remote_api itself (that closes a load-time cycle via team_clock → spectator →
+-- gui.admin → admin_flags); control.lua sits outside that cycle, so it wires the
+-- two together here at load time.
+require("scripts.admin_flags").set_delivery_hooks{
+    override = remote_api.starter_delivery_override,
+    raise    = remote_api.raise_starter_items_added,
+}
+
 local ev_ticks            = require("events.ticks")
 local ev_player_lifecycle = require("events.player_lifecycle")
 local ev_player_force     = require("events.player_force")
@@ -140,6 +149,7 @@ script.on_configuration_changed(function()
     debug_engine.init_storage()
     pop_text.init_storage()
     remote_api.ensure_bridge_registered()
+    remote_api.validate_delivery_override()  -- drop override if its consumer mod was removed
 
     -- Resume any forces stuck in a paused state from a removed auto-pause feature.
     local to_resume = {}

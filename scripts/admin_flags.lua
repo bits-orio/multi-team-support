@@ -6,6 +6,19 @@ local helpers = require("scripts.helpers")
 
 local M = {}
 
+-- Starter-item delivery hooks, injected by control.lua. admin_flags can't
+-- require remote_api directly: that would close a load-time require cycle
+-- (remote_api → team_clock → spectator → gui.admin → admin_flags), which
+-- Factorio rejects. The defaults make the no-override path a no-op, so MTS
+-- behaves normally until/unless a consumer registers an override.
+local delivery = {
+    override = function() return false end,
+    raise    = function(_items) end,
+}
+function M.set_delivery_hooks(hooks)
+    delivery = hooks
+end
+
 -- ─── Flag Definitions ──────────────────────────────────────────────────
 
 M.FLAGS = {
@@ -91,8 +104,15 @@ end
 
 -- ─── Starter Item Helpers ──────────────────────────────────────────────
 
---- Give specific items to all currently-spawned players.
+--- Give specific items to all currently-spawned players. When a delivery
+--- override is registered (e.g. Brave New MTS, whose teams have no player
+--- character), hand the items to the consumer via on_starter_items_added
+--- instead of inserting them into player inventories.
 function M.distribute_items_to_spawned(items)
+    if delivery.override() then
+        delivery.raise(items)
+        return
+    end
     storage.spawned_players = storage.spawned_players or {}
     for idx in pairs(storage.spawned_players) do
         local p = game.get_player(idx)
@@ -147,7 +167,11 @@ function M.collect_character_items(player)
     return items
 end
 
---- Auto-populate starter items from the first spawning player's inventory.
+--- Auto-populate starter items from the first spawning player's inventory. This
+--- captures the map's default loadout into the admin list. Under a delivery
+--- override (e.g. Brave New MTS) the same capture is what pre-populates the list
+--- that then gets routed to team logistic chests instead of player inventories
+--- (the spawning character is emptied separately, in on_player_created).
 function M.auto_populate_starter_items(player)
     if storage.starter_items then return end
     if not player.character then return end

@@ -62,6 +62,18 @@ remote_api.events = {
     -- opened (use entity.surface.platform for the platform / its location).
     on_platform_hub_gui_built = script.generate_event_name(),
 
+    -- Raised when an admin adds entries to the starter-items list while a
+    -- delivery override is registered (see register_starter_item_delivery).
+    -- Payload: { items = { {name=, count=}, ... } }. The registering mod is then
+    -- responsible for delivering them (e.g. into team logistic chests) since MTS
+    -- skips the default character-inventory grant while an override is active.
+    on_starter_items_added    = script.generate_event_name(),
+
+    -- Raised when a team is renamed. Payload: { force_name, new_name }. (Not
+    -- `name` -- that key is reserved in event tables for the event id.) Lets a
+    -- mod refresh anything that shows the team name.
+    on_team_renamed           = script.generate_event_name(),
+
     -- ── v2 candidates (uncomment to enable) ──────────────────────────
     -- on_team_leader_changed   = script.generate_event_name(),
     -- on_team_paused           = script.generate_event_name(),
@@ -319,6 +331,41 @@ function remote_api.raise_team_surface_created(surface_name, force_name)
     })
 end
 
+function remote_api.raise_starter_items_added(items)
+    raise("on_starter_items_added", { items = items or {} }, { no_bridge = true })
+end
+
+function remote_api.raise_team_renamed(force_name, new_name)
+    raise("on_team_renamed", { force_name = force_name, new_name = new_name }, { no_bridge = true })
+end
+
+-- ═══ Starter-item delivery override ═══════════════════════════════════
+--
+-- A consumer mod (e.g. Brave New MTS, whose teams have no player character to
+-- receive items) can take over delivery of the admin-configured starter items.
+-- While an override is registered, MTS stops inserting starter items into player
+-- inventories and instead raises on_starter_items_added for live additions; the
+-- consumer reads the persisted list via get_starter_items for teams that spawn
+-- later. The registering mod name is stored so the override self-clears if that
+-- mod is later removed (checked in on_configuration_changed).
+
+function remote_api.register_starter_item_delivery(mod_name)
+    storage.mts_starter_delivery = (type(mod_name) == "string") and mod_name or "unknown"
+end
+
+function remote_api.starter_delivery_override()
+    return storage.mts_starter_delivery ~= nil
+end
+
+--- Drop a stale override if the mod that registered it is no longer loaded, so
+--- removing the consumer restores the default character-inventory delivery.
+function remote_api.validate_delivery_override()
+    local mod = storage.mts_starter_delivery
+    if mod and mod ~= "unknown" and not script.active_mods[mod] then
+        storage.mts_starter_delivery = nil
+    end
+end
+
 -- ── v2 candidates (uncomment alongside the matching event ID) ────────
 -- function remote_api.raise_team_leader_changed(force_name, old_player_index, new_player_index)
 --     raise("on_team_leader_changed", {
@@ -518,6 +565,12 @@ local function get_surface_owner_impl(surface_name)
     return surface_utils.get_owner(surface)
 end
 
+--- The admin-configured starter items ({name=, count=} list). Used by a
+--- delivery-override consumer to seed teams that spawn after items were added.
+local function get_starter_items_impl()
+    return storage.starter_items or {}
+end
+
 local function list_team_surfaces_impl(force_name)
     if not is_team_force_name(force_name) then return {} end
     local out = {}
@@ -594,6 +647,12 @@ function remote_api.register()
         is_team_surface    = is_team_surface_impl,
         get_surface_owner  = get_surface_owner_impl,
         list_team_surfaces = list_team_surfaces_impl,
+        get_starter_items  = get_starter_items_impl,
+
+        -- Take over starter-item delivery (see on_starter_items_added). Pass your
+        -- mod name so the override self-clears if your mod is removed.
+        register_starter_item_delivery =
+            function(mod_name) remote_api.register_starter_item_delivery(mod_name) end,
 
         -- Team Settings tab registration (see on_team_tab_built event).
         register_team_tab  = function(spec) remote_api.register_team_tab(spec) end,
