@@ -2,9 +2,11 @@
 -- Author: bits-orio
 -- License: MIT
 --
--- Admin tool: trim unused chunks on team nauvis surfaces. For each surface,
--- preserves a buffer of chunks around team entities, connected players, and
--- spawner corpses; deletes everything else and unchart the deleted chunks.
+-- Admin tool: trim unused chunks on team surfaces (every planet a team owns,
+-- not just nauvis). For each surface, preserves a buffer of chunks around team
+-- entities, connected players, and spawner corpses; deletes everything else and
+-- uncharts the deleted chunks. Space platforms are skipped -- their foundation
+-- is tiles, not entities, so chunk deletion could destroy parts of the platform.
 --
 -- For multi-surface runs, surfaces are processed one per tick interval so
 -- the server can catch up between large trims.
@@ -18,7 +20,8 @@
 --       caller_idx    = integer | nil,
 --   }
 
-local helpers = require("scripts.helpers")
+local helpers       = require("scripts.helpers")
+local surface_utils = require("scripts.surface_utils")
 
 local chunk_trim = {}
 
@@ -30,12 +33,11 @@ local CHUNK_SIZE            = 32
 
 -- ─── Helpers ──────────────────────────────────────────────────────────
 
---- Map a surface name to its owning team force, if any.
---- Recognized: "team-N-nauvis" (VoidBlock) and "mts-nauvis-N" (Space Age).
-local function force_name_for(surface_name)
-    local n = surface_name:match("^team%-(%d+)%-nauvis$")
-           or surface_name:match("^mts%-nauvis%-(%d+)$")
-    return n and ("team-" .. n) or nil
+--- The team force that owns a surface, on any planet, or nil. Space platforms
+--- are treated as un-trimmable (their foundation is tiles, not entities).
+local function trimmable_owner(surface)
+    if not (surface and surface.valid) or surface.platform then return nil end
+    return surface_utils.get_owner(surface)
 end
 
 --- Send a message to the caller if connected, else broadcast.
@@ -48,7 +50,7 @@ end
 local function trim_surface(surface, entity_buffer, player_buffer, caller_idx)
     if not (surface and surface.valid) then return 0, 0 end
 
-    local team_force = force_name_for(surface.name)
+    local team_force = trimmable_owner(surface)
     local label      = team_force and helpers.team_tag(team_force) or surface.name
     local force      = team_force and game.forces[team_force]
     if not (force and force.valid) then
@@ -130,17 +132,15 @@ function chunk_trim.start(opts)
 
     local surfaces = {}
     for _, s in pairs(game.surfaces) do
-        if s.valid then
-            local fn = force_name_for(s.name)
-            if fn and (not opts.team_force or fn == opts.team_force) then
-                surfaces[#surfaces + 1] = s.index
-            end
+        local fn = trimmable_owner(s)
+        if fn and (not opts.team_force or fn == opts.team_force) then
+            surfaces[#surfaces + 1] = s.index
         end
     end
     if #surfaces == 0 then
         return false, 0, opts.team_force
-            and ("No nauvis surface found for " .. opts.team_force .. ".")
-            or "No team nauvis surfaces found."
+            and ("No team surfaces found for " .. opts.team_force .. ".")
+            or "No team surfaces found."
     end
 
     storage.chunk_trim_queue = {
