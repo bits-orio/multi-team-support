@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.43
+Date: 2026-05-28
+  Features:
+    - mts-v1: new register_welcome_tab interface lets a mod add its own tab to the
+      welcome screen, populated via the on_welcome_tab_built event. Registered tabs
+      lead the screen -- before the built-in About / Discord tabs -- so a host
+      scenario can introduce itself first. Mirrors the existing register_team_tab API.
+  Info:
+    - Relicensed from MIT to GPL-3.0-or-later.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.42
 Date: 2026-05-27
   Features:
