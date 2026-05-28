@@ -1,4 +1,44 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.42
+Date: 2026-05-27
+  Features:
+    - Follow Cam: every camera now has a View / Body toggle. "View" (the default) tracks
+      where the player is actually looking — their remote-view camera — which is what you
+      want for remote-play teammates; "Body" tracks their physical character position.
+    - Follow Cam: a camera shows a "Spectating <team>" flag when the followed player is
+      actively spectating another team, since their live view is then on that team's
+      surface rather than their own base. The flag updates live.
+  Changes:
+    - Follow Cam: a camera's team label now always shows the player's real team, even
+      while they are temporarily in spectator mode (it previously read "spectator").
+    - Follow Cam: the map is only charted around a followed player in "Body" mode. "View"
+      mode never reveals fog, so a follower cannot expose the map by riding a panning
+      remote-view camera.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.41
+Date: 2026-05-27
+  Changes:
+    - Renamed the admin flag "Disable Blueprint Imports" to "Allow Blueprint Imports"
+      (enabled = imports allowed), removing the confusing double negative. Existing saves
+      keep their effective setting via an automatic migration.
+    - /mts-trim now trims unused chunks on all of a team's surfaces (every planet), not
+      just Nauvis. Space platforms are skipped, since their foundation is tiles rather
+      than entities. Use "/mts-trim team-N" to limit it to one team across its planets.
+---------------------------------------------------------------------------------------------------
+Version: 0.4.40
+Date: 2026-05-27
+  Features:
+    - Modding API (mts-v1): a consumer mod can take over starter-item delivery via
+      register_starter_item_delivery. While registered, MTS routes admin-configured
+      starter items to that mod (through the new on_starter_items_added event and
+      get_starter_items query) instead of inserting them into player inventories; the
+      override self-clears if the mod is removed.
+    - Modding API (mts-v1): added the on_team_renamed event, raised by /mts-rename.
+  Changes:
+    - With a delivery override active, the spawning player's character is emptied while the
+      admin starter-item list still pre-populates from the map's default loadout, so a
+      character-free mod can route those items elsewhere.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.39
 Date: 2026-05-26
   Features:

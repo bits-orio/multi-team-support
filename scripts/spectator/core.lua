@@ -241,15 +241,21 @@ function M.needs_spectator_mode(viewer_force, target_force)
 end
 
 --- Resolve where to aim a view for a target player.
---- Returns (force, surface, position) — force is always the real team (never "spectator"),
---- surface/position are always the target's physical body, never their camera.
---- Using physical_* unconditionally prevents the follow-cam tick from chart-painting
---- around a target's remote-view camera (which would let any follower expose fog by
---- panning the camera in remote view of their own or a friend's surface).
-function M.resolve_view_for(target)
+--- Returns (force, surface, position) — force is always the real team (never "spectator").
+---   use_physical = true  → the target's physical body (where they actually stand).
+---   use_physical = false → the target's live view (their remote-view camera, or their
+---                          character when not in remote view). This is the default.
+--- IMPORTANT: callers must NOT persistently chart around the live-view position. Doing
+--- so would let a follower expose fog by panning a target's remote camera over their own
+--- or a friend's surface. The follow cam only force.charts in physical mode for this
+--- reason; in live-view mode the camera shows only what the viewer's force already sees.
+function M.resolve_view_for(target, use_physical)
     if not (target and target.valid) then return nil, nil, nil end
     local force = game.forces[M.get_effective_force(target)]
-    return force, target.physical_surface, target.physical_position
+    if use_physical then
+        return force, target.physical_surface, target.physical_position
+    end
+    return force, target.surface, target.position
 end
 
 return M

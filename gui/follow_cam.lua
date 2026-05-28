@@ -24,11 +24,15 @@ end
 local function ensure_state(viewer_index)
     storage.follow_cam = storage.follow_cam or {}
     if not storage.follow_cam[viewer_index] then
-        storage.follow_cam[viewer_index] = {targets = {}, cameras = {}, zoom_levels = {}}
+        storage.follow_cam[viewer_index] =
+            {targets = {}, cameras = {}, zoom_levels = {}, physical = {}}
     end
-    storage.follow_cam[viewer_index].zoom_levels =
-        storage.follow_cam[viewer_index].zoom_levels or {}
-    return storage.follow_cam[viewer_index]
+    local state = storage.follow_cam[viewer_index]
+    state.zoom_levels = state.zoom_levels or {}
+    -- physical[target_idx] = true → track the body; nil/false → track live view
+    -- (the default). See spectator.resolve_view_for.
+    state.physical    = state.physical    or {}
+    return state
 end
 
 -- ─── Public API ───────────────────────────────────────────────────────
@@ -41,9 +45,21 @@ function follow_cam.toggle_target(viewer, target_index)
     if state.targets[target_index] then
         state.targets[target_index]     = nil
         state.zoom_levels[target_index] = nil
+        state.physical[target_index]    = nil
     else
         state.targets[target_index] = true
     end
+    fcf.rebuild_frame(viewer, state)
+end
+
+--- Flip a single camera between tracking the target's live view (default) and
+--- their physical body. Rebuilds so the camera re-aims and the button updates.
+function follow_cam.toggle_view_mode(viewer, target_index)
+    if not (viewer and viewer.valid) then return end
+    local state = storage.follow_cam and storage.follow_cam[viewer.index]
+    if not (state and state.targets[target_index]) then return end
+    state.physical = state.physical or {}
+    state.physical[target_index] = not state.physical[target_index] or nil
     fcf.rebuild_frame(viewer, state)
 end
 
@@ -125,17 +141,24 @@ function follow_cam.tick()
                 if camera.valid then
                     local target = game.get_player(target_idx)
                     if target and target.valid then
-                        local _, surface, position = spectator.resolve_view_for(target)
+                        local phys = state.physical and state.physical[target_idx] or false
+                        local _, surface, position = spectator.resolve_view_for(target, phys)
                         if surface and surface.valid and position then
                             camera.position      = position
                             camera.surface_index = surface.index
-                            if viewer_force and viewer_force.valid then
+                            -- Only chart in physical mode: persistently revealing fog
+                            -- around a pannable live-view camera would be an exploit.
+                            if phys and viewer_force and viewer_force.valid then
                                 viewer_force.chart(surface, {
                                     {position.x - CHART_RADIUS, position.y - CHART_RADIUS},
                                     {position.x + CHART_RADIUS, position.y + CHART_RADIUS},
                                 })
                             end
                         end
+                        -- Keep the "Spectating <team>" flag in sync as the target
+                        -- enters/leaves spectator mode while the cam is open.
+                        local label = state.spectate_labels and state.spectate_labels[target_idx]
+                        if label then fcf.update_spectate_label(label, target) end
                     end
                 end
             end
@@ -193,6 +216,12 @@ function follow_cam.on_gui_click(event)
         return true
     end
 
+    if tags.sb_follow_cam_view_toggle then
+        local player = game.get_player(event.player_index)
+        if player then follow_cam.toggle_view_mode(player, tags.target_idx) end
+        return true
+    end
+
     if tags.sb_follow_cam_spectate then
         local player = game.get_player(event.player_index)
         local target = tags.target_idx and game.get_player(tags.target_idx)
@@ -200,7 +229,10 @@ function follow_cam.on_gui_click(event)
                 and target.connected) then
             return true
         end
-        local target_force, surface, position = spectator.resolve_view_for(target)
+        -- Enter the full view at whatever this camera was showing (live view or body).
+        local st   = storage.follow_cam and storage.follow_cam[event.player_index]
+        local phys = st and st.physical and st.physical[tags.target_idx] or false
+        local target_force, surface, position = spectator.resolve_view_for(target, phys)
         local viewer_force = game.forces[spectator.get_effective_force(player)]
         if not (viewer_force and target_force
                 and surface and surface.valid and position) then
@@ -245,6 +277,8 @@ function follow_cam.on_player_left(player)
     if not storage.follow_cam then return end
     for _, state in pairs(storage.follow_cam) do
         state.targets[player.index] = nil
+        if state.zoom_levels then state.zoom_levels[player.index] = nil end
+        if state.physical    then state.physical[player.index]    = nil end
     end
     follow_cam.rebuild_all()
 end
