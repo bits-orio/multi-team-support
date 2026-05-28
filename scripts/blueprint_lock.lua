@@ -16,7 +16,7 @@
 -- Creating blueprints from world entities uses different actions and is
 -- unaffected.
 --
--- Toggleable at runtime via the admin flag "disable_blueprint_imports".
+-- Toggleable at runtime via the admin flag "allow_blueprint_imports".
 
 local admin_flags = require("scripts.admin_flags")
 
@@ -32,7 +32,7 @@ local BLOCKED_ACTIONS = {
 function M.apply()
     local default = game.permissions.get_group("Default")
     if not default then return end
-    local block = admin_flags.flag("disable_blueprint_imports") and true or false
+    local block = not admin_flags.flag("allow_blueprint_imports")
     for _, action in ipairs(BLOCKED_ACTIONS) do
         default.set_allows_action(action, not block)
     end

@@ -119,7 +119,7 @@ function M.register()
                 end
                 h.refresh_all_gameplay_guis()
             end
-            if changed_flag == "disable_blueprint_imports" then
+            if changed_flag == "allow_blueprint_imports" then
                 blueprint_lock.apply()
             end
             return

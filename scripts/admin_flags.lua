@@ -48,9 +48,9 @@ M.FLAGS = {
         tooltip = "When enabled, animated text popups appear on spawn, team join, milestones, and player death.",
     },
     {
-        key     = "disable_blueprint_imports",
-        label   = "Disable Blueprint Imports",
-        tooltip = "When enabled, blocks importing external blueprints via chat strings, the blueprint library, and the import-string button. In-game blueprint creation (alt-shift-click, copy-paste of placed entities) still works.",
+        key     = "allow_blueprint_imports",
+        label   = "Allow Blueprint Imports",
+        tooltip = "When enabled, players can import external blueprints via chat strings, the blueprint library, and the import-string button. When disabled, those imports are blocked (in-game blueprint creation -- alt-shift-click, copy-paste of placed entities -- still works either way).",
     },
 }
 
@@ -60,7 +60,7 @@ local FLAG_DEFAULTS = {
     friendship_enabled              = true,
     spectate_notifications_enabled  = false,
     popup_text_enabled              = true,
-    disable_blueprint_imports       = true,
+    allow_blueprint_imports         = false,  -- imports blocked by default
 }
 
 M.BUDDY_TEAM_LIMIT_MIN     = 2
@@ -71,6 +71,14 @@ local BUDDY_TEAM_LIMIT_DEFAULT = 2
 
 function M.get_flags()
     storage.admin_flags = storage.admin_flags or {}
+    -- Migrate the old inverted flag: "disable_blueprint_imports" became
+    -- "allow_blueprint_imports" (positive wording), so flip the stored value to
+    -- preserve whatever the admin had set. Idempotent.
+    local f = storage.admin_flags
+    if f.disable_blueprint_imports ~= nil and f.allow_blueprint_imports == nil then
+        f.allow_blueprint_imports = not f.disable_blueprint_imports
+        f.disable_blueprint_imports = nil
+    end
     for k, v in pairs(FLAG_DEFAULTS) do
         if storage.admin_flags[k] == nil then storage.admin_flags[k] = v end
     end
