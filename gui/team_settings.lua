@@ -1,6 +1,6 @@
 -- Multi-Team Support - gui/team_settings.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Per-team settings panel. Everyone on a team can open it; only the team
 -- leader can change values. Any change is broadcast to all players so the

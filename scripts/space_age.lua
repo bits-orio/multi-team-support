@@ -1,6 +1,6 @@
 -- Multi-Team Support - space_age.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Runtime detection for the Space Age DLC and shared helpers for naming
 -- and enumerating planets. Used by both the data stage (prototypes/) and

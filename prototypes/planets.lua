@@ -1,6 +1,6 @@
 -- Multi-Team Support - prototypes/planets.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Data-stage: creates per-team planet variants by deep-copying every base
 -- planet prototype currently in `data.raw.planet`, N times, where

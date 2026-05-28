@@ -1,6 +1,6 @@
 -- Multi-Team Support - helpers.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Shared utility functions used across all modules.
 -- Eliminates duplicated patterns and provides canonical answers to

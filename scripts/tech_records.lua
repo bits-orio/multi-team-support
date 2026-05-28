@@ -1,6 +1,6 @@
 -- Multi-Team Support - tech_records.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Tracks first/fastest research records per technology across all teams.
 -- Announces "first to research" and "new speed record" to all players.

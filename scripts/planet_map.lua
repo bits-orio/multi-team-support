@@ -1,6 +1,6 @@
 -- Multi-Team Support - planet_map.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Runtime mapping between team forces and their Space Age planet variants.
 -- Only meaningful when Space Age is active; otherwise these helpers no-op

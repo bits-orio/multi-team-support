@@ -1,6 +1,6 @@
 -- Multi-Team Support - compat/voidblock.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Support for the VoidBlock mod. Each team spawns on their own copy of
 -- Nauvis with VoidBlock's void-island terrain (small grass island at

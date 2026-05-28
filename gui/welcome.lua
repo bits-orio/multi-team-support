@@ -1,6 +1,6 @@
 -- Multi-Team Support - welcome_gui.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Centered modal welcome screen.
 --   • Auto-opens for brand-new players (online_time == 0 at on_player_created).

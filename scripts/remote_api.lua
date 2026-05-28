@@ -1,6 +1,6 @@
 -- Multi-Team Support - scripts/remote_api.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Public remote interface ("mts-v1") + custom events for third-party mods
 -- that need to integrate with multi-team-support (e.g. chunk-gen mods like

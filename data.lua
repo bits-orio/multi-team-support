@@ -1,6 +1,6 @@
 -- Multi-Team Support - data.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Custom sprites for the welcome GUI.
 -- Pattern follows RedMew (redmew-data): type="sprite", flags={"not-compressed"},

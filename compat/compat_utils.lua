@@ -1,6 +1,6 @@
 -- Multi-Team Support - compat_utils.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Shared utilities for compat modules (vanilla, voidblock).
 -- Extracts common logic: surface naming, teleport queue, display names,

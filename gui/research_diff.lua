@@ -1,6 +1,6 @@
 -- Multi-Team Support - research_diff.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Shared tech helpers and diff-mode renderer extracted from research_gui.lua.
 

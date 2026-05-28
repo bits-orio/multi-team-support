@@ -1,6 +1,6 @@
 -- Multi-Team Support - prototypes/connections.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Data-stage (final-fixes): creates per-team space-connection prototypes
 -- by mirroring the vanilla connection topology for each team slot.

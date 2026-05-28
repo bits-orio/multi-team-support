@@ -1,6 +1,6 @@
 -- Multi-Team Support - scripts/force_pause.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Admin-driven pause/resume of all entities owned by a team force.
 -- Used only by the /mts-pause and /mts-resume commands; there is no

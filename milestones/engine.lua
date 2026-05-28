@@ -1,6 +1,6 @@
 -- Multi-Team Support - milestones/engine.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Generic milestone tracking engine. Polls production counters and
 -- announces first/fastest records when teams cross configured thresholds.

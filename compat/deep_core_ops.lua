@@ -1,6 +1,6 @@
 -- Multi-Team Support - deep_core_ops.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Optional integration with the "Deep_Core_Operations" mod.
 -- DCO gives each force its own space platform and a ship-interior surface.

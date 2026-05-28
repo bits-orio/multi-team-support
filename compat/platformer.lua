@@ -1,6 +1,6 @@
 -- Multi-Team Support - platformer_compat.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Optional integration with the "Platformer" mod.
 -- When Platformer is active every player spawns on their own dedicated

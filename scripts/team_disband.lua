@@ -1,6 +1,6 @@
 -- Multi-Team Support - scripts/team_disband.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Implements the mts-v1 `disband_team` action. It lives in its own module so it
 -- can require both team_slots and landing_pen (which together would form a

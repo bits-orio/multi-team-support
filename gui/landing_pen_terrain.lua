@@ -1,6 +1,6 @@
 -- Multi-Team Support - landing_pen_terrain.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Surface creation and chunk generation for the Landing Pen.
 -- The pen is a circular island with a lab-dark-2 floor, water moat,

@@ -1,6 +1,6 @@
 -- Multi-Team Support - compat/ultracube.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Compatibility with the Ultracube overhaul mod by grandseiken.
 -- https://mods.factorio.com/mod/Ultracube

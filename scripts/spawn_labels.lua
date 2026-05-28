@@ -1,6 +1,6 @@
 -- Multi-Team Support - spawn_labels.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Renders a "<team_tag_with_leader>'s\n<location_name>" label at the spawn
 -- area of every team-owned surface. The render-object id is tracked in

@@ -1,6 +1,6 @@
 -- Multi-Team Support - control.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Bootstrap: initialises storage, wires modules, and delegates all event
 -- registrations to the events/ folder.  Event handlers live there; this

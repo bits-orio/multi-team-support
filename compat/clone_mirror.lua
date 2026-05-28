@@ -1,6 +1,6 @@
 -- Multi-Team Support - compat/clone_mirror.lua
 -- Author: bits-orio
--- License: MIT
+-- License: GPL-3.0-or-later
 --
 -- Generic terrain compatibility for any third-party mod that decorates
 -- the real "nauvis" surface via on_chunk_generated and filters by
