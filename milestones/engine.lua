@@ -27,6 +27,12 @@ local engine = {}
 -- Stored under this key in milestone_records and milestone_reached.
 local FIRST_THRESHOLD = 0
 
+-- Reset on every load (module-local). engine.tick re-discovers once per session if this is
+-- still false, so trackers added to config since the save's last on_init / on_configuration_-
+-- changed are picked up on a plain reload (storage.milestone_items persists, so a new tracker
+-- would otherwise stay invisible until a config change).
+local discovered_this_session = false
+
 -- ─── Storage Initialization ───────────────────────────────────────────
 
 function engine.init_storage()
@@ -57,6 +63,7 @@ function engine.discover_items()
         local items = tracker.discover_items() or {}
         storage.milestone_items[tracker.category] = items
     end
+    discovered_this_session = true
 end
 
 -- ─── Announcement Helpers ─────────────────────────────────────────────
@@ -187,6 +194,11 @@ end
 --- can refresh dependent GUIs without re-polling storage).
 function engine.tick()
     engine.init_storage()
+    -- Self-heal discovery after a plain reload (on_init / on_configuration_changed didn't run),
+    -- so trackers added to config.lua since this save's last config change start tracking.
+    if not discovered_this_session then
+        engine.discover_items()
+    end
 
     local changed = false
     for _, tracker in ipairs(config.trackers) do

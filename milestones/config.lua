@@ -30,6 +30,18 @@ local function total_produced(force, item_name)
     return total
 end
 
+-- Same, for fluids (e.g. crude oil), which use a separate statistics object in 2.0.
+local function total_produced_fluid(force, fluid_name)
+    local total = 0
+    for _, surface in pairs(game.surfaces) do
+        local stats = force.get_fluid_production_statistics(surface)
+        if stats then
+            total = total + (stats.get_input_count(fluid_name) or 0)
+        end
+    end
+    return total
+end
+
 config.trackers = {
     -- ═══ Science Packs ═══════════════════════════════════════════════════
     -- Auto-detects all "tool" type items at runtime (works with any mod combo).
@@ -37,7 +49,7 @@ config.trackers = {
     {
         category       = "science",
         announce_first = true,
-        thresholds     = { 100, 500, 1000, 5000, 20000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
         discover_items = function()
             local items = {}
             for name, proto in pairs(prototypes.item) do
@@ -53,7 +65,7 @@ config.trackers = {
     {
         category       = "landfill",
         announce_first = false,
-        thresholds     = { 100, 500, 2000, 10000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
         discover_items = function() return { ["landfill"] = true } end,
         get_count      = total_produced,
     },
@@ -63,7 +75,7 @@ config.trackers = {
     {
         category       = "space_platform",
         announce_first = false,
-        thresholds     = { 50, 200, 1000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
         discover_items = function()
             if prototypes.item["space-platform-foundation"] then
                 return { ["space-platform-foundation"] = true }
@@ -71,6 +83,38 @@ config.trackers = {
             return {}
         end,
         get_count = total_produced,
+    },
+
+    -- ═══ Raw resources ══════════════════════════════════════════════════
+    -- Mined ores and pumped crude oil, like landfill. Crude oil is a fluid, so it
+    -- reads from the fluid production statistics instead of the item statistics.
+    {
+        category       = "iron-ore",
+        announce_first = false,
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        discover_items = function() return { ["iron-ore"] = true } end,
+        get_count      = total_produced,
+    },
+    {
+        category       = "copper-ore",
+        announce_first = false,
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        discover_items = function() return { ["copper-ore"] = true } end,
+        get_count      = total_produced,
+    },
+    {
+        category       = "uranium-ore",
+        announce_first = false,
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        discover_items = function() return { ["uranium-ore"] = true } end,
+        get_count      = total_produced,
+    },
+    {
+        category       = "crude-oil",
+        announce_first = false,
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        discover_items = function() return { ["crude-oil"] = true } end,
+        get_count      = total_produced_fluid,
     },
 }
 

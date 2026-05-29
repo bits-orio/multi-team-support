@@ -222,6 +222,9 @@ function helpers.item_rich_name(item_name)
     if prototypes and prototypes.item and prototypes.item[item_name] then
         return "[item=" .. item_name .. "]"
     end
+    if prototypes and prototypes.fluid and prototypes.fluid[item_name] then
+        return "[fluid=" .. item_name .. "]"
+    end
     return item_name
 end
 

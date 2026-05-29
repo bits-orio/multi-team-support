@@ -188,8 +188,11 @@ local function resolve_row_proto(row)
         return proto, "technology/" .. row.name, proto.localised_name
     else
         local proto = prototypes.item and prototypes.item[row.name]
-        if not proto then return nil end
-        return proto, "item/" .. row.name, proto.localised_name
+        if proto then return proto, "item/" .. row.name, proto.localised_name end
+        -- Fluids (e.g. crude oil) live in a separate prototype table and use a fluid sprite.
+        local fluid = prototypes.fluid and prototypes.fluid[row.name]
+        if fluid then return fluid, "fluid/" .. row.name, fluid.localised_name end
+        return nil
     end
 end
 
@@ -554,7 +557,8 @@ function awards_gui.on_gui_click(event)
     end
 
     if el.tags and el.tags.sb_awards_open_item then
-        local proto = prototypes.item and prototypes.item[el.tags.sb_awards_open_item]
+        local proto = (prototypes.item and prototypes.item[el.tags.sb_awards_open_item])
+            or (prototypes.fluid and prototypes.fluid[el.tags.sb_awards_open_item])
         if proto then player.open_factoriopedia_gui(proto) end
         return true
     end
