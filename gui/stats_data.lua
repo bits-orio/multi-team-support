@@ -219,6 +219,9 @@ local function build_proto_cache()
             end
         end
     end
+    -- Wood comes from trees, not a mined resource, but players expect to see it next to
+    -- ores -- surface it in the Ores category. is_visible_item drops it if it doesn't exist.
+    ore_set["wood"] = true
     for _, entity in pairs(prototypes.entity) do
         if entity.type == "lab" then
             for _, input in pairs(entity.lab_inputs or {}) do
