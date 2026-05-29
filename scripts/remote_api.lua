@@ -31,6 +31,7 @@
 local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
 local team_clock    = require("scripts.team_clock")
+local spawn_labels  = require("scripts.spawn_labels")
 
 local remote_api = {}
 
@@ -692,6 +693,22 @@ function remote_api.register()
         list_team_surfaces = list_team_surfaces_impl,
         get_starter_items  = get_starter_items_impl,
 
+        -- MTS-styled team label: the team's coloured tag plus its current leader in
+        -- brackets (rich text, e.g. "[color]Team Pioneers[/color] [Alice]"). Lets a
+        -- consumer draw a label consistent with MTS's colour/leader convention. Reflects
+        -- live state, so re-fetch to pick up leader/rename/colour changes.
+        get_team_label = function(force_name)
+            if type(force_name) ~= "string" then return nil end
+            return helpers.team_tag_with_leader(force_name)
+        end,
+
+        -- Suppress (or restore) MTS's default spawn label on a surface a consumer mod
+        -- labels itself (e.g. Expanse draws a combined overlay on each cell world).
+        -- enabled=false removes the MTS label and stops it being redrawn; =true restores it.
+        set_spawn_label_enabled = function(surface_name, enabled)
+            spawn_labels.set_enabled(surface_name, enabled and true or false)
+        end,
+
         -- Take over starter-item delivery (see on_starter_items_added). Pass your
         -- mod name so the override self-clears if your mod is removed.
         register_starter_item_delivery =
@@ -703,6 +720,19 @@ function remote_api.register()
         -- Welcome-screen tab registration (see on_welcome_tab_built event).
         -- Registered tabs lead the welcome screen, before MTS's About/Discord.
         register_welcome_tab = function(spec) remote_api.register_welcome_tab(spec) end,
+
+        -- Consumer-defined milestones. register_milestone({category, verb, noun,
+        -- first_threshold, thresholds}) once (in on_init), then report_milestone(
+        -- force_name, category, count) as a team's counter advances; MTS announces
+        -- first/fastest via the same records + broadcast + Discord path as its built-in
+        -- milestones. Impls live in milestones/engine.lua (injected, to avoid a
+        -- circular require). No-op until the engine has injected them.
+        register_milestone = function(spec)
+            if remote_api.register_milestone_impl then remote_api.register_milestone_impl(spec) end
+        end,
+        report_milestone = function(force_name, category, count)
+            if remote_api.report_milestone_impl then remote_api.report_milestone_impl(force_name, category, count) end
+        end,
 
         -- Space platform hub widget registration (see on_platform_hub_gui_built).
         register_platform_hub_widget =

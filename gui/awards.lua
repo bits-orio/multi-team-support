@@ -105,10 +105,22 @@ local function build_milestone_rows(want_science)
                 local is_science = SCIENCE_CATEGORIES[category] == true
                 if is_science == want_science then
                     local group_key = category .. ":" .. item_name
-                    groups[group_key] = groups[group_key] or {
-                        item_name = item_name,
-                        entries   = {},
-                    }
+                    if not groups[group_key] then
+                        -- External (consumer-reported) milestones key as
+                        -- "ext:<registry-category>@N" and have no item prototype;
+                        -- show the registered noun (e.g. "Expanse cell") instead of
+                        -- the raw registry key.
+                        local display = item_name
+                        if category == "ext" then
+                            local spec = (storage.milestone_external or {})[item_name]
+                            if spec and spec.noun then display = spec.noun end
+                        end
+                        groups[group_key] = {
+                            item_name = item_name,
+                            display   = display,
+                            entries   = {},
+                        }
+                    end
                     groups[group_key].entries[#groups[group_key].entries + 1] = {
                         threshold = tonumber(threshold_str),
                         record    = rec,
@@ -135,10 +147,11 @@ local function build_milestone_rows(want_science)
         table.sort(grp.entries, function(a, b) return a.threshold < b.threshold end)
         for _, e in ipairs(grp.entries) do
             rows[#rows + 1] = {
-                kind   = "item",
-                name   = grp.item_name,
-                prefix = milestone_prefix(e.threshold),
-                record = e.record,
+                kind    = "item",
+                name    = grp.item_name,
+                display = grp.display,
+                prefix  = milestone_prefix(e.threshold),
+                record  = e.record,
             }
         end
     end
@@ -260,8 +273,9 @@ local function render_rows(parent, rows, query, sort_field)
             btn.style.size    = ICON_BUTTON_SIZE
             btn.style.padding = 0
         else
-            -- Prototype gone (mod removed): show plain text so the record is still listed.
-            cell1.add{type = "label", caption = row.name}
+            -- No prototype (external milestone, or a modded item removed mid-game):
+            -- show plain text so the record is still listed.
+            cell1.add{type = "label", caption = row.display or row.name}
         end
 
         if row.prefix then

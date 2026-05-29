@@ -16,6 +16,29 @@ local spawn_labels = {}
 
 function spawn_labels.init_storage()
     storage.spawn_labels = storage.spawn_labels or {}
+    storage.spawn_labels_disabled = storage.spawn_labels_disabled or {}
+end
+
+--- Opt a surface out of (or back into) the default spawn label. A consumer mod
+--- that renders its own richer label on a surface it owns (e.g. Expanse, which
+--- draws a combined team/cells/invasion overlay on each cell world) calls this to
+--- suppress the duplicate. Keyed by surface NAME (stable across the game) so a
+--- reused surface index can't carry a stale flag. Destroys any label already drawn.
+function spawn_labels.set_enabled(surface_name, enabled)
+    if type(surface_name) ~= "string" then return end
+    storage.spawn_labels_disabled = storage.spawn_labels_disabled or {}
+    storage.spawn_labels_disabled[surface_name] = (not enabled) or nil
+    if enabled then return end
+    local surface = game.surfaces[surface_name]
+    if not (surface and surface.valid) then return end
+    for _, labels in pairs(storage.spawn_labels or {}) do
+        local id = labels[surface.index]
+        if id then
+            local obj = rendering.get_object_by_id(id)
+            if obj and obj.valid then obj.destroy() end
+            labels[surface.index] = nil
+        end
+    end
 end
 
 --- Display name for the second label line. Space platforms use the
@@ -43,6 +66,7 @@ end
 function spawn_labels.draw(force_name, surface, opts)
     opts = opts or {}
     if not (surface and surface.valid) then return end
+    if (storage.spawn_labels_disabled or {})[surface.name] then return end
     local force = game.forces[force_name]
     if not (force and force.valid) then return end
 

@@ -33,6 +33,7 @@ function engine.init_storage()
     storage.milestone_records  = storage.milestone_records  or {}
     storage.milestone_reached  = storage.milestone_reached  or {}
     storage.milestone_items    = storage.milestone_items    or {}
+    storage.milestone_external = storage.milestone_external or {}
 end
 
 --- Build a short two-line popup string for the milestone overlay.
@@ -202,5 +203,102 @@ function engine.tick()
     end
     return changed
 end
+
+-- ─── External (consumer-reported) milestones ──────────────────────────
+-- A mod reports a per-team counter (e.g. Expanse cells unlocked) via
+-- remote.call("mts-v1","report_milestone",...); we announce first/fastest using the same
+-- records + broadcast + Discord machinery as the built-in trackers. The registry is
+-- persisted; reporting is event-driven (no polling). remote_api requires this module, not
+-- the reverse, so the interface entries are injected at the bottom.
+
+local function build_external_achievement(spec, threshold, first_only)
+    local verb = spec.verb or "reach"
+    if first_only then
+        return verb .. " their first " .. spec.noun
+    end
+    return string.format("%s %d %s", verb, threshold, spec.noun .. "s")
+end
+
+-- first_only: announce first-to-reach only (no speed record). Used for the smallest
+-- threshold, where a "fastest" race isn't wanted (e.g. the very first unlock).
+local function check_external(spec, force, threshold, first_only)
+    local key = "ext:" .. spec.category
+    storage.milestone_reached[force.name] = storage.milestone_reached[force.name] or {}
+    storage.milestone_reached[force.name][key] = storage.milestone_reached[force.name][key] or {}
+    if storage.milestone_reached[force.name][key][threshold] then return end
+    storage.milestone_reached[force.name][key][threshold] = true
+
+    local record_key   = key .. "@" .. threshold
+    local result       = records.update(storage.milestone_records, record_key, force.name, game.tick)
+    local team_tag     = helpers.team_tag(force.name)
+    local team_name    = (storage.team_names or {})[force.name] or force.name
+    local achievement  = build_external_achievement(spec, threshold, first_only)
+    local popup_detail = first_only and spec.noun or (threshold .. " " .. spec.noun .. "s")
+
+    if result.is_first then
+        announce_first(team_tag, achievement)
+        pop_text.milestone(force, "First!\n" .. popup_detail)
+        remote_api.emit_to_bridge("mts.milestone_first", {
+            team        = team_name,
+            achievement = achievement,
+            text        = string.format("%s was the first to %s", team_name, achievement),
+        })
+    elseif not first_only and result.is_fastest then
+        local prev      = result.previous_fastest
+        local new_entry = storage.milestone_records[record_key].fastest
+        announce_speed_record(team_tag, achievement, new_entry.elapsed,
+            helpers.team_tag(prev.team), prev.elapsed)
+        pop_text.milestone(force, "New record!\n" .. popup_detail)
+        local prev_team = (storage.team_names or {})[prev.team] or prev.team
+        remote_api.emit_to_bridge("mts.milestone_record", {
+            team             = team_name,
+            achievement      = achievement,
+            elapsed          = new_entry.elapsed,
+            previous_team    = prev_team,
+            previous_elapsed = prev.elapsed,
+            text             = string.format(
+                "%s is now fastest to %s in %s (previous: %s in %s)",
+                team_name, achievement, helpers.format_elapsed(new_entry.elapsed),
+                prev_team, helpers.format_elapsed(prev.elapsed)),
+        })
+    end
+end
+
+--- Register a consumer milestone. spec = { category, verb, noun, first_threshold, thresholds }.
+--- first_threshold (optional) gets a first-to-reach announcement only; each entry in
+--- thresholds gets both first AND fastest.
+function engine.register_external(spec)
+    if type(spec) ~= "table" or type(spec.category) ~= "string" then return end
+    engine.init_storage()
+    storage.milestone_external[spec.category] = {
+        category        = spec.category,
+        verb            = spec.verb or "reach",
+        noun            = spec.noun or spec.category,
+        first_threshold = type(spec.first_threshold) == "number" and spec.first_threshold or nil,
+        thresholds      = spec.thresholds or {},
+    }
+end
+
+--- Report a team's current value for a registered consumer milestone.
+function engine.report_external(force_name, category, count)
+    if type(count) ~= "number" then return end
+    engine.init_storage()
+    local spec = storage.milestone_external[category]
+    if not spec then return end
+    local force = game.forces[force_name]
+    if not (force and force.valid and force_utils.is_team_force(force.name)) then return end
+
+    if spec.first_threshold and count >= spec.first_threshold then
+        check_external(spec, force, spec.first_threshold, true)
+    end
+    for _, threshold in ipairs(spec.thresholds) do
+        if count >= threshold then
+            check_external(spec, force, threshold, false)
+        end
+    end
+end
+
+remote_api.register_milestone_impl = engine.register_external
+remote_api.report_milestone_impl   = engine.report_external
 
 return engine
