@@ -1,4 +1,22 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.44
+Date: 2026-05-29
+  Features:
+    - Team Awards: new first/fastest awards for raw resources -- iron ore, copper ore,
+      uranium ore, and crude oil. Crude oil reads from the fluid production statistics and
+      shows with its fluid icon, and wood now appears alongside the ores too.
+    - mts-v1: register_milestone / report_milestone let a downstream mod define its own
+      first/fastest milestones, announced through the same records, broadcast, and Discord
+      bridge path as the built-in ones and shown in the Team Awards window.
+    - mts-v1: get_team_label returns the coloured team tag with its current leader, and
+      set_spawn_label_enabled lets a mod suppress MTS's own spawn label on a surface it
+      labels itself.
+  Changes:
+    - Team Awards shows consumer-reported milestones by their registered name, and renders
+      fluids (e.g. crude oil) with their fluid icon.
+    - Milestone discovery self-heals on load, so awards added to the config start tracking
+      after a simple reload instead of needing a new game or a mod-configuration change.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.43
 Date: 2026-05-28
   Features:
