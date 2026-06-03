@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.45
+
+- Fix spurious Discord bridge "left team" / "joined team" messages during
+  spectate-surface hops. MTS temporarily moves the player to the spectator
+  force when they spectate another surface, triggering false bridge messages.
+  The fix detects the hop via `storage.spectator_real_force` (set before the
+  force change, cleared after restore) and skips bridge emission for those
+  transitions. The mts-v1 script events still fire for downstream mods.
+
 ## 0.3.7
 
 - Fix trigger-technology progress (e.g. "craft 50 iron plates toward
