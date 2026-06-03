@@ -471,6 +471,15 @@ function remote_api.on_player_changed_force(event)
     if old_team then remote_api.raise_player_left_team(event.player_index, old_name) end
     if new_team then remote_api.raise_player_joined_team(event.player_index, new_name) end
 
+    -- Suppress bridge messages when the player is temporarily on the spectator force due to
+    -- the spectate-another-surface feature. spectator_real_force is set before the force
+    -- change and cleared after restore, so its presence here reliably identifies a
+    -- spectate hop vs. a real landing-pen join/leave.
+    local sf = storage.spectator_real_force
+    local is_spectator_hop = sf and sf[event.player_index] ~= nil
+        and (new_name == "spectator" or old_name == "spectator")
+    if is_spectator_hop then return end
+
     -- Bridge presentation: one deduped sentence per force change.
     local who = player and player.name or ("player " .. event.player_index)
     if old_team and new_team then
