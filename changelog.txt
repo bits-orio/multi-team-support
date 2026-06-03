@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.45
+Date: 2026-06-03
+  Bugfixes:
+    - Fix spurious Discord bridge "left team" / "joined team" messages firing during
+      spectate-surface hops. MTS temporarily moves the player to the spectator force
+      when spectating another surface; bridge emission is now suppressed for those
+      transitions while mts-v1 script events still fire for downstream mods.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.44
 Date: 2026-05-29
   Features:
