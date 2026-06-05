@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.46
+Date: 2026-06-05
+  Features:
+    - Staged Start (Speedrun) admin flag: when enabled, newly spawned team leaders are placed
+      in a locked-down permission group and shown a "Start Playing" modal; their team clock
+      and personal clock are deferred until they click it. Buddy-join members who arrive
+      before the leader starts see a "waiting for leader" variant and are released
+      automatically when the leader clicks Start.
+    - Opt-in recruiting system: teams are hidden from the landing-pen join list by default.
+      Leaders enable recruiting from Team Settings, which broadcasts availability to the
+      server and shows the team to pen players. Recruiting auto-clears when the team hits
+      the size limit. New and returning pen players receive a broadcast listing open teams.
+  Changes:
+    - Discord bridge: suppress the vanilla rocket_launched event when MTS is loaded; emit
+      mts.rocket_launched instead, carrying the team name and per-team flight count.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.45
 Date: 2026-06-03
   Bugfixes:
