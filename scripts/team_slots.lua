@@ -134,7 +134,10 @@ end
 
 -- ─── Claim ────────────────────────────────────────────────────────────
 
-function M.claim_team_slot(player)
+-- opts.skip_clock = true defers team_clock_start + team_clock.on_claim until
+-- the leader clicks "Start Playing" (used by the staged-start feature).
+function M.claim_team_slot(player, opts)
+    opts = opts or {}
     storage.team_pool = storage.team_pool or {}
     local slot = nil
     for i = 1, max_teams() do
@@ -158,13 +161,15 @@ function M.claim_team_slot(player)
     storage.team_leader[force_name] = player.index
     storage.team_pool[slot] = "occupied"
 
-    storage.team_clock_start = storage.team_clock_start or {}
-    if not storage.team_clock_start[force_name] then
-        storage.team_clock_start[force_name] = game.tick
-        log("[multi-team-support] team clock started for " .. force_name
-            .. " at tick " .. game.tick)
+    if not opts.skip_clock then
+        storage.team_clock_start = storage.team_clock_start or {}
+        if not storage.team_clock_start[force_name] then
+            storage.team_clock_start[force_name] = game.tick
+            log("[multi-team-support] team clock started for " .. force_name
+                .. " at tick " .. game.tick)
+        end
+        team_clock.on_claim(force_name)
     end
-    team_clock.on_claim(force_name)
 
     planet_map.apply_force_locks(force)
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
@@ -198,6 +203,8 @@ function M.wipe_slot_state(force_name)
     storage.team_looking_for_more[force_name] = nil
     storage.lfm_ever_recruited = storage.lfm_ever_recruited or {}
     storage.lfm_ever_recruited[force_name] = nil
+    storage.pre_start_pending = storage.pre_start_pending or {}
+    storage.pre_start_pending[force_name] = nil
 
     -- Must run BEFORE reset_force_state: break_pair checks engine friendship
     -- flags that force.reset() would wipe silently.
@@ -300,6 +307,14 @@ function M.remove_from_team(player)
     local is_leader = (storage.team_leader[old_force_name] == player.index)
     local cn_player = helpers.colored_name(player.name, player.chat_color)
     local team_tag  = helpers.team_tag_with_leader(old_force_name)
+
+    -- If the team was in pre-start staging, restore the leaving player's permissions
+    -- before changing their force (release_team_slot clears pre_start_pending via
+    -- wipe_slot_state, so check it now while the flag is still set).
+    if (storage.pre_start_pending or {})[old_force_name] then
+        local default = game.permissions.get_group("Default")
+        if default then default.add_player(player) end
+    end
 
     if member_count <= 1 then
         local deleted  = M.cleanup_force_surfaces(old_force_name)

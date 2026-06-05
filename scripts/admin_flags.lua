@@ -52,6 +52,11 @@ M.FLAGS = {
         label   = "Allow Blueprint Imports",
         tooltip = "When enabled, players can import external blueprints via chat strings, the blueprint library, and the import-string button. When disabled, those imports are blocked (in-game blueprint creation -- alt-shift-click, copy-paste of placed entities -- still works either way).",
     },
+    {
+        key     = "staged_start_enabled",
+        label   = "Staged Start (Speedrun)",
+        tooltip = "When enabled, a new team's clock does not start until the leader clicks \"Start Playing\". The team is locked out of all game actions until then, but can browse the map. Designed for speedrun servers.",
+    },
 }
 
 local FLAG_DEFAULTS = {
@@ -61,6 +66,7 @@ local FLAG_DEFAULTS = {
     spectate_notifications_enabled  = false,
     popup_text_enabled              = true,
     allow_blueprint_imports         = false,  -- imports blocked by default
+    staged_start_enabled            = false,  -- opt-in; intended for speedrun servers
 }
 
 M.BUDDY_TEAM_LIMIT_MIN     = 2

@@ -1,16 +1,17 @@
 -- events/player_lifecycle.lua
 -- on_player_created, on_player_joined_game, on_player_left_game
 
-local h            = require("events.helpers")
-local helpers      = require("scripts.helpers")
-local admin_gui    = require("gui.admin")
-local landing_pen  = require("gui.landing_pen")
-local spectator    = require("scripts.spectator")
-local force_utils  = require("scripts.force_utils")
-local follow_cam   = require("gui.follow_cam")
-local teams_gui    = require("gui.teams")
-local remote_api   = require("scripts.remote_api")
-local team_clock   = require("scripts.team_clock")
+local h                 = require("events.helpers")
+local helpers           = require("scripts.helpers")
+local admin_gui         = require("gui.admin")
+local landing_pen       = require("gui.landing_pen")
+local spectator         = require("scripts.spectator")
+local force_utils       = require("scripts.force_utils")
+local follow_cam        = require("gui.follow_cam")
+local teams_gui         = require("gui.teams")
+local remote_api        = require("scripts.remote_api")
+local team_clock        = require("scripts.team_clock")
+local start_playing_gui = require("gui.start_playing_gui")
 
 local M = {}
 
@@ -57,6 +58,8 @@ function M.register()
             landing_pen.place_player(player)
         end
         if player then h.register_nav_buttons(player) end
+        -- Rebuild the Start Playing frame for players reconnecting during pre-start.
+        if player then start_playing_gui.rebuild_if_pending(player) end
         storage.pending_admin_check = storage.pending_admin_check or {}
         storage.pending_admin_check[event.player_index] = game.tick + 30
         h.rebuild_for_connectivity(nil)

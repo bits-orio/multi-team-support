@@ -1,13 +1,15 @@
 -- gui/buddy_requests.lua
 -- Buddy request operations: send, accept, cancel, reject, rebuild.
 
-local admin_gui        = require("gui.admin")
-local helpers          = require("scripts.helpers")
-local ultracube_compat = require("compat.ultracube")
-local force_utils      = require("scripts.force_utils")
-local pen_gui          = require("gui.pen_gui")
-local pen_ops          = require("gui.pen_ops")
-local team_clock       = require("scripts.team_clock")
+local admin_gui         = require("gui.admin")
+local helpers           = require("scripts.helpers")
+local ultracube_compat  = require("compat.ultracube")
+local force_utils       = require("scripts.force_utils")
+local pen_gui           = require("gui.pen_gui")
+local pen_ops           = require("gui.pen_ops")
+local team_clock        = require("scripts.team_clock")
+local pre_start         = require("scripts.pre_start")
+local start_playing_gui = require("gui.start_playing_gui")
 
 local M = {}
 
@@ -134,6 +136,12 @@ function M.accept_buddy_request(target, requester_index)
     team_clock.refresh(prev_force_name)
     team_clock.refresh(target.force.name)
 
+    -- If the team is still in pre-start staging, lock the new member down too.
+    if pre_start.is_pending(target.force.name) then
+        pre_start.enter_member(requester)
+        if requester.connected then start_playing_gui.show(requester) end
+    end
+
     -- Auto-clear recruiting flag when the team is now full.
     -- Returns the force name to the caller so it can refresh team settings.
     local lfm_cleared_force = nil
@@ -146,8 +154,12 @@ function M.accept_buddy_request(target, requester_index)
             lfm_cleared_force = target.force.name
         end
     end
-    local default_group = game.permissions.get_group("Default")
-    if default_group then default_group.add_player(requester) end
+    -- Only restore Default if the team isn't in staging; pre_start.enter_member
+    -- already assigned the restricted group and must not be overwritten.
+    if not pre_start.is_pending(target.force.name) then
+        local default_group = game.permissions.get_group("Default")
+        if default_group then default_group.add_player(requester) end
+    end
     pen_ops.finish_spawn(requester)
     storage.pending_spawn_pop = storage.pending_spawn_pop or {}
     storage.pending_spawn_pop[requester.index] = requester.force.name
