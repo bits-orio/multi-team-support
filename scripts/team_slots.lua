@@ -98,10 +98,11 @@ end
 
 function M.create_team_pool()
     local max = max_teams()
-    storage.team_pool        = {}
-    storage.team_names       = {}
-    storage.team_leader      = {}
-    storage.team_clock_start = {}
+    storage.team_pool              = {}
+    storage.team_names             = {}
+    storage.team_leader            = {}
+    storage.team_clock_start       = {}
+    storage.team_looking_for_more  = {}
 
     for i = 1, max do
         local force_name = "team-" .. i
@@ -192,6 +193,11 @@ function M.wipe_slot_state(force_name)
     if storage.left_teams then
         for _, teams in pairs(storage.left_teams) do teams[force_name] = nil end
     end
+
+    storage.team_looking_for_more = storage.team_looking_for_more or {}
+    storage.team_looking_for_more[force_name] = nil
+    storage.lfm_ever_recruited = storage.lfm_ever_recruited or {}
+    storage.lfm_ever_recruited[force_name] = nil
 
     -- Must run BEFORE reset_force_state: break_pair checks engine friendship
     -- flags that force.reset() would wipe silently.

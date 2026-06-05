@@ -16,6 +16,8 @@ local teams_gui   = require("gui.teams")
 local awards_gui  = require("gui.awards")
 local spawn_labels = require("scripts.spawn_labels")
 local remote_api  = require("scripts.remote_api")
+local pen_gui     = require("gui.pen_gui")
+local lfm_hint    = require("gui.lfm_hint")
 
 local team_settings = {}
 
@@ -112,6 +114,46 @@ local function build_team_tab(content, force_name, leader, team_tag)
         tooltip = "Rename the team (leader only, max " .. MAX_TEAM_NAME_LEN .. " chars)",
     }
     save_btn.enabled = leader
+
+    -- ─── Recruiting row ──────────────────────────────────────────────────
+    content.add{type = "line"}
+
+    local recruit_header = content.add{type = "label", caption = "Recruiting"}
+    recruit_header.style.font = "default-bold"
+
+    local is_lfm      = (storage.team_looking_for_more or {})[force_name] == true
+    local ever_recruited = (storage.lfm_ever_recruited or {})[force_name]
+
+    -- Callout banner: show to the leader until they have enabled recruiting at least once.
+    if leader and not is_lfm and not ever_recruited then
+        local hint = content.add{type = "label"}
+        hint.caption = "[img=utility/warning_icon]  [color=1,0.85,0.2]New players can't find your team yet!\nClick \"Start recruiting\" below to appear in the landing pen.[/color]"
+        hint.style.single_line   = false
+        hint.style.maximal_width = 300
+        hint.style.top_margin    = 2
+        hint.style.bottom_margin = 2
+    end
+
+    local lfm_status = content.add{type = "label"}
+    lfm_status.style.single_line   = false
+    lfm_status.style.maximal_width = 320
+    if is_lfm then
+        lfm_status.caption = "[color=0,1,0]Your team is visible to new players in the landing pen.[/color]"
+    else
+        lfm_status.caption = "[color=0.7,0.7,0.7]Your team is hidden from the landing pen join list.[/color]"
+    end
+
+    local lfm_btn = content.add{
+        type    = "button",
+        name    = "sb_team_settings_lfm_toggle",
+        caption = is_lfm and "Stop recruiting" or "Start recruiting",
+        style   = is_lfm and "red_button" or "confirm_button",
+        tooltip = is_lfm
+            and "Stop recruiting — your team will no longer appear in the landing pen."
+            or  "Start recruiting — your team will appear in the landing pen join list.",
+        enabled = leader,
+    }
+    lfm_btn.style.top_margin = 2
 end
 
 --- Build (or rebuild) the team settings panel for one player. The panel is a
@@ -270,6 +312,7 @@ local function try_rename(player, raw_text)
     -- Teams panel caches team names, so refresh any open copies.
     teams_gui.update_all()
     awards_gui.update_all()
+    pen_gui.update_pen_gui_all()
 end
 
 --- Handle GUI clicks. Returns true if consumed.
@@ -291,6 +334,28 @@ function team_settings.on_gui_click(event)
         if field and field.valid then
             try_rename(player, field.text)
         end
+        return true
+    end
+
+    if el.name == "sb_team_settings_lfm_toggle" then
+        local player = game.get_player(event.player_index)
+        if not (player and is_on_team(player) and is_leader(player)) then return true end
+        local force_name = player.force.name
+        storage.team_looking_for_more = storage.team_looking_for_more or {}
+        local now_lfm = not storage.team_looking_for_more[force_name]
+        storage.team_looking_for_more[force_name] = now_lfm or nil
+        if now_lfm then
+            storage.lfm_ever_recruited = storage.lfm_ever_recruited or {}
+            storage.lfm_ever_recruited[force_name] = true
+            lfm_hint.close(player)
+            helpers.broadcast("[Team] " .. helpers.team_tag(force_name)
+                .. " is looking for more players!")
+        else
+            helpers.broadcast("[Team] " .. helpers.team_tag(force_name)
+                .. " is no longer recruiting.")
+        end
+        team_settings.update_all_for_force(force_name)
+        pen_gui.update_pen_gui_all()
         return true
     end
 

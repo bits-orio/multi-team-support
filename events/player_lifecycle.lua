@@ -71,6 +71,22 @@ function M.register()
                     msg = msg .. " Join our Discord for reset notifications: " .. discord_url
                 end
                 helpers.broadcast(msg)
+                -- Announce any teams currently recruiting so new players know where to look.
+                if admin_gui.flag("buddy_join_enabled") and admin_gui.flag("landing_pen_enabled") then
+                    storage.team_looking_for_more = storage.team_looking_for_more or {}
+                    local lfm_tags = {}
+                    for i = 1, force_utils.max_teams() do
+                        local fn = "team-" .. i
+                        if (storage.team_pool or {})[i] == "occupied"
+                           and storage.team_looking_for_more[fn] then
+                            lfm_tags[#lfm_tags + 1] = helpers.team_tag(fn)
+                        end
+                    end
+                    if #lfm_tags > 0 then
+                        helpers.broadcast("Teams looking for more players: "
+                            .. table.concat(lfm_tags, ", ") .. ".")
+                    end
+                end
             else
                 local msg
                 if force_utils.is_team_force(player.force.name) then
@@ -79,6 +95,24 @@ function M.register()
                     msg = "Welcome back " .. player.name .. "!"
                 end
                 helpers.broadcast(msg)
+                -- If the returning player lands in the pen, tell them which teams are recruiting.
+                if landing_pen.is_in_pen(player)
+                   and admin_gui.flag("buddy_join_enabled")
+                   and admin_gui.flag("landing_pen_enabled") then
+                    storage.team_looking_for_more = storage.team_looking_for_more or {}
+                    local lfm_tags = {}
+                    for i = 1, force_utils.max_teams() do
+                        local fn = "team-" .. i
+                        if (storage.team_pool or {})[i] == "occupied"
+                           and storage.team_looking_for_more[fn] then
+                            lfm_tags[#lfm_tags + 1] = helpers.team_tag(fn)
+                        end
+                    end
+                    if #lfm_tags > 0 then
+                        helpers.broadcast("Teams looking for more players: "
+                            .. table.concat(lfm_tags, ", ") .. ".")
+                    end
+                end
             end
 
             -- Team-aware connect announcement to the Open Discord Bridge (replaces the

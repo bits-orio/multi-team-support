@@ -133,6 +133,19 @@ function M.accept_buddy_request(target, requester_index)
     -- Settle online clocks for the team the requester left and the one joined.
     team_clock.refresh(prev_force_name)
     team_clock.refresh(target.force.name)
+
+    -- Auto-clear recruiting flag when the team is now full.
+    -- Returns the force name to the caller so it can refresh team settings.
+    local lfm_cleared_force = nil
+    if not M.team_has_room(target) then
+        storage.team_looking_for_more = storage.team_looking_for_more or {}
+        if storage.team_looking_for_more[target.force.name] then
+            storage.team_looking_for_more[target.force.name] = nil
+            helpers.broadcast("[Team] " .. helpers.team_tag(target.force.name)
+                .. " is no longer recruiting (team is now full).")
+            lfm_cleared_force = target.force.name
+        end
+    end
     local default_group = game.permissions.get_group("Default")
     if default_group then default_group.add_player(requester) end
     pen_ops.finish_spawn(requester)
@@ -157,6 +170,7 @@ function M.accept_buddy_request(target, requester_index)
         requester.print("You joined " .. helpers.colored_name(target.name, target.chat_color)
             .. "'s team." .. ft)
     end
+    return lfm_cleared_force
 end
 
 function M.cancel_buddy_request(requester)

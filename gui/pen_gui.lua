@@ -12,14 +12,16 @@ local M = {}
 
 -- ─── Join Team Section ─────────────────────────────────────────────────
 
---- "Request to join" row per occupied team with an online leader.
+--- "Request to join" row per occupied team that is actively recruiting.
 local function add_join_team_section(frame, player)
     if not admin_gui.flag("buddy_join_enabled") then return end
 
+    storage.team_looking_for_more = storage.team_looking_for_more or {}
     local rows = {}
     for i = 1, force_utils.max_teams() do
         local force_name = "team-" .. i
-        if (storage.team_pool or {})[i] == "occupied" then
+        if (storage.team_pool or {})[i] == "occupied"
+           and storage.team_looking_for_more[force_name] then
             local force = game.forces[force_name]
             local leader_idx = (storage.team_leader or {})[force_name]
             local leader = leader_idx and game.get_player(leader_idx)
@@ -38,7 +40,7 @@ local function add_join_team_section(frame, player)
     or_flow.style.bottom_margin            = 2
     local or_label = or_flow.add{
         type    = "label",
-        caption = "─────  OR  join an existing team  ─────",
+        caption = "─────  OR  join a team that's recruiting  ─────",
     }
     or_label.style.font       = "heading-2"
     or_label.style.font_color = {1, 0.85, 0.3}
@@ -130,6 +132,17 @@ local function occupied_team_count()
     return n
 end
 
+local function recruiting_team_exists()
+    storage.team_looking_for_more = storage.team_looking_for_more or {}
+    for i = 1, force_utils.max_teams() do
+        local fn = "team-" .. i
+        if (storage.team_pool or {})[i] == "occupied" and storage.team_looking_for_more[fn] then
+            return true
+        end
+    end
+    return false
+end
+
 -- ─── Public API ────────────────────────────────────────────────────────
 
 function M.build_pen_gui(player)
@@ -157,7 +170,7 @@ function M.build_pen_gui(player)
     btn.style.bottom_margin            = 2
     btn.style.horizontally_stretchable = true
 
-    if admin_gui.flag("buddy_join_enabled") and occupied_team_count() > 0 then
+    if admin_gui.flag("buddy_join_enabled") and occupied_team_count() > 0 and recruiting_team_exists() then
         local scroll = frame.add{
             type      = "scroll-pane",
             direction = "vertical",

@@ -29,10 +29,25 @@ function M.register()
     script.on_event(defines.events.on_gui_selection_state_changed, function(event)
         if admin_gui.on_gui_selection_state_changed(event) then
             local p = game.get_player(event.player_index)
+            local new_limit = admin_gui.buddy_team_limit()
             if p then
-                local limit = admin_gui.buddy_team_limit()
                 helpers.broadcast("[Admin] " .. helpers.colored_name(p.name, p.chat_color)
-                    .. " set max team size to " .. limit)
+                    .. " set max team size to " .. new_limit)
+            end
+            -- Auto-clear LFM for any team whose current size meets or exceeds the new limit.
+            storage.team_looking_for_more = storage.team_looking_for_more or {}
+            storage.team_pool = storage.team_pool or {}
+            for i = 1, force_utils.max_teams() do
+                local fn = "team-" .. i
+                if storage.team_pool[i] == "occupied" and storage.team_looking_for_more[fn] then
+                    local force = game.forces[fn]
+                    if force and #force.players >= new_limit then
+                        storage.team_looking_for_more[fn] = nil
+                        helpers.broadcast("[Team] " .. helpers.team_tag(fn)
+                            .. " is no longer recruiting (team size limit reached).")
+                        team_settings.update_all_for_force(fn)
+                    end
+                end
             end
             landing_pen.update_pen_gui_all()
         end

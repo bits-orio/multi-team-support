@@ -28,6 +28,7 @@ local admin_gui      = require("gui.admin")
 local force_utils    = require("scripts.force_utils")
 local team_settings  = require("gui.team_settings")
 local helpers        = require("scripts.helpers")
+local lfm_hint       = require("gui.lfm_hint")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -112,6 +113,7 @@ function M.register()
         -- to an already-running save). Cheap no-op after the first tick.
         remote_api.ensure_bridge_registered()
         pop_text.tick(game.tick)
+        lfm_hint.tick(game.tick)
         landing_pen.process_pending_teleports()
         if platformer.is_active() then
             platformer.process_pending_teleports()

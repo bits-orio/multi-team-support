@@ -17,6 +17,7 @@ local teams_gui     = require("gui.teams")
 local return_button = require("gui.return_button")
 local helpers       = require("scripts.helpers")
 local team_clock    = require("scripts.team_clock")
+local lfm_hint      = require("gui.lfm_hint")
 
 local M = {}
 
@@ -49,6 +50,7 @@ function M.register()
                 helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
                     .. " has joined " .. helpers.team_tag(player.force.name) .. ".")
                 h.refresh_all_gameplay_guis()
+                lfm_hint.show_for_leader(player)
             end
             return
         end
@@ -67,7 +69,8 @@ function M.register()
         if el.name == "sb_buddy_accept" then
             local player = game.get_player(event.player_index)
             if player and el.tags and el.tags.sb_requester_index then
-                landing_pen.accept_buddy_request(player, el.tags.sb_requester_index)
+                local lfm_cleared = landing_pen.accept_buddy_request(player, el.tags.sb_requester_index)
+                if lfm_cleared then team_settings.update_all_for_force(lfm_cleared) end
                 h.refresh_all_gameplay_guis()
             end
             return
@@ -86,6 +89,12 @@ function M.register()
             if player and landing_pen.is_in_pen(player) then
                 landing_pen.cancel_buddy_request(player)
             end
+            return
+        end
+
+        if el.name == "sb_lfm_hint_close" then
+            local player = game.get_player(event.player_index)
+            if player then lfm_hint.close(player) end
             return
         end
 
