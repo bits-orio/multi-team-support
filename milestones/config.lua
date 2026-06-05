@@ -49,7 +49,7 @@ config.trackers = {
     {
         category       = "science",
         announce_first = true,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000  },
         discover_items = function()
             local items = {}
             for name, proto in pairs(prototypes.item) do
@@ -65,7 +65,7 @@ config.trackers = {
     {
         category       = "landfill",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000  },
         discover_items = function() return { ["landfill"] = true } end,
         get_count      = total_produced,
     },
@@ -75,7 +75,7 @@ config.trackers = {
     {
         category       = "space_platform",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000 },
         discover_items = function()
             if prototypes.item["space-platform-foundation"] then
                 return { ["space-platform-foundation"] = true }
@@ -91,28 +91,28 @@ config.trackers = {
     {
         category       = "iron-ore",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 1000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000 },
         discover_items = function() return { ["iron-ore"] = true } end,
         get_count      = total_produced,
     },
     {
         category       = "copper-ore",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 1000, 5000, 10000, 20000, 50000, 100000, 500000, 1000000, 5000000 },
         discover_items = function() return { ["copper-ore"] = true } end,
         get_count      = total_produced,
     },
     {
         category       = "uranium-ore",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 100, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
         discover_items = function() return { ["uranium-ore"] = true } end,
         get_count      = total_produced,
     },
     {
         category       = "crude-oil",
         announce_first = false,
-        thresholds     = { 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000 },
+        thresholds     = { 1000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000 },
         discover_items = function() return { ["crude-oil"] = true } end,
         get_count      = total_produced_fluid,
     },

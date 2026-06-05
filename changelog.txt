@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.47
+Date: 2026-06-05
+  Changes:
+    - Extend milestone thresholds for science packs, landfill, and raw resources (iron ore,
+      copper ore, crude oil, space platform foundations) to cover megabase-scale production;
+      uranium ore and crude oil thresholds rebalanced to match realistic production curves.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.46
 Date: 2026-06-05
   Features:
