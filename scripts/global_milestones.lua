@@ -16,6 +16,7 @@ local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local pop_text    = require("scripts.pop_text")
 local space_age   = require("scripts.space_age")
+local remote_api  = require("scripts.remote_api")
 
 local M = {}
 
@@ -54,13 +55,26 @@ end
 
 function M.on_rocket_launched(event)
     M.init_storage()
+
+    local rocket = event.rocket
+    if not (rocket and rocket.valid) then return end
+    local force = rocket.force
+
+    -- Team-specific Discord announcement for every launch (suppresses vanilla.rocket_launched).
+    if force_utils.is_team_force(force.name) then
+        local team = (storage.team_names or {})[force.name] or force.name
+        remote_api.emit_to_bridge("mts.rocket_launched", {
+            team         = team,
+            flight_count = force.rockets_launched,
+            text         = string.format("%s launched a rocket (total: %d)", team, force.rockets_launched),
+        })
+    end
+
+    -- First-ever rocket global milestone (fires once per save).
     if storage.global_records.first_rocket then return end
     storage.global_records.first_rocket = true
 
-    local rocket = event.rocket
-    local force = rocket and rocket.valid and rocket.force or nil
-    local team_tag = force and helpers.team_tag_with_leader(force.name) or "A team"
-
+    local team_tag = helpers.team_tag_with_leader(force.name) or "A team"
     announce(team_tag .. " launched the first rocket into space!")
 end
 

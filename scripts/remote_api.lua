@@ -230,6 +230,7 @@ local BRIDGE_LABELS = {
     team_surface_created = "🌎",
     milestone_first      = "🥇",
     milestone_record     = "⏱️",
+    rocket_launched      = "🚀",
 }
 
 --- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed). Fills in
@@ -263,11 +264,12 @@ function remote_api.register_with_bridge()
             { key = "player_joined",        description = "A player joined the game (team-aware)" },
             { key = "player_left",          description = "A player left the game (team-aware)" },
             { key = "player_switched_team", description = "A player switched teams mid-game" },
+            { key = "rocket_launched",      description = "A team launched a rocket" },
         },
     })
     -- We announce these ourselves with team info, so turn off the bridge's team-less
     -- baseline versions. The bridge only suppresses a baseline event while we're loaded.
-    for _, key in ipairs({ "research_finished", "player_joined", "player_left" }) do
+    for _, key in ipairs({ "research_finished", "player_joined", "player_left", "rocket_launched" }) do
         remote.call(BRIDGE_INTERFACE, "set_baseline", { event = key, enabled = false })
     end
 end
