@@ -190,9 +190,16 @@ function M.update_pen_gui_all()
     if not surface then return end
     storage.spawned_players = storage.spawned_players or {}
     for _, player in pairs(game.players) do
+        -- Refresh every pen player (connected, not spawned) whose panel exists,
+        -- regardless of where their camera is pointed. The old check only
+        -- refreshed players whose surface was the pen, so a player browsing a
+        -- team in Remote View when recruiting toggled never got the update —
+        -- and nothing rebuilds it when they return. The pen frame lives in
+        -- gui.screen, so the rebuild is safe off-surface; the surface clause is
+        -- kept so the panel is still created for a player freshly on the pen.
         if player.connected
-           and player.surface == surface
-           and not storage.spawned_players[player.index] then
+           and not storage.spawned_players[player.index]
+           and (player.gui.screen.sb_pen_frame or player.surface == surface) then
             M.build_pen_gui(player)
         end
     end
