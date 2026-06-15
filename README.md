@@ -10,7 +10,7 @@ A Factorio 2.0 mod for cooperative and competitive multiplayer where each team r
 
 ## 💬 Community
 
-Join the Discord: **https://discord.gg/tWz4FT74pH**
+Join the Discord: https://discord.gg/tWz4FT74pH
 
 ## ✨ Features
 
