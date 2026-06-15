@@ -59,6 +59,11 @@ Join the Discord: https://discord.gg/tWz4FT74pH
 - Requires **Factorio 2.0** (`base >= 2.0`)
 - **Space Age** — optional; auto-detected and enables per-team planets + space connections when present
 - Compatible with [Platformer](https://mods.factorio.com/mod/platformer)
+- **Companion modes** *(optional — built on the `mts-v1` API, each plays out independently per team)*:
+  - [**Diggy**](https://mods.factorio.com/mod/diggy) — the world is solid rock; dig out your factory, brace the ceilings, and survive cave-ins. First-class MTS integration: every team races an identically-seeded dig world.
+  - **MTS Expanse** — tiny-island Expanse gameplay: feed hungry chests, unlock land, race teams, and survive invasions.
+  - **Brave New MTS** — a remote-only, character-free layer: your character never leaves its cell; you build entirely through a construction-robot network seeded at each team's spawn.
+- **open-discord-bridge (ODB)** — optional; relays per-team announcements, milestones, and chat to a Discord channel.
 - **Generic terrain mirror** — any third-party mod that decorates Nauvis via `on_chunk_generated` (and filters by hardcoded surface name) is automatically mirrored onto every team surface. The mod's handler runs once on the real Nauvis; MTS clones the resulting tiles, entities, and decoratives to each team's nauvis variant. Verified working with [dangOreus](https://mods.factorio.com/mod/dangOreus), [VoidBlock](https://mods.factorio.com/mod/VoidBlock), [Alien Biomes](https://mods.factorio.com/mod/alien-biomes), and content mods like [Periodic Madness](https://mods.factorio.com/mod/periodic-madness). Trade-off: every team gets the same map (per-team randomization is sacrificed for zero-cooperation compat). See [`docs/COMPAT.md`](docs/COMPAT.md) for details.
 - **dangOreus** — beyond the terrain mirror, MTS also reproduces dangOreus's runtime gameplay rules (block non-miners on ore tiles, spill containers on death, floor-is-lava damage) on team surfaces.
 - **Krastorio 2 / Krastorio 2 Spaced Out** — crash-site entities (vanilla wrecks + K2 spaceship pieces) on team Nauvis surfaces are normalised to `force=neutral` so teams can mine them; team forces are kept at war with `kr-internal-turrets` so K2's planetary teleporter "standing on" detection and tesla coil targeting fire correctly on team characters.
