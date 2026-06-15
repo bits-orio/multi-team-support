@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.48
+Date: 2026-06-14
+  Bugfixes:
+    - Clicking another team's map ping/GPS no longer lands on a black screen. A ping clicked
+      while the map was already open (or after clicking a previous ping) changed the viewed
+      surface without changing the controller, so nothing wrapped you into spectator mode and
+      you were left looking at a hidden surface. That path is now handled too.
+    - Returning from spectating another team now matches how you left: physical view if you
+      clicked the ping from your character, remote map view if you clicked it from the map,
+      instead of always dropping you into remote view.
+    - Zoom level is preserved across a spectate round-trip, for both the physical and the
+      remote-map return.
+    - A ping clicked from the map returns the camera to where you were looking, not your
+      character's position (your character stays put).
+    - Platformer: the zoom restore never disturbs a hub view.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.47
 Date: 2026-06-05
   Changes:
