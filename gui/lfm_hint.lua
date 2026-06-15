@@ -21,29 +21,36 @@ function M.show_for_leader(player)
     end
 
     local frame = player.gui.screen.add{type = "frame", name = FRAME_NAME, direction = "vertical"}
-    frame.location              = {x = 5, y = 65}
+    -- Default below the top-left toolbar so the toast doesn't cover its
+    -- buttons; the title bar is draggable, so players can move it anywhere.
+    frame.location              = {x = 5, y = 88}
     frame.style.minimal_width   = 320
     frame.style.maximal_width   = 400
 
-    -- ── Title row ───────────────────────────────────────────────────
+    -- ── Title row (draggable) ───────────────────────────────────────
     local title_row = frame.add{type = "flow", direction = "horizontal"}
-    title_row.style.vertical_align      = "center"
-    title_row.style.bottom_margin       = 4
+    title_row.drag_target          = frame
+    title_row.style.vertical_align = "center"
+    title_row.style.bottom_margin  = 4
 
     local title = title_row.add{
         type    = "label",
         caption = "[img=utility/custom_tag_icon]  Team Settings — Recruiting",
+        style   = "frame_title",
     }
-    title.style.font                     = "default-bold"
-    title.style.horizontally_stretchable = true
+    title.ignored_by_interaction = true
 
-    title_row.add{type = "empty-widget"}.style.horizontally_stretchable = true
+    local spacer = title_row.add{type = "empty-widget", style = "draggable_space_header"}
+    spacer.style.horizontally_stretchable = true
+    spacer.style.height                   = 24
+    spacer.drag_target                    = frame
 
     title_row.add{
-        type   = "sprite-button",
-        name   = "sb_lfm_hint_close",
-        sprite = "utility/close",
-        style  = "close_button",
+        type    = "sprite-button",
+        name    = "sb_lfm_hint_close",
+        sprite  = "utility/close",
+        style   = "frame_action_button",
+        tooltip = "Close",
     }
 
     frame.add{type = "line"}
