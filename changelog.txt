@@ -1,6 +1,13 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.4.48
+Version: 0.4.49
 Date: 2026-06-14
+  Bugfixes:
+    - Enabling recruiting now reaches every waiting player in the landing pen, even one who
+      was browsing another team in remote view at the moment recruiting was toggled. The pen
+      list previously only refreshed for players whose camera was on the pen surface, so some
+      players never saw the team appear until they re-opened the pen.
+    - The "Team Settings — Recruiting" hint is now a draggable window and no longer sits fixed
+      over the top-left toolbar buttons.
   Bugfixes:
     - Clicking another team's map ping/GPS no longer lands on a black screen. A ping clicked
       while the map was already open (or after clicking a previous ping) changed the viewed
