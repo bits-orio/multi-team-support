@@ -41,38 +41,52 @@ end
 
 -- ─── Event Handlers ────────────────────────────────────────────────────
 
+--- Wrap a player sitting in Remote View on another team's surface into
+--- spectate (non-friend) or friend-view (friend). original_controller_type is
+--- the controller they were in BEFORE the click that brought them here, passed
+--- through to exit so it restores physical-vs-remote view correctly.
+local function try_enter_foreign_view(player, original_controller_type)
+    if player.controller_type ~= defines.controllers.remote then return end
+    if core.is_spectating(player) then return end
+    local surface = player.surface
+    local owner   = surface_utils.get_owner(surface)
+    if not owner then return end
+    local viewer_force = game.forces[core.get_effective_force(player)]
+    local target_force = game.forces[owner]
+    if not (viewer_force and target_force and viewer_force ~= target_force) then return end
+    local position = player.position
+    if core.needs_spectator_mode(viewer_force, target_force) then
+        ops.enter_from_remote(player, target_force, surface, position, original_controller_type)
+    else
+        ops.enter_friend_view(player, surface, position)
+    end
+end
+
 --- Detects GPS/map-click entry into remote view on a foreign surface and
 --- wraps the player in spectate mode; also detects remote-view exit.
 function M.on_controller_changed(player, old_controller_type)
-    -- Case 1: Player entered remote view on a foreign surface.
+    -- Case 1: entered remote view from a non-remote controller (clicking a
+    -- GPS while on the character). old_controller_type is the pre-click
+    -- controller — used to restore physical-vs-remote view on exit.
     if player.controller_type == defines.controllers.remote
-       and old_controller_type ~= defines.controllers.remote
-       and not core.is_spectating(player) then
-        local surface = player.surface
-        local owner   = surface_utils.get_owner(surface)
-        if owner then
-            local viewer_force = game.forces[core.get_effective_force(player)]
-            local target_force = game.forces[owner]
-            if viewer_force and target_force and viewer_force ~= target_force then
-                local position = player.position
-                if core.needs_spectator_mode(viewer_force, target_force) then
-                    ops.enter_from_remote(player, target_force, surface, position)
-                else
-                    ops.enter_friend_view(player, surface, position)
-                end
-            end
-        end
-        return
-    end
+       and old_controller_type ~= defines.controllers.remote then
+        try_enter_foreign_view(player, old_controller_type)
 
-    -- Case 2: Player exited remote view while spectating.
-    if old_controller_type == defines.controllers.remote
+    -- Case 2: exited remote view while spectating.
+    elseif old_controller_type == defines.controllers.remote
        and player.controller_type ~= defines.controllers.remote
        and core.is_spectating(player) then
         log("[multi-team-support:spectator] on_controller_changed: " .. player.name
             .. " exited remote view, restoring force")
         ops.exit(player)
     end
+
+    -- Track the settled controller type so on_player_changed_surface can tell a
+    -- GPS click made from INSIDE remote view (surface changes, controller type
+    -- does not — never fires this event) from a transition INTO remote view
+    -- (handled above). This makes the surface-handler entry order-independent.
+    storage.spectator_prev_controller = storage.spectator_prev_controller or {}
+    storage.spectator_prev_controller[player.index] = player.controller_type
 end
 
 --- Auto-exit when the spectated camera moves off the target's surfaces.
@@ -81,7 +95,37 @@ end
 --- on_player_controller_changed, leaving them stuck in spectator mode.
 function M.on_player_changed_surface(player)
     if not (player and player.valid) then return end
-    if not core.is_spectating(player) then return end
+
+    if not core.is_spectating(player) then
+        -- A GPS click made from INSIDE remote view (map already open, or a
+        -- second GPS) moves the camera onto a new surface WITHOUT changing the
+        -- controller type, so on_controller_changed never fires. For a foreign
+        -- team that needs spectator mode, wrap it here — otherwise the player
+        -- sits on their own force viewing a hidden surface: a permanent black
+        -- screen that only clears by Esc-ing to the character and re-clicking.
+        --
+        -- prev == remote proves they were ALREADY in remote view, so (a) the
+        -- controller to restore on exit is remote, and (b) this is genuinely a
+        -- surface-only change, not a character->remote transition (which
+        -- on_controller_changed owns, with the correct pre-click controller).
+        -- Friends are left alone: their surface is visible, so the native view
+        -- already works and needs no force swap.
+        local prev = (storage.spectator_prev_controller or {})[player.index]
+        if player.controller_type == defines.controllers.remote
+           and prev == defines.controllers.remote then
+            local owner = surface_utils.get_owner(player.surface)
+            if owner then
+                local viewer_force = game.forces[core.get_effective_force(player)]
+                local target_force = game.forces[owner]
+                if viewer_force and target_force and viewer_force ~= target_force
+                   and core.needs_spectator_mode(viewer_force, target_force) then
+                    ops.enter_from_remote(player, target_force, player.surface,
+                        player.position, defines.controllers.remote)
+                end
+            end
+        end
+        return
+    end
 
     local target_force_name = storage.spectating_target[player.index]
     if not target_force_name then return end

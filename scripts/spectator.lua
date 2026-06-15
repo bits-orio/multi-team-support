@@ -12,6 +12,7 @@ local spectator = {}
 spectator.init         = core.init
 spectator.setup_force  = core.setup_force
 spectator.init_storage = core.init_storage
+spectator.track_home_zoom = core.track_home_zoom
 
 -- State queries
 spectator.is_spectating       = core.is_spectating

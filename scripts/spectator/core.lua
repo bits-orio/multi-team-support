@@ -212,6 +212,49 @@ function M.init_storage()
     storage.spectator_saved_craft_mod = storage.spectator_saved_craft_mod or {}
     storage.spectator_saved_location  = storage.spectator_saved_location  or {}
     storage.friend_intents            = storage.friend_intents            or {}
+    -- Last settled controller type per player, so on_player_changed_surface
+    -- can distinguish a GPS click made from inside remote view from one that
+    -- transitioned into it (see spectator/events.lua).
+    storage.spectator_prev_controller = storage.spectator_prev_controller or {}
+    -- Recent home-view zoom per player, polled so a return from spectating can
+    -- restore it (a GPS click flips the zoom before any event we can see).
+    storage.spectator_last_zoom       = storage.spectator_last_zoom       or {}
+    -- Recent map-camera surface+position while viewing their own base, so a
+    -- return restores where they were looking, not the character's spot.
+    storage.spectator_last_remote_view = storage.spectator_last_remote_view or {}
+end
+
+--- Remember each connected player's zoom while they are on their OWN view, so
+--- returning from spectating another team can restore it. There is no
+--- zoom-changed event and a GPS click flips the zoom before our handlers run,
+--- so we poll a recent home value instead. Skips foreign remote views (a
+--- spectate or friend-view) so we never capture the target's zoom.
+function M.track_home_zoom()
+    storage.spectator_last_zoom = storage.spectator_last_zoom or {}
+    storage.spectator_last_remote_view = storage.spectator_last_remote_view or {}
+    for _, player in pairs(game.connected_players) do
+        if not M.is_spectating(player) then
+            local in_remote = player.controller_type == defines.controllers.remote
+            local foreign = false
+            if in_remote then
+                local owner = surface_utils.get_owner(player.surface)
+                foreign = owner ~= nil and owner ~= M.get_effective_force(player)
+            end
+            if not foreign then
+                local ok, zoom = pcall(function() return player.zoom end)
+                if ok and zoom then storage.spectator_last_zoom[player.index] = zoom end
+                if in_remote then
+                    -- Map view of their own base: remember where the camera is
+                    -- looking, to return there (player.position is the camera
+                    -- position in remote view, not the character).
+                    storage.spectator_last_remote_view[player.index] = {
+                        surface_name = player.surface.name,
+                        position     = { x = player.position.x, y = player.position.y },
+                    }
+                end
+            end
+        end
+    end
 end
 
 -- ─── State Queries ─────────────────────────────────────────────────────

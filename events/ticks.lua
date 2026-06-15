@@ -29,6 +29,7 @@ local force_utils    = require("scripts.force_utils")
 local team_settings  = require("gui.team_settings")
 local helpers        = require("scripts.helpers")
 local lfm_hint       = require("gui.lfm_hint")
+local spectator      = require("scripts.spectator")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -122,6 +123,19 @@ function M.register()
         else
             vanilla.process_pending_teleports()
         end
+        -- Re-apply the home-view zoom a few ticks after a spectate-exit, so the
+        -- controller change settling doesn't clobber it.
+        if storage.zoom_apply and next(storage.zoom_apply) then
+            for idx, info in pairs(storage.zoom_apply) do
+                if game.tick >= info.at then
+                    local p = game.get_player(idx)
+                    if p and p.connected then
+                        pcall(function() p.zoom = info.zoom end)
+                    end
+                    storage.zoom_apply[idx] = nil
+                end
+            end
+        end
         if storage.pending_admin_check and next(storage.pending_admin_check) then
             local done = {}
             for idx, target_tick in pairs(storage.pending_admin_check) do
@@ -146,6 +160,9 @@ function M.register()
         end
     end)
     script.on_nth_tick(10,    function() force_pause.tick() end)
+    -- Remember each player's home-view zoom so returning from spectating
+    -- another team restores it (no zoom-changed event exists).
+    script.on_nth_tick(20,    function() spectator.track_home_zoom() end)
     script.on_nth_tick(30,    function() chunk_trim.tick() end)
     script.on_nth_tick(60,    function()
         for force_name, leader_idx in pairs(storage.team_leader or {}) do
