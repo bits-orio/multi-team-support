@@ -33,6 +33,10 @@ local surface_utils    = require("scripts.surface_utils")
 local blueprint_lock   = require("scripts.blueprint_lock")
 local global_milestones = require("scripts.global_milestones")
 local remote_api        = require("scripts.remote_api")
+-- Inject team_surfaces at parse time to break the team_surfaces -> team_slots
+-- -> remote_api require cycle (remote_api can't require it directly, and
+-- Factorio forbids require() at runtime).
+remote_api.set_deferred_deps({ team_surfaces = require("scripts.team_surfaces") })
 local pre_start         = require("scripts.pre_start")
 require("scripts.team_disband")  -- injects remote_api.disband_impl (mts-v1 disband_team)
 

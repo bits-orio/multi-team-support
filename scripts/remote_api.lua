@@ -32,8 +32,21 @@ local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
 local team_clock    = require("scripts.team_clock")
 local spawn_labels  = require("scripts.spawn_labels")
+-- pause/control has no require cycle (it pulls only pause/power|wires|state),
+-- so it is required directly here.
+local pause_control = require("scripts.pause.control")
+-- team_surfaces -> team_slots -> remote_api IS a require cycle. Factorio forbids
+-- require() at runtime, so it also can't be lazy-loaded inside the interface
+-- functions; control.lua injects it at parse time via set_deferred_deps().
+local team_surfaces
 
 local remote_api = {}
+
+-- Parse-time dependency injection from control.lua, breaking the team_surfaces
+-- require cycle described above. Must be called once during control.lua parsing.
+function remote_api.set_deferred_deps(deps)
+    team_surfaces = deps.team_surfaces
+end
 
 -- ═══ Custom event IDs ═════════════════════════════════════════════════
 --
@@ -782,27 +795,26 @@ function remote_api.register()
         -- Paired setup/teardown for a team's planet-variant surface. create
         -- registers force<->planet ownership then lets the engine's
         -- on_surface_created run the full existing seed/visibility/label/event
-        -- flow; retire deletes + unwinds the bookkeeping. require lazily to
-        -- keep the module load free of a team_slots->remote_api cycle.
+        -- flow; retire deletes + unwinds the bookkeeping. team_surfaces is
+        -- injected at parse time (set_deferred_deps) to break the require cycle.
         create_team_surface = function(force_name, spec)
-            return require("scripts.team_surfaces").create_team_surface(force_name, spec)
+            return team_surfaces.create_team_surface(force_name, spec)
         end,
         retire_team_surface = function(force_name, surface_name)
-            return require("scripts.team_surfaces").retire_team_surface(force_name, surface_name)
+            return team_surfaces.retire_team_surface(force_name, surface_name)
         end,
 
         -- ── Pause control ────────────────────────────────────────────
-        -- pause_team / unpause_team compose the airtight power freeze + the
-        -- amortized entity sweep + the SA-gated visual wire layer. They
-        -- enumerate the team's surfaces via list_team_surfaces (the design's
-        -- named enumerator) and hand the names to the pause orchestrator.
+        -- pause_team / unpause_team compose the airtight power-source freeze +
+        -- the SA-gated visual wire layer (pause/control). They enumerate the
+        -- team's surfaces via list_team_surfaces and hand the names to it.
         pause_team = function(force_name)
             local surfaces = list_team_surfaces_impl(force_name)
-            return require("scripts.pause.control").pause_team(force_name, surfaces)
+            return pause_control.pause_team(force_name, surfaces)
         end,
         unpause_team = function(force_name, opts)
             local surfaces = list_team_surfaces_impl(force_name)
-            return require("scripts.pause.control").unpause_team(force_name, surfaces, opts)
+            return pause_control.unpause_team(force_name, surfaces, opts)
         end,
         -- Read-only: is this team currently paused? (Marker set once a
         -- pause/resume sweep completes; reflects intent immediately for the
