@@ -16,13 +16,17 @@
 -- spawn_labels.draw -> raise_team_surface_created — against the now-registered
 -- ownership. We deliberately do NOT re-run any of those here.
 --
--- Retire path: delegate deletion + player_surfaces cleanup to
--- team_slots.cleanup_force_surfaces (covers cloned + variant + platforms), then
--- unwind only the map entries for the retired variant. No event is raised, so
--- setup/teardown stay a predictable matched pair.
+-- Retire path: delete ONLY the named surface and unwind only its bookkeeping
+-- (map entries + player_surfaces). It must NOT use cleanup_force_surfaces, which
+-- deletes the WHOLE force's surfaces -- during a warp the team also owns the
+-- just-created destination surface, which that would wrongly wipe. No event is
+-- raised, so setup/teardown stay a predictable matched pair.
 
-local planet_map = require("scripts.planet_map")
-local space_age  = require("scripts.space_age")
+local planet_map    = require("scripts.planet_map")
+local space_age     = require("scripts.space_age")
+-- No cycle now: remote_api injects this module (set_deferred_deps) rather than
+-- requiring it, so team_surfaces -> surface_utils is a one-way edge.
+local surface_utils = require("scripts.surface_utils")
 
 local team_surfaces = {}
 
@@ -83,30 +87,18 @@ end
 --- @param surface_name string
 --- @return boolean  true on success, false if the surface is invalid/not owned
 ---
---- cleanup_force_surfaces deletes EVERY surface the force owns. To retire a
---- single surface we first validate ownership, then let cleanup run (it is the
---- one grounded deletion path covering clones + variants + platforms + the
---- player_surfaces registry), then strip only the retired variant's map
---- entries. (A future per-surface delete could be narrower; for v1 we reuse the
---- existing whole-force cleanup since retire is paired with team teardown.)
+--- Validate ownership, unwind ONLY this surface's bookkeeping, then delete just
+--- this surface (game.delete_surface, async). Deliberately does NOT call
+--- cleanup_force_surfaces, which deletes every surface the force owns --
+--- including the destination surface the team just warped to.
 function team_surfaces.retire_team_surface(force_name, surface_name)
     if not is_team_force(force_name) then return false end
     local surface = game.surfaces[surface_name]
     if not (surface and surface.valid) then return false end
-
-    -- Verify ownership via the single grounded owner check.
-    local surface_utils = require("scripts.surface_utils")
     if surface_utils.get_owner(surface) ~= force_name then return false end
 
-    -- Delegate deletion + player_surfaces cleanup (covers clones, variants,
-    -- platforms). Required circular-safe: team_slots requires remote_api which
-    -- requires this module path indirectly, so require lazily inside the fn.
-    local team_slots = require("scripts.team_slots")
-    team_slots.cleanup_force_surfaces(force_name)
-
-    -- Unwind the map entries for the retired variant specifically.
-    local by_planet = storage.map_planet_to_force or {}
-    by_planet[surface_name] = nil
+    -- Unwind the map entries for THIS surface only.
+    if storage.map_planet_to_force then storage.map_planet_to_force[surface_name] = nil end
     local per_team = (storage.map_force_to_planets or {})[force_name]
     if per_team then
         for base, variant in pairs(per_team) do
@@ -120,6 +112,8 @@ function team_surfaces.retire_team_surface(force_name, surface_name)
         if ps.name == surface_name then storage.player_surfaces[idx] = nil end
     end
 
+    -- Delete ONLY this surface (async; fires on_surface_deleted later).
+    game.delete_surface(surface)
     return true
 end
 
