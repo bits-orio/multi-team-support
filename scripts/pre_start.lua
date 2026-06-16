@@ -107,15 +107,24 @@ function M.commit(player)
         end
     end
 
-    -- Start the team birth clock.
+    -- Start the team birth clock. raise on_team_clock_started exactly once,
+    -- only when this commit is the call that actually stamps the start tick
+    -- (the staged-start path defers the clock until this "Start Playing" click).
     storage.team_clock_start = storage.team_clock_start or {}
+    local clock_started_now = false
     if not storage.team_clock_start[force_name] then
         storage.team_clock_start[force_name] = game.tick
+        clock_started_now = true
         log("[multi-team-support] pre_start committed for " .. force_name
             .. " at tick " .. game.tick)
     end
     team_clock.on_claim(force_name)
     team_clock.refresh(force_name)
+    if clock_started_now then
+        -- Lazy require to keep pre_start's load free of any remote_api cycle.
+        require("scripts.remote_api").raise_team_clock_started(
+            force_name, storage.team_clock_start[force_name])
+    end
 
     -- Start the leader's personal clock.
     force_utils.start_player_clock(player)

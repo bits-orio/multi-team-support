@@ -82,6 +82,14 @@ remote_api.events = {
     -- mod refresh anything that shows the team name.
     on_team_renamed           = script.generate_event_name(),
 
+    -- Raised the instant a team's clock starts -- i.e. when the team has
+    -- "started playing". Fired once, at the same site that assigns
+    -- storage.team_clock_start[force_name]: on direct claim (team_slots) and on
+    -- the staged-start "Start Playing" commit (pre_start). Payload:
+    -- { force_name, start_tick }. Lets a mod begin per-team timed mechanics
+    -- (countdowns, grace periods) from the exact birth tick MTS uses.
+    on_team_clock_started     = script.generate_event_name(),
+
     -- ── v2 candidates (uncomment to enable) ──────────────────────────
     -- on_team_leader_changed   = script.generate_event_name(),
     -- on_team_paused           = script.generate_event_name(),
@@ -383,6 +391,18 @@ end
 
 function remote_api.raise_team_renamed(force_name, new_name)
     raise("on_team_renamed", { force_name = force_name, new_name = new_name }, { no_bridge = true })
+end
+
+--- Raised at the exact tick a team's clock starts (team has started playing).
+--- Called from the two clock-start sites: direct claim (team_slots) and the
+--- staged-start commit (pre_start). no_bridge: this is a fine-grained engine
+--- signal for mods, not a Discord-worthy headline (team_created already covers
+--- the social announcement).
+function remote_api.raise_team_clock_started(force_name, start_tick)
+    raise("on_team_clock_started", {
+        force_name = force_name,
+        start_tick = start_tick,
+    }, { no_bridge = true })
 end
 
 -- ═══ Starter-item delivery override ═══════════════════════════════════
@@ -758,9 +778,42 @@ function remote_api.register()
             if remote_api.disband_impl then remote_api.disband_impl(force_name) end
         end,
 
+        -- ── Surface create / retire (Space Age variants) ─────────────
+        -- Paired setup/teardown for a team's planet-variant surface. create
+        -- registers force<->planet ownership then lets the engine's
+        -- on_surface_created run the full existing seed/visibility/label/event
+        -- flow; retire deletes + unwinds the bookkeeping. require lazily to
+        -- keep the module load free of a team_slots->remote_api cycle.
+        create_team_surface = function(force_name, spec)
+            return require("scripts.team_surfaces").create_team_surface(force_name, spec)
+        end,
+        retire_team_surface = function(force_name, surface_name)
+            return require("scripts.team_surfaces").retire_team_surface(force_name, surface_name)
+        end,
+
+        -- ── Pause control ────────────────────────────────────────────
+        -- pause_team / unpause_team compose the airtight power freeze + the
+        -- amortized entity sweep + the SA-gated visual wire layer. They
+        -- enumerate the team's surfaces via list_team_surfaces (the design's
+        -- named enumerator) and hand the names to the pause orchestrator.
+        pause_team = function(force_name)
+            local surfaces = list_team_surfaces_impl(force_name)
+            return require("scripts.pause.control").pause_team(force_name, surfaces)
+        end,
+        unpause_team = function(force_name, opts)
+            local surfaces = list_team_surfaces_impl(force_name)
+            return require("scripts.pause.control").unpause_team(force_name, surfaces, opts)
+        end,
+        -- Read-only: is this team currently paused? (Marker set once a
+        -- pause/resume sweep completes; reflects intent immediately for the
+        -- API-driven path via pause/state.)
+        is_team_paused = function(force_name)
+            return (storage.paused_forces or {})[force_name] and true or false
+        end,
+
         -- ── v2 candidates (uncomment alongside the matching impl) ────
         -- get_team_home_surface = get_team_home_surface_impl,
-        -- is_team_paused        = is_team_paused_impl,
+        -- (is_team_paused is now active above.)
         -- are_teams_friends     = are_teams_friends_impl,
         -- get_team_members      = get_team_members_impl,
         -- get_landing_pen_count = get_landing_pen_count_impl,

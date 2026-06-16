@@ -1,0 +1,7 @@
+# Team pause freezes by disabling power sources, not by deactivating machines
+
+`mts-v1` can pause a team — freeze all its production. We freeze by disabling the team's power *sources* (generators and accumulators) so no energy exists on any of its surfaces, rather than setting production machines `active = false`. Two reasons: a prior `active = false` attempt hit endless subtle state bugs (recipes, heat, fluids caught mid-operation), whereas an unpowered machine keeps its state and simply idles, so resume is clean by construction; and cutting power *distribution* (pole-to-pole wires) cannot fully freeze a base, because one substation over a local steam engine or accumulator keeps its whole supply area powered — attacking generation is the only airtight freeze.
+
+Recording and staggered reconnection of pole wires is kept, but demoted to the **Space-Age-gated visual thaw** layer (it also spreads the re-energize cost over time).
+
+Open spikes before this is trusted: confirm `active = false` on an accumulator freezes its stored charge rather than draining it (else read-zero-restore), and decide whether burner-fuelled machines — which run without the grid — are handled or accepted as a leak.

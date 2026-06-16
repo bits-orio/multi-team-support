@@ -161,10 +161,16 @@ function M.claim_team_slot(player, opts)
     storage.team_leader[force_name] = player.index
     storage.team_pool[slot] = "occupied"
 
+    -- Track whether THIS claim is the call that starts the clock, so we raise
+    -- on_team_clock_started exactly once (after raise_team_created below). A
+    -- staged start defers the clock (skip_clock) and fires the event from
+    -- pre_start.commit instead.
+    local clock_started_now = false
     if not opts.skip_clock then
         storage.team_clock_start = storage.team_clock_start or {}
         if not storage.team_clock_start[force_name] then
             storage.team_clock_start[force_name] = game.tick
+            clock_started_now = true
             log("[multi-team-support] team clock started for " .. force_name
                 .. " at tick " .. game.tick)
         end
@@ -175,6 +181,9 @@ function M.claim_team_slot(player, opts)
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
         .. " (" .. force_name .. ")")
     remote_api.raise_team_created(force_name, player.index)
+    if clock_started_now then
+        remote_api.raise_team_clock_started(force_name, storage.team_clock_start[force_name])
+    end
     return force_name
 end
 

@@ -7,10 +7,24 @@ local force_utils  = require("scripts.force_utils")
 local landing_pen  = require("gui.landing_pen")
 local spectator    = require("scripts.spectator")
 local confirm      = require("gui.confirm")
-local force_pause  = require("scripts.force_pause")
+local pause_control = require("scripts.pause.control")
+local surface_utils = require("scripts.surface_utils")
 local chunk_trim   = require("scripts.chunk_trim")
 
 local M = {}
+
+-- Collect the names of every surface a force owns, so the pause orchestrator
+-- (airtight power freeze + visual wire layer) can act on them. Mirrors the
+-- mts-v1 list_team_surfaces filter (surface_utils.get_owner).
+local function owned_surface_names(force_name)
+    local out = {}
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid and surface_utils.get_owner(surface) == force_name then
+            out[#out + 1] = surface.name
+        end
+    end
+    return out
+end
 
 -- ─── Confirm Action ───────────────────────────────────────────────────
 
@@ -120,7 +134,7 @@ function M.register()
             if not force_name or not game.forces[force_name] then
                 caller.print("Team '" .. param .. "' does not exist."); return
             end
-            if not force_pause.resume(force_name) then
+            if not pause_control.unpause_team(force_name, owned_surface_names(force_name)) then
                 caller.print("Could not resume " .. force_name .. " (not a team force)."); return
             end
             caller.print("Resume sweep started for " .. helpers.team_tag_with_leader(force_name)
@@ -144,7 +158,7 @@ function M.register()
             if not force_name or not game.forces[force_name] then
                 caller.print("Team '" .. param .. "' does not exist."); return
             end
-            if not force_pause.pause(force_name) then
+            if not pause_control.pause_team(force_name, owned_surface_names(force_name)) then
                 caller.print("Could not pause " .. force_name .. " (not a team force)."); return
             end
             caller.print("Pause sweep started for " .. helpers.team_tag_with_leader(force_name)

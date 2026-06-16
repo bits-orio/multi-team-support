@@ -17,7 +17,7 @@ local gridlocked     = require("compat.gridlocked")
 local milestones     = require("milestones.engine")
 local awards_gui     = require("gui.awards")
 local follow_cam     = require("gui.follow_cam")
-local force_pause    = require("scripts.force_pause")
+local pause_control  = require("scripts.pause.control")
 local chunk_trim     = require("scripts.chunk_trim")
 local debug_engine   = require("scripts.debug")
 local pop_text       = require("scripts.pop_text")
@@ -159,7 +159,9 @@ function M.register()
             end
         end
     end)
-    script.on_nth_tick(10,    function() force_pause.tick() end)
+    -- Staggered visual wire reconnect after an API-driven unpause. Cheap no-op
+    -- when nothing is pending; self-clears each force the instant it finishes.
+    script.on_nth_tick(10,    function() pause_control.tick() end)
     -- Remember each player's home-view zoom so returning from spectating
     -- another team restores it (no zoom-changed event exists).
     script.on_nth_tick(20,    function() spectator.track_home_zoom() end)

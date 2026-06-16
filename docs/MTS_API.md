@@ -49,6 +49,7 @@ Custom events you can subscribe to:
 | `on_team_surface_created`   | `surface_name`, `force_name`            | A new team surface (planet variant) is created |
 | `on_player_joined_team`     | `player_index`, `force_name`            | A player moves onto a team force               |
 | `on_player_left_team`       | `player_index`, `force_name`            | A player leaves a team force                   |
+| `on_team_clock_started`     | `force_name`, `start_tick`              | A team's clock starts (team has started playing) — fires once, on direct claim or on the staged-start "Start Playing" commit |
 
 Event IDs are generated per session via `script.generate_event_name()` — they're stable for the duration of a session but not across sessions, so always look them up via `get_event_id` rather than caching the integer.
 
@@ -84,6 +85,18 @@ Synchronous queries you can call any time:
 | `is_team_surface(surface_name)`                     | `true` if the surface is owned by a team           |
 | `get_surface_owner(surface_name)`                   | The owning team's `force_name`, or `nil`           |
 | `list_team_surfaces(force_name)`                    | Array of surface names owned by that team          |
+| `is_team_paused(force_name)`                        | `true` if the team is currently paused             |
+
+### 2.3 Actions
+
+Functions that mutate world state. Call from a real event context (not `on_load`):
+
+| Call                                                | Effect                                                                                  |
+|-----------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `pause_team(force_name)`                            | Freeze the team: disable every power source (the airtight freeze), deactivate remaining entities via the amortized sweep, and (Space Age) cut pole wires for a visible "unplugged" look. Returns `true` if a pause started. |
+| `unpause_team(force_name, opts)`                     | Resume the team: re-enable power sources, reactivate entities, and (Space Age) staggered-reconnect the pole wires so the lights ripple back. `opts = {mode, duration}` reserved for a future timed-pause v2. Returns `true` if a resume started. |
+| `create_team_surface(force_name, spec)`             | Create (or look up) the team's variant surface for a base planet. `spec = {planet, map_gen_settings, name}`. Returns the surface name, or `nil`. Space Age only. |
+| `retire_team_surface(force_name, surface_name)`     | Delete a team-owned surface and unwind its bookkeeping. Returns `true` on success, `false` if the surface is invalid or not owned by that team. |
 
 A `team_info` table has the following shape:
 
@@ -119,7 +132,7 @@ for _, info in ipairs(remote.call("mts-v1", "get_team_list")) do
 end
 ```
 
-### 2.3 Choosing between mirroring, events, and queries
+### 2.4 Choosing between mirroring, events, and queries
 
 | You want to…                                          | Use                                                      |
 |-------------------------------------------------------|----------------------------------------------------------|
