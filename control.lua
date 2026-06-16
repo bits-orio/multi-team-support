@@ -8,7 +8,8 @@
 
 local admin_gui        = require("gui.admin")
 local spectator        = require("scripts.spectator")
-local force_pause      = require("scripts.force_pause")
+local pause_control    = require("scripts.pause.control")
+local pause_state      = require("scripts.pause.state")
 local pause_wires      = require("scripts.pause.wires")
 local team_settings    = require("gui.team_settings")
 local chunk_trim       = require("scripts.chunk_trim")
@@ -109,7 +110,7 @@ script.on_init(function()
     admin_gui.get_flags()
     spectator.init()
     spectator.init_storage()
-    force_pause.init_storage()
+    pause_state.init_storage()
     pause_wires.init_storage()
     team_clock.init_storage()
     team_settings.init_storage()
@@ -146,7 +147,7 @@ end)
 
 script.on_configuration_changed(function()
     log("[multi-team-support] on_configuration_changed fired")
-    force_pause.init_storage()
+    pause_state.init_storage()
     pause_wires.init_storage()
     team_clock.init_storage()
     team_settings.init_storage()
@@ -157,13 +158,22 @@ script.on_configuration_changed(function()
     remote_api.ensure_bridge_registered()
     remote_api.validate_delivery_override()  -- drop override if its consumer mod was removed
 
-    -- Resume any forces stuck in a paused state from a removed auto-pause feature.
-    local to_resume = {}
-    for fn in pairs(storage.paused_forces or {}) do to_resume[fn] = true end
-    for fn, state in pairs(storage.pause_sweep or {}) do
-        if state.direction == "pause" then to_resume[fn] = true end
+    -- Resume any team still marked paused across a config change, via the
+    -- power-disable pause API so both power sources and visual wires restore.
+    -- TODO(P2 docking): skip teams that are intentionally docked once docking
+    -- lands, so a mod update doesn't thaw a parked team.
+    for fn in pairs(storage.paused_forces or {}) do
+        local force = game.forces[fn]
+        if force and force.valid then
+            local names = {}
+            for _, s in pairs(game.surfaces) do
+                if s.valid and surface_utils.get_owner(s) == fn then
+                    names[#names + 1] = s.name
+                end
+            end
+            pause_control.unpause_team(fn, names)
+        end
     end
-    for fn in pairs(to_resume) do force_pause.resume(fn) end
     storage.team_settings = nil
 
     storage.spawned_players          = storage.spawned_players          or {}

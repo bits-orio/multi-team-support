@@ -13,7 +13,7 @@
 --      pole-to-pole wires, staggered reconnect on resume. Cosmetic only.
 --
 -- We deliberately do NOT use the legacy active=false entity sweep
--- (scripts/force_pause.lua, the removed auto-pause feature): killing power is
+-- (the retired active=false auto-pause feature): killing power is
 -- airtight by construction and avoids the mid-operation state bugs active=false
 -- causes. Known gap: burner-fuelled machines run on loaded fuel, not the grid,
 -- so they keep ticking until that fuel is spent — accepted for now, flagged in

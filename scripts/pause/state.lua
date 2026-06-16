@@ -4,10 +4,9 @@
 --
 -- Single source of truth for per-team paused state.
 --
--- The legacy entity sweep (scripts/force_pause.lua) writes the same
--- storage.paused_forces marker when a sweep completes; this module is the
--- read/write facade the mts-v1 pause API and the pause/* freeze modules share,
--- so the marker is never poked from more than one shape of code.
+-- This module is the single read/write facade for storage.paused_forces,
+-- shared by the mts-v1 pause API and the pause/* freeze modules, so the marker
+-- is never poked from more than one shape of code.
 --
 -- Storage:
 --   storage.paused_forces[force_name] = true | nil   -- nil means running

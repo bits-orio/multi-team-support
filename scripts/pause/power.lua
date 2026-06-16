@@ -2,19 +2,18 @@
 -- Author: bits-orio
 -- License: GPL-3.0-or-later
 --
--- The AIRTIGHT half of a team pause: disable every power SOURCE the team owns.
+-- The team pause freeze: disable every power SOURCE the team owns.
 --
--- Why this exists on top of the entity sweep
--- ──────────────────────────────────────────
--- The legacy sweep (scripts/force_pause.lua) sets active=false on every entity,
--- which already includes generators and accumulators. But it is AMORTIZED — it
--- walks chunk-by-chunk over many ticks, so for the seconds while it runs a
--- substation+generator pocket keeps its local area powered and machines keep
--- ticking. Cutting pole-to-pole wires (scripts/pause/wires.lua) does NOT close
--- that gap either: a local substation fed by a local generator stays an island
--- and powers everything in its supply area regardless of which trunk wires were
--- cut. The only airtight freeze is to kill the SOURCES themselves, immediately,
--- across every owned surface. That is this module's single job.
+-- Why kill sources instead of machines or wires
+-- ─────────────────────────────────────────────
+-- Setting active=false on every machine (the retired force_pause approach) is
+-- buggy mid-operation and the bugs are endless; an unpowered machine instead
+-- keeps its state and simply idles, so resume is clean by construction. Cutting
+-- pole-to-pole wires (scripts/pause/wires.lua) is NOT a freeze either: a local
+-- substation fed by a local generator stays an island and powers its whole
+-- supply area regardless of which trunk wires were cut. The only airtight
+-- freeze is to kill the SOURCES themselves, immediately, across every owned
+-- surface. That is this module's single job.
 --
 -- This is event-driven: pause/control.lua calls freeze()/thaw() directly at the
 -- moment of the pause/resume decision. No tick polling, no dirty flag.
