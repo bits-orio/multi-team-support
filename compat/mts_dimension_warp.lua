@@ -29,6 +29,9 @@ local compat_utils  = require("compat.compat_utils")
 local team_surfaces = require("scripts.team_surfaces")
 local vanilla       = require("compat.vanilla")
 local helpers       = require("scripts.helpers")
+-- Control stage does NOT have table.deepcopy by default (it's a data-stage /
+-- util lualib helper). Require util explicitly for util.table.deepcopy.
+local util          = require("util")
 
 local mts_dimension_warp = {}
 
@@ -65,7 +68,7 @@ function mts_dimension_warp.setup_player_surface(player)
 
     -- Deterministic per-team-identical settings: neo-nauvis's own map_gen plus
     -- nauvis's seed, so every team's warp #0 generates the same world (fair).
-    local mgs = table.deepcopy(planet.prototype.map_gen_settings)
+    local mgs = util.table.deepcopy(planet.prototype.map_gen_settings)
     local nauvis = game.surfaces["nauvis"]
     mgs.seed = nauvis and nauvis.map_gen_settings.seed or 0
 
