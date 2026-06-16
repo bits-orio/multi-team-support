@@ -14,12 +14,17 @@ local platformer    = require("compat.platformer")
 local deep_core_ops = require("compat.deep_core_ops")
 local voidblock     = require("compat.voidblock")
 local vanilla       = require("compat.vanilla")
+local mts_dimension_warp = require("compat.mts_dimension_warp")
 
 local h = {}
 
 --- Spawn the player into the world via the active compat layer.
+--- MDW has HIGHEST precedence: when mts-dimension-warp is loaded, teams spawn
+--- on their own neo-nauvis warp #0 platform world rather than any nauvis variant.
 function h.spawn_into_world(player)
-    if platformer.is_active() then
+    if mts_dimension_warp.is_active() then
+        mts_dimension_warp.setup_player_surface(player)
+    elseif platformer.is_active() then
         platformer.on_player_created(player)
     elseif deep_core_ops.is_active() then
         deep_core_ops.on_player_created(player)

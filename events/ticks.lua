@@ -24,6 +24,7 @@ local pop_text       = require("scripts.pop_text")
 local platformer     = require("compat.platformer")
 local voidblock      = require("compat.voidblock")
 local vanilla        = require("compat.vanilla")
+local mts_dimension_warp = require("compat.mts_dimension_warp")
 local admin_gui      = require("gui.admin")
 local force_utils    = require("scripts.force_utils")
 local team_settings  = require("gui.team_settings")
@@ -116,7 +117,12 @@ function M.register()
         pop_text.tick(game.tick)
         lfm_hint.tick(game.tick)
         landing_pen.process_pending_teleports()
-        if platformer.is_active() then
+        -- Match the spawn-dispatch precedence in events/helpers.lua: MDW first.
+        -- (MDW reuses the shared compat_utils teleport queue, so this drains the
+        -- same storage.pending_vanilla_tp the vanilla/voidblock paths use.)
+        if mts_dimension_warp.is_active() then
+            mts_dimension_warp.process_pending_teleports()
+        elseif platformer.is_active() then
             platformer.process_pending_teleports()
         elseif voidblock.is_active() then
             voidblock.process_pending_teleports()
