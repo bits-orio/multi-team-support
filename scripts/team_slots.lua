@@ -10,6 +10,7 @@ local friendship  = require("gui.friendship")
 local remote_api  = require("scripts.remote_api")
 local spawn_labels = require("scripts.spawn_labels")
 local team_clock  = require("scripts.team_clock")
+local pause_state = require("scripts.pause.state")
 
 local M = {}
 
@@ -214,6 +215,11 @@ function M.wipe_slot_state(force_name)
     storage.lfm_ever_recruited[force_name] = nil
     storage.pre_start_pending = storage.pre_start_pending or {}
     storage.pre_start_pending[force_name] = nil
+
+    -- Clear the pause marker so a recycled slot never inherits a stale "paused"
+    -- flag (which would silently disable the next team's warp loop). Just the
+    -- marker -- the surfaces are being deleted, so no unpause_team is needed.
+    pause_state.set_paused(force_name, false)
 
     -- Must run BEFORE reset_force_state: break_pair checks engine friendship
     -- flags that force.reset() would wipe silently.
