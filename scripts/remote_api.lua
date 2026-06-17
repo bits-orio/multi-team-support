@@ -822,6 +822,13 @@ function remote_api.register()
         is_team_paused = function(force_name)
             return (storage.paused_forces or {})[force_name] and true or false
         end,
+        -- Read-only: is ANY member of this team currently connected? Counts a
+        -- member spectating another team (helpers tracks their real force).
+        -- Consumers (e.g. MTS Dimension Warp's docking bay) use this at warp-fire
+        -- to decide depart-to-dock (nobody online) vs a normal warp.
+        is_team_online = function(force_name)
+            return helpers.team_has_online_member(force_name)
+        end,
 
         -- ── v2 candidates (uncomment alongside the matching impl) ────
         -- get_team_home_surface = get_team_home_surface_impl,
