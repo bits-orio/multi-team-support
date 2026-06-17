@@ -829,6 +829,16 @@ function remote_api.register()
         is_team_online = function(force_name)
             return helpers.team_has_online_member(force_name)
         end,
+        -- Resolve a player's EFFECTIVE team force name. A member spectating
+        -- another team is on the 'spectator' force, but their real team is tracked
+        -- in spectator_real_force. Consumers that act on a player's OWN team (e.g.
+        -- MTS Dimension Warp's dock resume prompt + member-gather) must use this
+        -- rather than the live player.force.name. Returns nil for a bad index.
+        get_effective_force = function(player_index)
+            local p = player_index and game.get_player(player_index)
+            if not (p and p.valid) then return nil end
+            return (storage.spectator_real_force or {})[p.index] or p.force.name
+        end,
 
         -- ── v2 candidates (uncomment alongside the matching impl) ────
         -- get_team_home_surface = get_team_home_surface_impl,
