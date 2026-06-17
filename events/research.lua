@@ -20,8 +20,10 @@ function M.register()
 
         -- Announce team research to the Open Discord Bridge (team-aware, replaces the
         -- bridge's team-less baseline research event, which we disable on init).
+        -- Skip script-granted research (by_script) -- e.g. a mod pre-granting a
+        -- team a gate tech -- which is not a player achievement worth announcing.
         local research = event.research
-        if research and research.valid and research.force.name:find("^team%-") then
+        if research and research.valid and research.force.name:find("^team%-") and not event.by_script then
             local team = (storage.team_names or {})[research.force.name] or research.force.name
             remote_api.emit_to_bridge("mts.research_finished", {
                 team  = team,

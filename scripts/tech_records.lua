@@ -42,6 +42,15 @@ function tech_records.on_research_finished(event)
     -- No-op when Space Age is inactive or tech isn't a discovery.
     planet_map.on_research_finished(tech)
 
+    -- Script-granted research (by_script) is not a player achievement, so don't
+    -- record/announce a first/fastest for it. This covers admin /c research and
+    -- mods that pre-grant techs -- e.g. MTS Dimension Warp pre-grants its
+    -- un-craftable 'neo-nauvis' gate technology at team creation. The tick record
+    -- above and the planet-variant unlock still apply; only the milestone
+    -- record + broadcast + pop-text are skipped. (Engine-completed research,
+    -- including research_trigger techs, has by_script=false and stays tracked.)
+    if event.by_script then return false end
+
     -- Update first/fastest records
     local result = records.update(storage.tech_records, tech.name, force.name, game.tick)
 
