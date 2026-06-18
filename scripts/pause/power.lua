@@ -127,18 +127,40 @@ end
 --- cosmetic wire layer is.
 function power.set_active(force, surfaces, active)
     if not (force and force.valid) then return 0 end
-    -- Per-force accumulator charge snapshot: populated on freeze, drained on thaw.
+    -- Per-force snapshots: populated on freeze, drained on thaw.
     storage.pause_accumulator_charge = storage.pause_accumulator_charge or {}
+    storage.pause_solar_mult        = storage.pause_solar_mult        or {}
     local charge_store = storage.pause_accumulator_charge[force.name] or {}
+    local solar_store  = storage.pause_solar_mult[force.name]        or {}
     storage.pause_accumulator_charge[force.name] = charge_store
+    storage.pause_solar_mult[force.name]         = solar_store
 
     local touched = 0
     local type_counts = {}
     for _, surface in pairs(surfaces or {}) do
         touched = touched + set_sources_on_surface(surface, force, active, charge_store, type_counts)
+        -- Solar: active=false does NOT stop a solar panel generating, and surface
+        -- darkness maxes ~0.85 (night isn't enough). Zero the SURFACE's solar
+        -- multiplier on freeze (snapshot first) and restore on thaw -- the only
+        -- airtight way to stop solar output on a frozen surface.
+        if surface and surface.valid then
+            if not active then
+                solar_store[surface.index] = surface.solar_power_multiplier
+                surface.solar_power_multiplier = 0
+            else
+                local saved = solar_store[surface.index]
+                if saved then
+                    surface.solar_power_multiplier = saved
+                    solar_store[surface.index] = nil
+                end
+            end
+        end
     end
-    -- Thaw restored every snapshot; drop the (now empty) store.
-    if active then storage.pause_accumulator_charge[force.name] = nil end
+    -- Thaw restored every snapshot; drop the (now empty) stores.
+    if active then
+        storage.pause_accumulator_charge[force.name] = nil
+        storage.pause_solar_mult[force.name]         = nil
+    end
 
     if DIAG then
         local parts = {}
