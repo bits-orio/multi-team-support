@@ -18,15 +18,24 @@
 -- This is event-driven: pause/control.lua calls freeze()/thaw() directly at the
 -- moment of the pause/resume decision. No tick polling, no dirty flag.
 --
--- ⚠ UNRESOLVED SPIKE — accumulator charge under active=false
+-- ✓ RESOLVED — accumulator charge under active=false
 -- ──────────────────────────────────────────────────────────
--- It is NOT verified in-game whether setting active=false on an accumulator
--- FREEZES its stored charge (desired) or lets it DRAIN/leak while disabled.
--- See SPIKE_ACCUMULATOR below. Implemented conservatively (we only flip active,
--- we never touch .energy) so we cannot accidentally destroy a team's charge;
--- if the spike resolves to "drains", a follow-up must snapshot+restore .energy.
+-- The spike is resolved: active=false does NOT stop an accumulator from
+-- DISCHARGING its stored charge into the network, so a paused base with charged
+-- accumulators keeps running off them (reported in-game: a docked base's
+-- assembler still had power). active=false also doesn't drain the charge (an
+-- earlier headless spike confirmed it persists). So we now SNAPSHOT each
+-- accumulator's energy, zero it on freeze (no stored power to discharge), and
+-- RESTORE it on thaw -- the snapshot+restore the comment used to call for.
 
 local power = {}
+
+-- Diagnostic logging. Currently ON so the freeze can be traced (per type) in
+-- factorio-current.log ([mts:pause/power:DIAG]); set false once confirmed.
+local DIAG = true
+local function diag(msg)
+    if DIAG then log("[mts:pause/power:DIAG] " .. msg) end
+end
 
 -- Entity TYPES that GENERATE or STORE electricity. Disabling active on these
 -- stops the supply at the root. Verified as real Factorio 2.0 entity-type
@@ -52,18 +61,12 @@ local POWER_SOURCE_TYPES = {
     "fusion-generator",          -- Space Age fusion (no-op pre-SA; type just won't match)
 }
 
--- SPIKE_ACCUMULATOR: placeholder so the unresolved question is greppable.
--- TODO(spike): confirm in-game whether `accumulator.active = false` freezes or
--- drains `accumulator.energy`. Until then we ONLY toggle active and never read
--- or write .energy, which is the safe (non-destructive) conservative choice.
-local SPIKE_ACCUMULATOR = "active=false charge behavior unverified"
-
 --- Flip active on every power source the force owns on one surface.
 --- @param surface LuaSurface
 --- @param force   LuaForce
 --- @param active  boolean   desired active state (false to freeze)
 --- @return integer touched  number of entities whose active state changed
-local function set_sources_on_surface(surface, force, active)
+local function set_sources_on_surface(surface, force, active, charge_store, type_counts)
     if not (surface and surface.valid and force and force.valid) then return 0 end
     local touched = 0
     -- One filtered query per surface (entity-type array filter) instead of a
@@ -75,9 +78,28 @@ local function set_sources_on_surface(surface, force, active)
         force = force,
     }
     for _, ent in ipairs(sources) do
-        if ent.valid and ent.active ~= active then
-            ent.active = active
-            touched = touched + 1
+        if ent.valid then
+            type_counts[ent.type] = (type_counts[ent.type] or 0) + 1
+            if ent.active ~= active then
+                ent.active = active
+                touched = touched + 1
+            end
+            -- Accumulators: active=false does NOT stop them discharging stored
+            -- charge into the network. Zero the buffer on freeze (snapshotting it
+            -- first) so a frozen base has no stored power to run on, and restore
+            -- it on thaw -- no charge lost, no power leaked.
+            if ent.type == "accumulator" and ent.unit_number then
+                if not active then
+                    charge_store[ent.unit_number] = ent.energy
+                    ent.energy = 0
+                else
+                    local saved = charge_store[ent.unit_number]
+                    if saved then
+                        ent.energy = saved
+                        charge_store[ent.unit_number] = nil
+                    end
+                end
+            end
         end
     end
     return touched
@@ -105,14 +127,24 @@ end
 --- cosmetic wire layer is.
 function power.set_active(force, surfaces, active)
     if not (force and force.valid) then return 0 end
-    -- SPIKE_ACCUMULATOR (see top): we deliberately only flip `active` below and
-    -- never read/write `accumulator.energy`, because whether active=false
-    -- freezes or drains stored charge is unverified in-game. Touching .energy
-    -- here is the would-be fix IF the spike ever resolves to "drains".
-    local _ = SPIKE_ACCUMULATOR  -- keep the marker reachable/greppable
+    -- Per-force accumulator charge snapshot: populated on freeze, drained on thaw.
+    storage.pause_accumulator_charge = storage.pause_accumulator_charge or {}
+    local charge_store = storage.pause_accumulator_charge[force.name] or {}
+    storage.pause_accumulator_charge[force.name] = charge_store
+
     local touched = 0
+    local type_counts = {}
     for _, surface in pairs(surfaces or {}) do
-        touched = touched + set_sources_on_surface(surface, force, active)
+        touched = touched + set_sources_on_surface(surface, force, active, charge_store, type_counts)
+    end
+    -- Thaw restored every snapshot; drop the (now empty) store.
+    if active then storage.pause_accumulator_charge[force.name] = nil end
+
+    if DIAG then
+        local parts = {}
+        for t, n in pairs(type_counts) do parts[#parts + 1] = t .. "=" .. n end
+        diag(string.format("%s force=%s touched=%d sources{%s}",
+            active and "THAW" or "FREEZE", force.name, touched, table.concat(parts, " ")))
     end
     return touched
 end
