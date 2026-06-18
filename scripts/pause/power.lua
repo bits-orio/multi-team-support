@@ -30,9 +30,9 @@
 
 local power = {}
 
--- Diagnostic logging. Currently ON so the freeze can be traced (per type) in
--- factorio-current.log ([mts:pause/power:DIAG]); set false once confirmed.
-local DIAG = true
+-- Diagnostic logging. Off by default; flip to true to trace what the freeze
+-- disables (per type) in factorio-current.log ([mts:pause/power:DIAG]).
+local DIAG = false
 local function diag(msg)
     if DIAG then log("[mts:pause/power:DIAG] " .. msg) end
 end
