@@ -670,6 +670,61 @@ local function list_team_surfaces_impl(force_name)
     return out
 end
 
+-- ── Passive radar (spectate liveness) ────────────────────────────────
+-- Ensure a hidden, powerless, non-charting passive radar exists at `position`
+-- on `surface` (name, index, or LuaSurface) owned by `force_name`, so the
+-- surface stays live-viewable for spectators even when no team member stands on
+-- it. The radar's constantly-revealed ring belongs to the team force, so it is
+-- shared to chart-sharing spectators with no power draw and no map charting
+-- (see prototypes/entities/passive-radar.lua). Idempotent per (surface,
+-- position): a repeat call returns the existing radar rather than stacking
+-- duplicates -- so consumers safely re-call it after every surface clone (which
+-- gives the radar a new unit_number on a new surface) and place several at
+-- different coordinates to cover a base larger than one ring. Returns the
+-- LuaEntity (all mods share one Lua state, so the reference is valid for the
+-- caller) or nil if the surface/force is invalid.
+local PASSIVE_RADAR_NAME = "mts-passive-radar"
+local function resolve_surface(surface_ref)
+    local t = type(surface_ref)
+    if t == "string" or t == "number" then
+        return game.surfaces[surface_ref]
+    end
+    -- LuaSurface passed directly (same Lua state across mods). A LuaObject's type()
+    -- is engine-dependent (table or userdata), so don't gate on it -- just probe
+    -- object_name behind a pcall in case it's some unrelated value.
+    if t == "table" or t == "userdata" then
+        local ok, on = pcall(function() return surface_ref.object_name end)
+        if ok and on == "LuaSurface" then return surface_ref end
+    end
+    return nil
+end
+local function ensure_passive_radar_impl(force_name, surface_ref, position)
+    local force = type(force_name) == "string" and game.forces[force_name]
+    if not (force and force.valid) then return nil end
+    local surface = resolve_surface(surface_ref)
+    if not (surface and surface.valid) then return nil end
+    position = position or {x = 0, y = 0}
+
+    -- Re-assert ownership + the inert flags on every call. A radar carried across
+    -- a surface clone can come back with default flags (destructible true), so we
+    -- harden on the found path too, not just on create.
+    local function harden(radar)
+        if not (radar and radar.valid) then return nil end
+        if radar.force ~= force then radar.force = force end
+        radar.destructible = false
+        radar.operable     = false
+        radar.minable      = false
+        return radar
+    end
+
+    -- Idempotent: reuse a passive radar already at this spot. find_entity is
+    -- unreliable here (the radar has a zero collision box), so match by position.
+    local found = surface.find_entities_filtered{name = PASSIVE_RADAR_NAME, position = position, radius = 1}
+    if found[1] and found[1].valid then return harden(found[1]) end
+
+    return harden(surface.create_entity{name = PASSIVE_RADAR_NAME, position = position, force = force})
+end
+
 -- ── v2 candidates (uncomment to enable) ──────────────────────────────
 -- local function get_team_home_surface_impl(force_name)
 --     if not is_team_force_name(force_name) then return nil end
@@ -838,6 +893,16 @@ function remote_api.register()
             local p = player_index and game.get_player(player_index)
             if not (p and p.valid) then return nil end
             return (storage.spectator_real_force or {})[p.index] or p.force.name
+        end,
+
+        -- ── Passive radar (spectate liveness) ────────────────────────
+        -- Place/ensure a hidden, powerless, non-charting passive radar so an
+        -- empty team surface stays live-viewable for spectators. Idempotent per
+        -- (surface, position); returns the LuaEntity or nil. Consumers (MDW
+        -- dimension floors + docks, BNM team bases) call this from surface
+        -- creation and re-call after every clone. See ensure_passive_radar_impl.
+        ensure_passive_radar = function(force_name, surface_ref, position)
+            return ensure_passive_radar_impl(force_name, surface_ref, position)
         end,
 
         -- ── v2 candidates (uncomment alongside the matching impl) ────

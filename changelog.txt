@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.50
+Date: 2026-06-19
+  Features:
+    - New mts-v1 interface "ensure_passive_radar(force, surface, position)" plus a hidden,
+      void-powered passive-radar prototype. Consumer mods place it to keep an empty team
+      surface live-viewable for spectators with no electricity, no pollution, and only a
+      bounded local map reveal (no save bloat). Idempotent per (surface, position) and safe
+      to re-call after a surface clone.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.49
 Date: 2026-06-14
   Bugfixes:

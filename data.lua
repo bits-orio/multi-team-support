@@ -36,3 +36,7 @@ data:extend({
         flags         = {"not-compressed", "gui-icon"},
     },
 })
+
+-- Hidden passive radar that consumer mods place via mts-v1 `ensure_passive_radar`
+-- to keep empty team surfaces live-viewable for spectators. See the file header.
+require("prototypes.entities.passive-radar")
