@@ -50,23 +50,30 @@ function team_surfaces.create_team_surface(force_name, spec)
     local force = game.forces[force_name]
     if not (force and force.valid) then return nil end
 
-    -- Idempotent: if a surface with this name already exists, return it.
-    if game.surfaces[name] then return name end
+    -- Ownership of these ephemeral surfaces lives in a DEDICATED map that
+    -- planet_map.build() never rewrites (the variant maps it does rewrite are
+    -- regenerated from scratch on every on_configuration_changed, which used to
+    -- orphan every surface registered here). See surface_utils.get_owner.
+    storage.surface_owner_overrides = storage.surface_owner_overrides or {}
+
+    -- Idempotent: if the surface already exists, RE-ASSERT ownership and return.
+    -- Re-asserting is what lets a consumer (e.g. MTS Dimension Warp) HEAL
+    -- ownership that an earlier wipe dropped -- the old early-return wrote nothing,
+    -- so a re-call could never repair a lost entry.
+    if game.surfaces[name] then
+        storage.surface_owner_overrides[name] = force_name
+        return name
+    end
 
     -- Register ownership BEFORE creation so the engine's on_surface_created
     -- handler resolves get_owner -> this force (driving visibility/labels/event).
-    storage.map_planet_to_force = storage.map_planet_to_force or {}
-    storage.map_planet_to_force[name] = force_name
-    storage.map_force_to_planets = storage.map_force_to_planets or {}
-    storage.map_force_to_planets[force_name] = storage.map_force_to_planets[force_name] or {}
-    storage.map_force_to_planets[force_name][base] = name
+    storage.surface_owner_overrides[name] = force_name
 
     -- Create with the caller's settings (seed included). The non-variant name
     -- means normalize_variant_seed leaves that seed untouched.
     local ok, surface = pcall(function() return game.create_surface(name, spec.map_gen_settings) end)
     if not (ok and surface and surface.valid) then
-        storage.map_planet_to_force[name] = nil
-        storage.map_force_to_planets[force_name][base] = nil
+        storage.surface_owner_overrides[name] = nil
         return nil
     end
 
@@ -100,7 +107,10 @@ function team_surfaces.retire_team_surface(force_name, surface_name)
     if not (surface and surface.valid) then return false end
     if surface_utils.get_owner(surface) ~= force_name then return false end
 
-    -- Unwind the map entries for THIS surface only.
+    -- Unwind ownership for THIS surface only. The override map is where ephemeral
+    -- ownership now lives; the legacy variant-map unwinds are kept defensively for
+    -- old saves that still have stray entries.
+    if storage.surface_owner_overrides then storage.surface_owner_overrides[surface_name] = nil end
     if storage.map_planet_to_force then storage.map_planet_to_force[surface_name] = nil end
     local per_team = (storage.map_force_to_planets or {})[force_name]
     if per_team then

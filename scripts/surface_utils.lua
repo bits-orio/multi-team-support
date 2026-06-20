@@ -36,6 +36,12 @@ end
 function surface_utils.get_owner(surface)
     if not surface or not surface.valid then return nil end
 
+    -- Consumer-registered ephemeral surfaces (mts-v1 create_team_surface). This
+    -- map is keyed 1:1 by surface name and is immune to planet_map.build(), so it
+    -- survives on_configuration_changed. Checked first as the most exact record.
+    local override = (storage.surface_owner_overrides or {})[surface.name]
+    if override and game.forces[override] then return override end
+
     -- Space platforms owned by team forces
     for _, force in pairs(game.forces) do
         if force.name:find("^team%-") then

@@ -51,6 +51,25 @@ function M.collect_team_surfaces(force)
         end
     end
 
+    -- Ephemeral, consumer-registered surfaces (mts-v1 create_team_surface, e.g.
+    -- MTS Dimension Warp warp/floor/dock worlds). This map is keyed 1:1 by surface
+    -- name, so -- unlike the base-keyed variant map below -- two surfaces on the
+    -- same base planet are BOTH listed instead of collapsing to one.
+    for sname, owner in pairs(storage.surface_owner_overrides or {}) do
+        if owner == force.name then
+            local surface = game.surfaces[sname]
+            if surface and surface.valid then
+                list[#list + 1] = {
+                    name         = sname,
+                    location     = sname,
+                    gps          = string.format("[gps=0,0,%s]", sname),
+                    surface_name = sname,
+                    position     = helpers.ORIGIN,
+                }
+            end
+        end
+    end
+
     local per_team = (storage.map_force_to_planets or {})[force.name] or {}
     for base, variant in pairs(per_team) do
         local surface = game.surfaces[variant]

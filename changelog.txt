@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.51
+Date: 2026-06-20
+  Bugfixes:
+    - Team surfaces that another mod registers through the mts-v1 API (for example MTS
+      Dimension Warp's warp, floor and dock worlds) lost their team ownership on every mod
+      update, so they disappeared from the Teams surface list and stopped being viewable by
+      spectators. Their ownership is now kept in a separate record that survives mod updates.
+    - The Teams surface list no longer collapses two of a team's surfaces that share the same
+      base planet into a single entry.
+    - create_team_surface now re-stamps ownership when called for a surface that already
+      exists (it used to return without doing anything), so a consumer mod can repair team
+      surface ownership that an older version had dropped.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.50
 Date: 2026-06-19
   Features:

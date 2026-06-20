@@ -41,6 +41,13 @@ end
 function planet_map.init_storage()
     storage.map_force_to_planets = storage.map_force_to_planets or {}
     storage.map_planet_to_force  = storage.map_planet_to_force  or {}
+    -- Ownership of EPHEMERAL, consumer-registered surfaces (mts-v1
+    -- create_team_surface, e.g. MTS Dimension Warp's warp/floor/dock worlds).
+    -- Kept SEPARATE from the two variant maps above on purpose: planet_map.build()
+    -- rebuilds those from scratch on every on_configuration_changed, so any
+    -- ephemeral ownership written there was orphaned on each mod update. This map
+    -- is never touched by build(). See surface_utils.get_owner / team_surfaces.
+    storage.surface_owner_overrides = storage.surface_owner_overrides or {}
     -- Cached map of tech_name -> base_planet_name. Rebuilt on
     -- on_configuration_changed via refresh_discovery_techs() so that
     -- adding a planet mod mid-save picks up the new discovery techs
