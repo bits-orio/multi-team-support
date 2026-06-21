@@ -289,6 +289,26 @@ function M.cleanup_force_surfaces(force_name)
         end
     end
 
+    -- mts-v1 ephemeral surfaces (created via create_team_surface -- e.g. MTS
+    -- Dimension Warp's dock / warp / dimension worlds) are tracked ONLY in the
+    -- dedicated override map. They carry a consumer prefix ('mdw-...'), not
+    -- 'team-N-', and aren't in the variant map, so BOTH scans above miss them --
+    -- a disband would leak every one. Sweep them here and drop their ownership.
+    local overrides = storage.surface_owner_overrides
+    if overrides then
+        for sname, owner in pairs(overrides) do
+            if owner == force_name then
+                local surface = game.surfaces[sname]
+                if surface and surface.valid and not seen[sname] then
+                    seen[sname] = true
+                    deleted[#deleted + 1] = sname
+                    game.delete_surface(surface)
+                end
+                overrides[sname] = nil
+            end
+        end
+    end
+
     local force = game.forces[force_name]
     if force then
         for _, platform in pairs(force.platforms) do

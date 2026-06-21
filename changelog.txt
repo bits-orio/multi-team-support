@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.52
+Date: 2026-06-21
+  Bugfixes:
+    - Disbanding a team now deletes ALL of its surfaces. Team worlds created through the
+      mts-v1 API (for example MTS Dimension Warp's warp, floor and dock worlds) are tracked
+      in a separate ownership record, which the disband cleanup was not scanning -- so those
+      surfaces were left behind on every disband, leaking memory and letting a recycled team
+      slot inherit an old occupant's world. The cleanup now sweeps that record too.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.51
 Date: 2026-06-20
   Bugfixes:
