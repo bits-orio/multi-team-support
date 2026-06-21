@@ -31,6 +31,7 @@ local team_settings  = require("gui.team_settings")
 local helpers        = require("scripts.helpers")
 local lfm_hint       = require("gui.lfm_hint")
 local spectator      = require("scripts.spectator")
+local color_fix      = require("scripts.color_fix")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -173,6 +174,11 @@ function M.register()
     script.on_nth_tick(20,    function() spectator.track_home_zoom() end)
     script.on_nth_tick(30,    function() chunk_trim.tick() end)
     script.on_nth_tick(60,    function()
+        -- Keep player colours readable/distinct FIRST (no engine event fires on a
+        -- colour change, so we poll; cheap + self-terminating). Running it before
+        -- the leader-colour sync below means the team colour picks up the FIXED
+        -- leader colour, not the raw one.
+        color_fix.poll()
         for force_name, leader_idx in pairs(storage.team_leader or {}) do
             local force  = game.forces[force_name]
             local leader = game.get_player(leader_idx)

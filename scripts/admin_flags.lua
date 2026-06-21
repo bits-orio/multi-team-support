@@ -57,6 +57,11 @@ M.FLAGS = {
         label   = "Staged Start (Speedrun)",
         tooltip = "When enabled, a new team's clock does not start until the leader clicks \"Start Playing\". The team is locked out of all game actions until then, but can browse the map. Designed for speedrun servers.",
     },
+    {
+        key     = "color_fix_enabled",
+        label   = "Readable Player Colours",
+        tooltip = "When enabled, players' colours are automatically kept readable and distinct: dark colours are brightened, brown shades are shifted to a vivid orange, and clashing colours are spread apart -- on join and whenever a player changes colour.",
+    },
 }
 
 local FLAG_DEFAULTS = {
@@ -67,6 +72,7 @@ local FLAG_DEFAULTS = {
     popup_text_enabled              = true,
     allow_blueprint_imports         = false,  -- imports blocked by default
     staged_start_enabled            = false,  -- opt-in; intended for speedrun servers
+    color_fix_enabled               = true,   -- auto-keep player colours readable + distinct
 }
 
 M.BUDDY_TEAM_LIMIT_MIN     = 2

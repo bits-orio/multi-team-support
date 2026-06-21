@@ -12,6 +12,7 @@ local teams_gui         = require("gui.teams")
 local remote_api        = require("scripts.remote_api")
 local team_clock        = require("scripts.team_clock")
 local start_playing_gui = require("gui.start_playing_gui")
+local color_fix         = require("scripts.color_fix")
 
 local M = {}
 
@@ -53,6 +54,7 @@ function M.register()
 
     script.on_event(defines.events.on_player_joined_game, function(event)
         local player = game.get_player(event.player_index)
+        if player then color_fix.on_joined(player) end
         if player then spectator.on_player_joined(player) end
         if player and landing_pen.is_in_pen(player) then
             landing_pen.place_player(player)

@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.53
+Date: 2026-06-21
+  Features:
+    - Player colours are now kept readable and distinct automatically. Dark colours are brightened,
+      brown / muddy shades (which blend into the terrain) are shifted to a vivid orange, and any two
+      players whose colours clash are spread apart across the colour wheel. It runs when a player
+      joins and whenever a player changes their colour. A new "Readable Player Colours" toggle in the
+      admin panel controls it (on by default), and admins can re-apply it to everyone at once with
+      the /mts-fixcolors command.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.52
 Date: 2026-06-21
   Bugfixes:

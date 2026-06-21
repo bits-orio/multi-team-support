@@ -10,6 +10,7 @@ local confirm      = require("gui.confirm")
 local pause_control = require("scripts.pause.control")
 local surface_utils = require("scripts.surface_utils")
 local chunk_trim   = require("scripts.chunk_trim")
+local color_fix    = require("scripts.color_fix")
 
 local M = {}
 
@@ -207,6 +208,15 @@ function M.register()
             }
             if not ok then caller.print(err or "Could not start trim."); return end
             caller.print(("Chunk trim queued for %d surface(s). Processing one surface every ~0.5s."):format(count))
+        end)
+
+    commands.add_command("mts-fixcolors",
+        "Brighten unreadable (too dark) player name colours now (admin only). Runs automatically on join + on colour change.",
+        function(cmd)
+            local caller = cmd.player_index and game.get_player(cmd.player_index)
+            if not caller then game.print("This command can only be used by a player."); return end
+            if not caller.admin then caller.print("Only admins can fix player colours."); return end
+            color_fix.fix_all(caller)
         end)
 end
 
