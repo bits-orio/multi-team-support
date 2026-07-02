@@ -53,6 +53,16 @@ end
 
 -- ─── First rocket launched ────────────────────────────────────────────
 
+-- Late-game teams launch rockets continuously (tens of thousands of launches),
+-- which floods the Discord bridge. Announce every launch up to 10, then every
+-- 5th up to 100, then every 25th. Stateless: derived from the force's own
+-- launch counter, so it needs no storage and survives save/load untouched.
+local function should_announce_rocket(total)
+    if total <= 10 then return true end
+    if total <= 100 then return total % 5 == 0 end
+    return total % 25 == 0
+end
+
 function M.on_rocket_launched(event)
     M.init_storage()
 
@@ -60,8 +70,9 @@ function M.on_rocket_launched(event)
     if not (rocket and rocket.valid) then return end
     local force = rocket.force
 
-    -- Team-specific Discord announcement for every launch (suppresses vanilla.rocket_launched).
-    if force_utils.is_team_force(force.name) then
+    -- Team-specific Discord announcement (suppresses vanilla.rocket_launched),
+    -- throttled by should_announce_rocket to keep late-game spam down.
+    if force_utils.is_team_force(force.name) and should_announce_rocket(force.rockets_launched) then
         local team = (storage.team_names or {})[force.name] or force.name
         remote_api.emit_to_bridge("mts.rocket_launched", {
             team         = team,
