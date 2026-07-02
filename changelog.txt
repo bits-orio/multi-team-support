@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.54
+Date: 2026-07-02
+  Changes:
+    - Rocket-launch announcements to the Discord bridge are throttled for late-game teams: every
+      launch is announced up to 10 total, then every 5th up to 100, then every 25th after that.
+      The announcement text still carries the exact running total, and the first-ever-rocket
+      global milestone is unaffected.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.53
 Date: 2026-06-21
   Features:
