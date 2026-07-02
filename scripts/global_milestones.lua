@@ -24,6 +24,8 @@ function M.init_storage()
     storage.global_records = storage.global_records or {}
     storage.global_records.first_rocket          = storage.global_records.first_rocket or false
     storage.global_records.first_planet_landings = storage.global_records.first_planet_landings or {}
+    -- force name -> rockets_launched total at the last bridge announcement
+    storage.rocket_announced = storage.rocket_announced or {}
 end
 
 -- Tried in order; first valid path wins. "achievement_unlocked" is the
@@ -54,13 +56,22 @@ end
 -- ─── First rocket launched ────────────────────────────────────────────
 
 -- Late-game teams launch rockets continuously (tens of thousands of launches),
--- which floods the Discord bridge. Announce every launch up to 10, then every
--- 5th up to 100, then every 25th. Stateless: derived from the force's own
--- launch counter, so it needs no storage and survives save/load untouched.
-local function should_announce_rocket(total)
+-- which floods the Discord bridge. Announce every launch up to 10 total, then
+-- one per 5 launches up to 100, then one per 25.
+--
+-- Threshold-CROSSING, not exact multiples: force.rockets_launched skips and
+-- duplicates values when several rockets resolve close together (live logs show
+-- "...30254, 30254, 30256..."), so `total % 25 == 0` goes silent for a whole
+-- window when the multiple lands on a skipped value, and double-posts when a
+-- duplicate lands on one. Crossing announces once as soon as the counter has
+-- advanced a full step past the last announced total, whatever exact values the
+-- events happen to read.
+local function should_announce_rocket(force_name, total)
     if total <= 10 then return true end
-    if total <= 100 then return total % 5 == 0 end
-    return total % 25 == 0
+    local step = (total <= 100) and 5 or 25
+    local last = storage.rocket_announced[force_name] or 0
+    -- total < last: the force's counter reset (force deleted/recreated) — re-arm.
+    return total >= last + step or total < last
 end
 
 function M.on_rocket_launched(event)
@@ -72,7 +83,8 @@ function M.on_rocket_launched(event)
 
     -- Team-specific Discord announcement (suppresses vanilla.rocket_launched),
     -- throttled by should_announce_rocket to keep late-game spam down.
-    if force_utils.is_team_force(force.name) and should_announce_rocket(force.rockets_launched) then
+    if force_utils.is_team_force(force.name) and should_announce_rocket(force.name, force.rockets_launched) then
+        storage.rocket_announced[force.name] = force.rockets_launched
         local team = (storage.team_names or {})[force.name] or force.name
         remote_api.emit_to_bridge("mts.rocket_launched", {
             team         = team,

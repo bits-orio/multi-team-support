@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.55
+Date: 2026-07-02
+  Bugfixes:
+    - Rocket-announcement throttling now uses threshold crossing instead of exact multiples.
+      force.rockets_launched can skip and duplicate values when several rockets resolve close
+      together, which made whole announcement windows go silent (skipped multiple) or post twice
+      (duplicated multiple). One announcement now fires as soon as the counter advances a full
+      step past the last announced total.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.54
 Date: 2026-07-02
   Changes:
