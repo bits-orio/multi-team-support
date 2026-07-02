@@ -59,19 +59,20 @@ end
 -- which floods the Discord bridge. Announce every launch up to 10 total, then
 -- one per 5 launches up to 100, then one per 25.
 --
--- Threshold-CROSSING, not exact multiples: force.rockets_launched skips and
--- duplicates values when several rockets resolve close together (live logs show
--- "...30254, 30254, 30256..."), so `total % 25 == 0` goes silent for a whole
--- window when the multiple lands on a skipped value, and double-posts when a
--- duplicate lands on one. Crossing announces once as soon as the counter has
--- advanced a full step past the last announced total, whatever exact values the
--- events happen to read.
+-- Announce when the counter reaches-or-passes the NEXT ROUND MULTIPLE of the step
+-- (…30275, 30300, 30325), rather than `total % step == 0`: force.rockets_launched
+-- skips and duplicates values when several rockets resolve close together (live
+-- logs show "...30254, 30254, 30256..."), so the exact-multiple check goes silent
+-- for a whole window when the multiple lands on a skipped value, and double-posts
+-- when a duplicate lands on one. Reach-or-pass keeps announced totals on round
+-- numbers in the common case and only overshoots by the skip amount otherwise.
 local function should_announce_rocket(force_name, total)
     if total <= 10 then return true end
     local step = (total <= 100) and 5 or 25
     local last = storage.rocket_announced[force_name] or 0
-    -- total < last: the force's counter reset (force deleted/recreated) — re-arm.
-    return total >= last + step or total < last
+    if total < last then return true end -- counter reset (force deleted/recreated): re-arm
+    local next_mark = (math.floor(last / step) + 1) * step
+    return total >= next_mark
 end
 
 function M.on_rocket_launched(event)

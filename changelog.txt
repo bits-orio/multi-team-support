@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.56
+Date: 2026-07-02
+  Changes:
+    - Rocket announcements land on round totals: the throttle fires when the launch counter
+      reaches or passes the next multiple of the step (…30275, 30300, 30325). When the counter
+      skips the exact multiple, the announcement overshoots by the skip amount instead of the
+      window going silent.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.55
 Date: 2026-07-02
   Bugfixes:
