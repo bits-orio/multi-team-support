@@ -101,15 +101,24 @@ local function trim_surface(surface, entity_buffer, player_buffer, caller_idx)
         end
     end
 
-    local total, deleted = 0, 0
+    -- Collect the doomed chunk coords in a first pass, THEN delete in a second
+    -- pass, rather than deleting mid-get_chunks(). delete_chunk's own events are
+    -- deferred so mutating during iteration is probably safe, but get_chunks()
+    -- makes no concurrent-mutation guarantee -- separating the passes removes the
+    -- doubt for free (deletion still lands end-of-tick either way) (ST-4).
+    local total = 0
+    local doomed = {}
     for c in surface.get_chunks() do
         total = total + 1
         if not (keep[c.x] and keep[c.x][c.y]) then
-            surface.delete_chunk{c.x, c.y}
-            for _, f in pairs(game.forces) do f.unchart_chunk({c.x, c.y}, surface) end
-            deleted = deleted + 1
+            doomed[#doomed + 1] = {c.x, c.y}
         end
     end
+    for _, pos in ipairs(doomed) do
+        surface.delete_chunk(pos)
+        for _, f in pairs(game.forces) do f.unchart_chunk(pos, surface) end
+    end
+    local deleted = #doomed
 
     notify(caller_idx, string.format("%s (%s): deleted %d / %d chunks (kept %d)",
         label, surface.name, deleted, total, total - deleted))
