@@ -128,6 +128,25 @@ function helpers.diag(context, player)
         .. " | " .. helpers.player_state(player))
 end
 
+-- ─── Team-force Predicates ─────────────────────────────────────────────
+
+--- True if `name` is a team force name ("team-<N>"). The canonical predicate:
+--- callers across the mod had re-typed `name:find("^team%-")` inline, and a
+--- few control-stage modules kept private copies because force_utils sits too
+--- high in the require graph. helpers is the leaf, so the one rule lives here.
+--- The type() guard makes it safe at the mts-v1 trust boundary, where a
+--- non-string (LuaForce/number/table) would otherwise error on :find.
+function helpers.is_team_force(name)
+    return type(name) == "string" and name:find("^team%-") ~= nil
+end
+
+--- The integer slot for a team force name ("team-7" -> 7), or nil when `name`
+--- isn't one. Replaces the repeated tonumber(name:match("^team%-(%d+)$")) idiom.
+function helpers.team_slot(name)
+    if type(name) ~= "string" then return nil end
+    return tonumber(name:match("^team%-(%d+)$"))
+end
+
 -- ─── Force Helpers ─────────────────────────────────────────────────────
 
 --- Get the display name for a force.

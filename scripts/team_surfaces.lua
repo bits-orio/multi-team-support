@@ -24,6 +24,7 @@
 -- No cycle now: remote_api injects this module (set_deferred_deps) rather than
 -- requiring it, so team_surfaces -> surface_utils is a one-way edge.
 local surface_utils = require("scripts.surface_utils")
+local helpers       = require("scripts.helpers")
 
 local team_surfaces = {}
 
@@ -49,9 +50,7 @@ function team_surfaces.is_deferring(name)
     return deferred[name] == true
 end
 
-local function is_team_force(force_name)
-    return type(force_name) == "string" and force_name:find("^team%-") ~= nil
-end
+local is_team_force = helpers.is_team_force
 
 -- ─── Create ───────────────────────────────────────────────────────────
 

@@ -363,7 +363,7 @@ function M.player_forces(leaving_index)
     local list = {}
     for name, force in pairs(game.forces) do
         if name:find("^team%-") then
-            local slot = tonumber(name:match("^team%-(%d+)$"))
+            local slot = helpers.team_slot(name)
             local occupied = slot and (storage.team_pool or {})[slot] == "occupied"
             if not occupied then goto next_force end
 

@@ -23,8 +23,9 @@ local pop_text  = require("scripts.pop_text")
 
 -- NOTE: We deliberately do NOT require("scripts.force_utils") here because
 -- force_utils requires this module at load time — a circular require
--- would return a stale (half-loaded) force_utils table. Instead we
--- inline the two tiny helpers we need below.
+-- would return a stale (half-loaded) force_utils table. The team-force
+-- predicate now lives in the leaf helpers module (no cycle); max_teams stays
+-- inline as the one tiny startup read we need.
 
 local planet_map = {}
 
@@ -32,9 +33,7 @@ local function max_teams()
     return settings.startup["mts_max_teams"].value
 end
 
-local function is_team_force(force_name)
-    return force_name:find("^team%-") ~= nil
-end
+local is_team_force = helpers.is_team_force
 
 -- ─── Storage ─────────────────────────────────────────────────────────
 

@@ -35,7 +35,7 @@ local function perform_disband(admin_player, data)
     if not force then
         admin_player.print("Team no longer exists."); return
     end
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if not slot or (storage.team_pool or {})[slot] ~= "occupied" then
         admin_player.print("That team slot is no longer occupied."); return
     end
@@ -97,7 +97,7 @@ function M.register()
             if not force_name then
                 caller.print("Invalid team. Use team name (team-3) or slot number (3)."); return
             end
-            local slot = tonumber(force_name:match("^team%-(%d+)$"))
+            local slot = helpers.team_slot(force_name)
             if not slot or not game.forces[force_name] then
                 caller.print("Team '" .. force_name .. "' does not exist."); return
             end

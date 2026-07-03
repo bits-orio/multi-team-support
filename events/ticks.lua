@@ -38,6 +38,45 @@ local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
 local M = {}
 
+--- Poll each connected team leader's colour; when it drifts from the team's
+--- stored colour, adopt it and refresh every GUI that renders a team colour. No
+--- engine event fires on a player colour change, so this is polled (from the
+--- 60-tick handler). color_fix.poll() runs first so the team adopts the FIXED
+--- (readable/distinct) leader colour rather than the raw one.
+local function sync_leader_colors()
+    color_fix.poll()
+    for force_name, leader_idx in pairs(storage.team_leader or {}) do
+        local force  = game.forces[force_name]
+        local leader = game.get_player(leader_idx)
+        if force and force.valid and leader and leader.valid and leader.connected then
+            local c, fc = leader.color, force.custom_color
+            if not fc
+                or math.abs(c.r - fc.r) > 0.001
+                or math.abs(c.g - fc.g) > 0.001
+                or math.abs(c.b - fc.b) > 0.001
+            then
+                force.custom_color = c
+                spawn_labels.refresh_for_force(force_name)
+                h.refresh_all_gameplay_guis()
+                awards_gui.update_all()
+                follow_cam.rebuild_all()
+                team_settings.update_all_for_force(force_name)
+            end
+        end
+    end
+end
+
+--- True if any team force currently has active research (gates the throttled
+--- research-progress-bar refresh).
+local function any_team_researching()
+    for _, force in pairs(game.forces) do
+        if force_utils.is_team_force(force.name) and force.current_research then
+            return true
+        end
+    end
+    return false
+end
+
 function M.register()
     script.on_event(defines.events.on_chunk_generated, function(event)
         landing_pen.on_chunk_generated(event)
@@ -180,39 +219,9 @@ function M.register()
         -- is visually identical while cutting the viewers x forces x queue-slot
         -- scan to a fifth (PF-10). Folded in here because on_nth_tick keys one
         -- handler per period -- a separate on_nth_tick(30) would clobber this one.
-        for _, force in pairs(game.forces) do
-            if force_utils.is_team_force(force.name) and force.current_research then
-                teams_gui.update_queue_progress_all()
-                break
-            end
-        end
+        if any_team_researching() then teams_gui.update_queue_progress_all() end
     end)
-    script.on_nth_tick(60,    function()
-        -- Keep player colours readable/distinct FIRST (no engine event fires on a
-        -- colour change, so we poll; cheap + self-terminating). Running it before
-        -- the leader-colour sync below means the team colour picks up the FIXED
-        -- leader colour, not the raw one.
-        color_fix.poll()
-        for force_name, leader_idx in pairs(storage.team_leader or {}) do
-            local force  = game.forces[force_name]
-            local leader = game.get_player(leader_idx)
-            if force and force.valid and leader and leader.valid and leader.connected then
-                local c, fc = leader.color, force.custom_color
-                if not fc
-                    or math.abs(c.r - fc.r) > 0.001
-                    or math.abs(c.g - fc.g) > 0.001
-                    or math.abs(c.b - fc.b) > 0.001
-                then
-                    force.custom_color = c
-                    spawn_labels.refresh_for_force(force_name)
-                    h.refresh_all_gameplay_guis()
-                    awards_gui.update_all()
-                    follow_cam.rebuild_all()
-                    team_settings.update_all_for_force(force_name)
-                end
-            end
-        end
-    end)
+    script.on_nth_tick(60,    function() sync_leader_colors() end)
     script.on_nth_tick(300,   function()
         if milestones.tick() then awards_gui.update_all() end
     end)

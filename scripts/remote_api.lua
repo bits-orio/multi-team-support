@@ -522,11 +522,10 @@ end
 -- buddy-join flow, /mts-rejoin, and admin force moves are all covered
 -- automatically — callers don't have to remember to fire these.
 
-local function is_team_force_name(name)
-    -- type() check first: a non-string (LuaForce, number, table) passed at the
-    -- trust boundary would otherwise error on :find into the calling mod (AT-1).
-    return type(name) == "string" and name:find("^team%-") ~= nil
-end
+-- The type()-guarded team-force predicate now lives in helpers (AT-1 boundary
+-- safety travels with it). Aliased locally so this module's many call sites and
+-- the trust-boundary intent read unchanged.
+local is_team_force_name = helpers.is_team_force
 
 function remote_api.on_player_changed_force(event)
     local old_name = event.force and event.force.name
@@ -635,7 +634,7 @@ end
 -- ═══ Query implementations ════════════════════════════════════════════
 
 local function team_slot_status(force_name)
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if not slot then return nil end
     return (storage.team_pool or {})[slot]
 end

@@ -230,7 +230,7 @@ end
 --- Clear per-slot storage and break engine friendship ties.
 --- Does NOT touch force tech state, slot pool, leader, or clock.
 function M.wipe_slot_state(force_name)
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if not slot then return end
 
     storage.team_names = storage.team_names or {}
@@ -276,7 +276,7 @@ function M.wipe_slot_state(force_name)
 end
 
 function M.release_team_slot(force_name)
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if not slot then return end
 
     storage.team_pool = storage.team_pool or {}

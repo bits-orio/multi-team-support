@@ -27,9 +27,9 @@ function force_utils.max_teams()
     return settings.startup["mts_max_teams"].value
 end
 
-function force_utils.is_team_force(force_name)
-    return type(force_name) == "string" and force_name:find("^team%-") ~= nil
-end
+-- Re-exported from helpers (the leaf module now owns the predicate). Kept on
+-- force_utils so the many existing force_utils.is_team_force callers are unchanged.
+force_utils.is_team_force = helpers.is_team_force
 
 function force_utils.force_member_count(force)
     local n = 0

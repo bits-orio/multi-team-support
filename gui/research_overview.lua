@@ -83,7 +83,7 @@ local function get_player_forces()
             local force_name = force.name
             if not seen[force_name] then
                 seen[force_name] = true
-                local slot     = tonumber(force_name:match("^team%-(%d+)$"))
+                local slot     = helpers.team_slot(force_name)
                 local occupied = slot and (storage.team_pool or {})[slot] == "occupied"
                 if not occupied then goto next_force end
                 result[#result + 1] = {

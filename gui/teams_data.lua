@@ -111,7 +111,7 @@ end
 --- A team is "occupied" if its slot is claimed, regardless of whether members
 --- are temporarily on the spectator force.
 function M.is_team_occupied(force_name)
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if not slot then return false end
     return (storage.team_pool or {})[slot] == "occupied"
 end

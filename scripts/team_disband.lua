@@ -11,6 +11,7 @@ local team_slots  = require("scripts.team_slots")
 local landing_pen = require("gui.landing_pen")
 local spectator   = require("scripts.spectator")
 local remote_api  = require("scripts.remote_api")
+local helpers     = require("scripts.helpers")
 
 --- Disband a team entirely: every member back to the pen, slot freed, surfaces
 --- cleaned up. Reuses the normal leave flow (remove_from_team disbands + cleans
@@ -27,7 +28,7 @@ local function disband(force_name)
     -- consumer that defensively re-calls disband_team from its on_team_released
     -- handler would recurse until the Lua stack overflows. An occupied-but-empty
     -- slot (members force-moved away) still passes and is handled below.
-    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    local slot = helpers.team_slot(force_name)
     if (storage.team_pool or {})[slot] ~= "occupied" then return end
 
     -- Restore any member currently spectating away (so they enter the members
