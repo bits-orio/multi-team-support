@@ -25,6 +25,7 @@ spectator.resolve_view_for    = core.resolve_view_for
 -- Operations
 spectator.enter           = ops.enter
 spectator.exit            = ops.exit
+spectator.exit_all_for_force = ops.exit_all_for_force
 spectator.switch_target   = ops.switch_target
 spectator.enter_from_remote = ops.enter_from_remote
 spectator.enter_friend_view = ops.enter_friend_view

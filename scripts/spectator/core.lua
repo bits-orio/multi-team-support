@@ -176,8 +176,12 @@ function M.init()
         end
     end
 
-    spec.technologies["toolbelt"].researched          = true
-    spec.technologies["logistic-robotics"].researched = true
+    -- Guard: an overhaul mod may delete these tech prototypes; indexing a nil
+    -- tech here would hard-crash on_init / on_configuration_changed.
+    for _, tech_name in ipairs({"toolbelt", "logistic-robotics"}) do
+        local t = spec.technologies[tech_name]
+        if t then t.researched = true end
+    end
     setup_permission_group()
 
     for _, surface in pairs(game.surfaces) do

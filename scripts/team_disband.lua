@@ -30,6 +30,11 @@ local function disband(force_name)
     local slot = tonumber(force_name:match("^team%-(%d+)$"))
     if (storage.team_pool or {})[slot] ~= "occupied" then return end
 
+    -- Restore any member currently spectating away (so they enter the members
+    -- list below and are returned to the pen, not orphaned) and exit outside
+    -- viewers of this team before it is torn down.
+    spectator.exit_all_for_force(force_name)
+
     local members = {}
     for _, p in pairs(force.players) do members[#members + 1] = p end
 

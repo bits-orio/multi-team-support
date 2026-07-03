@@ -54,6 +54,7 @@ function M.exit(player)
 
     local saved = storage.spectator_saved_location[player.index]
     local target_surface, target_pos
+    local used_fallback = false
     if saved then
         target_surface = game.surfaces[saved.surface_name]
         target_pos     = saved.position
@@ -61,13 +62,16 @@ function M.exit(player)
     if not target_surface then
         target_surface = surface_utils.get_home_surface(player.force, player.index)
         target_pos     = helpers.ORIGIN
+        used_fallback  = true
     end
 
     if target_surface then
-        -- Collision avoidance only for fallback origin — skip when restoring to
-        -- saved pre-spectate position because the character is still there and
-        -- find_non_colliding_position would treat it as a blocker and shift them.
-        if not saved and player.character then
+        -- Collision avoidance only on the ORIGIN fallback (saved surface deleted or
+        -- unresolved). Skip on the normal saved-position restore, where the
+        -- character is still there and find_non_colliding_position would treat it
+        -- as a blocker. (Was gated on `not saved`, but `saved` stays truthy even
+        -- when saved.surface_name no longer resolves, so the fallback was skipped.)
+        if used_fallback and player.character then
             local safe = target_surface.find_non_colliding_position(
                 player.character.name, target_pos, 8, 0.5)
             target_pos = safe or target_pos
@@ -145,6 +149,26 @@ function M.exit(player)
     core.clear_spectator_storage(player.index)
     core.update_spectator_surfaces()
     log("[multi-team-support:spectator] exit: done, force=" .. player.force.name)
+end
+
+--- Exit every player tied to a team whose slot is being disbanded/released:
+--- members currently spectating AWAY (spectator_real_force == force_name), so
+--- they are restored to their real force and counted/relocated by the disband
+--- loop instead of being orphaned; and outside viewers spectating INTO the team
+--- (spectating_target == force_name), so stale visibility doesn't carry onto the
+--- recycled slot. M.exit restores force / view and refreshes visibility.
+function M.exit_all_for_force(force_name)
+    local reals   = storage.spectator_real_force or {}
+    local targets = storage.spectating_target or {}
+    -- Snapshot the indices first; M.exit mutates these tables as it clears state.
+    local hits = {}
+    for idx, real in pairs(reals) do
+        if real == force_name or targets[idx] == force_name then hits[#hits + 1] = idx end
+    end
+    for _, idx in ipairs(hits) do
+        local p = game.get_player(idx)
+        if p and p.valid then M.exit(p) end
+    end
 end
 
 function M.switch_target(player, target_force, surface, position, target_player)

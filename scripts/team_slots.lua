@@ -24,6 +24,15 @@ end
 local function force_member_count(force)
     local n = 0
     for _ in pairs(force.players) do n = n + 1 end
+    -- A member currently spectating is on the "spectator" force, so absent from
+    -- force.players. Count them too, or a disband/leave decision undercounts and
+    -- can wrongly disband a team that still has a spectating member.
+    for idx, real in pairs(storage.spectator_real_force or {}) do
+        if real == force.name then
+            local p = game.get_player(idx)
+            if p and p.connected then n = n + 1 end
+        end
+    end
     return n
 end
 
@@ -392,6 +401,11 @@ function M.remove_from_team(player)
     end
 
     if member_count <= 1 then
+        -- Restore anyone spectating this (about-to-be-released) team and any
+        -- outside viewers of it, so no stale spectator state carries onto the
+        -- recycled slot. (Members are already accounted for by the count above;
+        -- this mainly clears viewers.)
+        spectator.exit_all_for_force(old_force_name)
         -- Move the leaver off the team BEFORE tearing its surfaces down, so
         -- on_player_left_team (fired synchronously by player.force =) reaches
         -- consumers while the team's surfaces are still valid. release_team_slot

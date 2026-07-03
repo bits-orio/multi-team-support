@@ -41,6 +41,9 @@ local function perform_disband(admin_player, data)
     end
 
     local team_tag = helpers.team_tag_with_leader(force_name)
+    -- Restore any member spectating away (so they are included below and sent to
+    -- the pen, not orphaned onto the recycled slot) and exit outside viewers.
+    spectator.exit_all_for_force(force_name)
     local members = {}
     for _, member in pairs(force.players) do members[#members + 1] = member end
     for _, member in ipairs(members) do

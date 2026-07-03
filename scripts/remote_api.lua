@@ -556,8 +556,17 @@ end
 -- baseline player_joined/player_left (which register_with_bridge disables), tagging the
 -- player's current team when they're on one.
 
+-- Resolve the player's real team even mid-spectate: a spectating player is on
+-- the "spectator" force, but storage.spectator_real_force remembers their team.
+-- Read inline (no spectator require) to match the existing get_effective_force
+-- implementation and avoid a circular require.
+local function effective_fn(player)
+    return (storage.spectator_real_force or {})[player.index]
+        or (player.force and player.force.name)
+end
+
 local function connection_text(verb, player)
-    local fn = player.force and player.force.name
+    local fn = effective_fn(player)
     if is_team_force_name(fn) then
         return string.format("%s %s — %s", player.name, verb, helpers.team_display(fn))
     end
@@ -577,7 +586,10 @@ end
 
 function remote_api.emit_player_left(player)
     if not (player and player.valid) then return end
-    local fn = player.force and player.force.name
+    -- A member disconnecting mid-spectate is still on the "spectator" force here
+    -- (spectator.on_player_left restores it one line later), so resolve the real
+    -- team to avoid reporting them team-less to the bridge.
+    local fn = effective_fn(player)
     remote_api.emit_to_bridge("mts.player_left", {
         player       = player.name,
         team         = is_team_force_name(fn) and helpers.team_display(fn) or nil,
