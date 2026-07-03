@@ -38,30 +38,13 @@ local cached_active
 function space_age.is_active()
     if cached_active ~= nil then return cached_active end
 
-    -- Primary signal: active_mods entry
-    local mod_loaded = script.active_mods["space-age"] ~= nil
-    -- Secondary signal: game.planets contains entries (only Space Age
-    -- registers planet prototypes like "nauvis", "vulcanus", etc.)
-    local planets_exist = false
-    if game and game.planets then
-        for _ in pairs(game.planets) do
-            planets_exist = true
-            break
-        end
-    end
-
-    cached_active = mod_loaded and planets_exist
-    log("[multi-team-support] Space Age detection: active="
-        .. tostring(cached_active)
-        .. " (mod_loaded=" .. tostring(mod_loaded)
-        .. ", planets_exist=" .. tostring(planets_exist) .. ")")
-    -- Also log active_mods dump once to help diagnose detection failures
-    if mod_loaded ~= cached_active then
-        log("[multi-team-support] active_mods dump:")
-        for name, version in pairs(script.active_mods) do
-            log("  " .. name .. " = " .. tostring(version))
-        end
-    end
+    -- Detect from active_mods ALONE. It is available and identical on every peer
+    -- at every stage; Space Age being loaded guarantees its planet prototypes
+    -- exist, so the old secondary `game.planets` probe added no determinism but
+    -- DID introduce a hazard: a call while `game == nil` cached a permanent wrong
+    -- `false` on that peer, which could diverge from a peer that cached `true`.
+    cached_active = script.active_mods["space-age"] ~= nil
+    log("[multi-team-support] Space Age detection: active=" .. tostring(cached_active))
     return cached_active
 end
 

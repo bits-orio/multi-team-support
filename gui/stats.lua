@@ -8,8 +8,6 @@ local stats_data = require("gui.stats_data")
 local stats_gui = {}
 
 -- Re-export data API so mod-compat callers keep the same require path.
-stats_gui.set_intermediates       = stats_data.set_intermediates
-stats_gui.set_custom              = stats_data.set_custom
 stats_gui.invalidate_categories   = stats_data.invalidate_categories
 stats_gui.get_category_item_names = stats_data.get_category_item_names
 

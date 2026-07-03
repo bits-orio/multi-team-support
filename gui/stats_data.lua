@@ -60,10 +60,8 @@ local DEFAULT_CUSTOM = {"iron-plate", "steel-plate"}
 
 -- ─── Module-level state (rebuilt each script load, never serialised) ───
 
-local proto_cache            = nil
-local item_depth_cache       = nil
-local intermediates_override = nil
-local custom_override        = nil
+local proto_cache      = nil
+local item_depth_cache = nil
 
 -- ─── Visibility helper ────────────────────────────────────────────────
 
@@ -261,17 +259,11 @@ function M.invalidate_categories()
     storage.stats_categories = nil
 end
 
--- ─── Override API ──────────────────────────────────────────────────────
-
-function M.set_intermediates(items) intermediates_override = items end
-function M.set_custom(items)        custom_override = items end
-
 -- ─── Item List Resolution ──────────────────────────────────────────────
 
 local function default_item_names(cat)
     if cat == "intermediates" or cat == "custom" then
-        local src = (cat == "intermediates" and intermediates_override or custom_override)
-            or (cat == "intermediates" and DEFAULT_INTERMEDIATES or DEFAULT_CUSTOM)
+        local src = cat == "intermediates" and DEFAULT_INTERMEDIATES or DEFAULT_CUSTOM
         -- Sort curated lists by tech-unlock depth too, so the visual
         -- progression matches the auto-discovered tabs.
         local sorted = sort_by_unlock_depth(src)

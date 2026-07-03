@@ -12,9 +12,12 @@ local nav = {}
 -- name → function(event) registry, populated at module load time via nav.on_click.
 local handlers = {}
 
--- Ordered list of button names registered via add_top_button.
--- Used by rebuild_buttons to recreate the strip when a player reconnects.
-local btn_specs = {}   -- { name, sprite, tooltip } in registration order
+-- The ordered button list lives in storage.nav_button_order (array of
+-- { name, sprite, tooltip } in registration order), NOT a module-local: a peer
+-- that loads a save whose gui.top already holds the buttons must compute the same
+-- insert index as the host. A module-local reset to {} on that peer's load, so
+-- position_after_mts returned a divergent index -> gui.top child order (a
+-- checksummed part of MP state) differed across peers -> desync.
 
 -- ---------------------------------------------------------------------------
 -- Public API
@@ -24,6 +27,20 @@ local btn_specs = {}   -- { name, sprite, tooltip } in registration order
 --- Idempotent: safe to call on reconnect; skips creation if button exists.
 --- spec = { name = string, sprite = string, tooltip = string }
 function nav.add_top_button(player, spec)
+    -- Record registration order in storage BEFORE the create guard, so a peer
+    -- that early-returns (button already exists in a loaded save) still records
+    -- the order. Called only from on_player_created / on_player_joined_game
+    -- (event context), so the storage write is legal and deterministic.
+    storage.nav_button_order = storage.nav_button_order or {}
+    local known = false
+    for _, s in ipairs(storage.nav_button_order) do
+        if s.name == spec.name then known = true; break end
+    end
+    if not known then
+        storage.nav_button_order[#storage.nav_button_order + 1] =
+            { name = spec.name, sprite = spec.sprite, tooltip = spec.tooltip }
+    end
+
     local flow = player.gui.top
     if flow[spec.name] then return end
     local btn = flow.add({
@@ -35,11 +52,6 @@ function nav.add_top_button(player, spec)
     })
     btn.style.width  = 56
     btn.style.height = 56
-    -- Record spec for rebuild (avoid duplicates)
-    for _, s in ipairs(btn_specs) do
-        if s.name == spec.name then return end
-    end
-    btn_specs[#btn_specs + 1] = spec
 end
 
 --- Register a click handler for a named GUI element.
@@ -63,11 +75,11 @@ function nav.dispatch_click(event)
     return true
 end
 
---- Recreate all registered nav buttons for a player.
---- Call from on_player_joined_game to restore buttons after reconnect
---- (player.gui.top is wiped when a player disconnects).
+--- Recreate all registered nav buttons for a player from the stored order/specs.
+--- The live reconnect path recreates buttons via register_nav_buttons -> each
+--- module's add_top_button; this is a convenience to rebuild the whole strip.
 function nav.rebuild_buttons(player)
-    for _, spec in ipairs(btn_specs) do
+    for _, spec in ipairs(storage.nav_button_order or {}) do
         nav.add_top_button(player, spec)
     end
 end
@@ -78,9 +90,10 @@ end
 --- Returns nil if none of our buttons are present yet (caller should append).
 function nav.position_after_mts(player)
     local top = player.gui.top
-    -- Build a set of our button names for fast lookup
+    -- Build a set of our button names for fast lookup (from the shared stored
+    -- order, so this resolves identically on every peer).
     local mts_names = {}
-    for _, spec in ipairs(btn_specs) do mts_names[spec.name] = true end
+    for _, spec in ipairs(storage.nav_button_order or {}) do mts_names[spec.name] = true end
 
     local last_idx = nil
     for i, child in ipairs(top.children) do
