@@ -145,6 +145,7 @@ end
 --- including the destination surface the team just warped to.
 function team_surfaces.retire_team_surface(force_name, surface_name)
     if not is_team_force(force_name) then return false end
+    if type(surface_name) ~= "string" then return false end  -- AT-5: game.surfaces[<table>] errors
     local surface = game.surfaces[surface_name]
     if not (surface and surface.valid) then return false end
     if surface_utils.get_owner(surface) ~= force_name then return false end

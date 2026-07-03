@@ -176,6 +176,10 @@ script.on_configuration_changed(function()
     pop_text.init_storage()
     remote_api.ensure_bridge_registered()
     remote_api.validate_delivery_override()  -- drop override if its consumer mod was removed
+    -- Sweep tab/welcome/hub registrations whose owning mod was removed (AT-3).
+    remote_api.validate_registry("mts_custom_tabs")
+    remote_api.validate_registry("mts_welcome_tabs")
+    remote_api.validate_registry("mts_hub_widgets")
 
     -- Resume any team still marked paused across a config change, via the
     -- power-disable pause API so both power sources and visual wires restore.

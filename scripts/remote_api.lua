@@ -133,23 +133,60 @@ local function tab_registry()
     return storage.mts_custom_tabs
 end
 
-function remote_api.register_team_tab(spec)
-    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
-    tab_registry()[spec.name] = {
+-- Validate a registration spec at the trust boundary (AT-2/AT-3): name must be a
+-- string; order is coerced to a string/number (a mixed number-vs-string `order`
+-- across two mods otherwise crashes the sort, and it recurs every session since
+-- the registry persists); an unusable caption type is dropped (it would crash
+-- pane.add); and the owning mod is captured so the entry can be swept when that
+-- mod is removed (see validate_registry). Returns a sanitized entry or nil.
+local function sanitize_spec(spec)
+    if type(spec) ~= "table" or type(spec.name) ~= "string" then return nil end
+    local order = spec.order
+    if type(order) ~= "string" and type(order) ~= "number" then order = spec.name end
+    local caption = spec.caption
+    if caption ~= nil and type(caption) ~= "string"
+       and type(caption) ~= "number" and type(caption) ~= "table" then
+        caption = nil
+    end
+    return {
         name    = spec.name,
-        caption = spec.caption or spec.name,
-        order   = spec.order or spec.name,
+        caption = caption,
+        order   = order,
+        mod     = type(spec.mod) == "string" and spec.mod or nil,
     }
+end
+
+-- Sort by order then name, coercing order to string so a legacy mixed-type entry
+-- can never crash the comparator (defense behind sanitize_spec).
+local function by_order_then_name(a, b)
+    local ao, bo = tostring(a.order), tostring(b.order)
+    if ao ~= bo then return ao < bo end
+    return a.name < b.name
+end
+
+-- Drop registry entries whose owning mod is no longer active (AT-3). Only
+-- entries registered WITH a `mod` field are sweepable; entries without one
+-- persist (a documented requirement for consumers).
+function remote_api.validate_registry(storage_key)
+    local t = storage[storage_key]
+    if not t then return end
+    for k, def in pairs(t) do
+        if def.mod and not script.active_mods[def.mod] then t[k] = nil end
+    end
+end
+
+function remote_api.register_team_tab(spec)
+    local e = sanitize_spec(spec)
+    if not e then return end
+    e.caption = e.caption or e.name
+    tab_registry()[e.name] = e
 end
 
 --- Registered custom tabs, sorted by order then name.
 function remote_api.get_team_tabs()
     local list = {}
     for _, def in pairs(tab_registry()) do list[#list + 1] = def end
-    table.sort(list, function(a, b)
-        if a.order ~= b.order then return a.order < b.order end
-        return a.name < b.name
-    end)
+    table.sort(list, by_order_then_name)
     return list
 end
 
@@ -170,22 +207,17 @@ local function welcome_tab_registry()
 end
 
 function remote_api.register_welcome_tab(spec)
-    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
-    welcome_tab_registry()[spec.name] = {
-        name    = spec.name,
-        caption = spec.caption or spec.name,
-        order   = spec.order or spec.name,
-    }
+    local e = sanitize_spec(spec)
+    if not e then return end
+    e.caption = e.caption or e.name
+    welcome_tab_registry()[e.name] = e
 end
 
 --- Registered welcome tabs, sorted by order then name.
 function remote_api.get_welcome_tabs()
     local list = {}
     for _, def in pairs(welcome_tab_registry()) do list[#list + 1] = def end
-    table.sort(list, function(a, b)
-        if a.order ~= b.order then return a.order < b.order end
-        return a.name < b.name
-    end)
+    table.sort(list, by_order_then_name)
     return list
 end
 
@@ -201,23 +233,19 @@ local function hub_widget_registry()
 end
 
 function remote_api.register_platform_hub_widget(spec)
-    if type(spec) ~= "table" or type(spec.name) ~= "string" then return end
-    hub_widget_registry()[spec.name] = {
-        name     = spec.name,
-        caption  = spec.caption,              -- optional frame caption
-        order    = spec.order or spec.name,
-        position = spec.position or "right",  -- relative_gui_position key
-    }
+    local e = sanitize_spec(spec)
+    if not e then return end
+    -- caption stays optional for hub widgets (no default to name); position is a
+    -- relative_gui_position key, default "right".
+    e.position = (type(spec.position) == "string" and spec.position) or "right"
+    hub_widget_registry()[e.name] = e
 end
 
 --- Registered platform-hub widgets, sorted by order then name.
 function remote_api.get_platform_hub_widgets()
     local list = {}
     for _, def in pairs(hub_widget_registry()) do list[#list + 1] = def end
-    table.sort(list, function(a, b)
-        if a.order ~= b.order then return a.order < b.order end
-        return a.name < b.name
-    end)
+    table.sort(list, by_order_then_name)
     return list
 end
 
@@ -429,7 +457,11 @@ end
 -- mod is later removed (checked in on_configuration_changed).
 
 function remote_api.register_starter_item_delivery(mod_name)
-    storage.mts_starter_delivery = (type(mod_name) == "string") and mod_name or "unknown"
+    -- Reject a non-string mod name rather than coercing to an "unknown" sentinel,
+    -- which validate_delivery_override can never clear (it skips "unknown"), so a
+    -- bad call would suppress the default starter grant forever (AT-4).
+    if type(mod_name) ~= "string" then return end
+    storage.mts_starter_delivery = mod_name
 end
 
 function remote_api.starter_delivery_override()
@@ -491,7 +523,9 @@ end
 -- automatically — callers don't have to remember to fire these.
 
 local function is_team_force_name(name)
-    return name and name:find("^team%-") ~= nil
+    -- type() check first: a non-string (LuaForce, number, table) passed at the
+    -- trust boundary would otherwise error on :find into the calling mod (AT-1).
+    return type(name) == "string" and name:find("^team%-") ~= nil
 end
 
 function remote_api.on_player_changed_force(event)
@@ -715,7 +749,9 @@ local function ensure_passive_radar_impl(force_name, surface_ref, position)
     if not (force and force.valid) then return nil end
     local surface = resolve_surface(surface_ref)
     if not (surface and surface.valid) then return nil end
-    position = position or {x = 0, y = 0}
+    -- Shape-guard position: a non-table (number/string) would error in the engine
+    -- find_entities_filtered / create_entity calls below (AT-5).
+    if type(position) ~= "table" then position = {x = 0, y = 0} end
 
     -- Re-assert ownership + the inert flags on every call. A radar carried across
     -- a surface clone can come back with default flags (destructible true), so we

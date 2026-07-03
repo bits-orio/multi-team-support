@@ -28,7 +28,7 @@ function force_utils.max_teams()
 end
 
 function force_utils.is_team_force(force_name)
-    return force_name:find("^team%-") ~= nil
+    return type(force_name) == "string" and force_name:find("^team%-") ~= nil
 end
 
 function force_utils.force_member_count(force)

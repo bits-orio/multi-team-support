@@ -50,14 +50,24 @@ Custom events you can subscribe to:
 | `on_player_joined_team`     | `player_index`, `force_name`            | A player moves onto a team force               |
 | `on_player_left_team`       | `player_index`, `force_name`            | A player leaves a team force                   |
 | `on_team_clock_started`     | `force_name`, `start_tick`              | A team's clock starts (team has started playing) — fires once, on direct claim or on the staged-start "Start Playing" commit |
+| `on_team_renamed`           | `force_name`, `new_name`                | A team is renamed (refresh anything showing the team name) |
+| `on_team_tab_built`         | `player_index`, `tab_name`, `element`   | A player's Team Settings panel is (re)built — once per registered custom tab; `element` is the empty content frame to populate |
+| `on_welcome_tab_built`      | `player_index`, `tab_name`, `element`   | The welcome screen is (re)built — once per registered welcome tab; `element` is the empty content frame to populate |
+| `on_platform_hub_gui_built` | `player_index`, `widget_name`, `element`, `entity` | A player opens a space platform hub — once per registered widget; `element` is the anchored content frame, `entity` the hub |
+| `on_starter_items_added`    | `items` (`{name=, count=}` list)        | An admin adds starter items while a delivery override is registered — the override consumer must deliver them |
+
+The last four events pair with the registration functions in §2.4: register a tab / widget / override once, then listen to the matching `*_built` / `*_added` event to fill the frame (or deliver the items) each time MTS raises it.
 
 Event IDs are generated per session via `script.generate_event_name()` — they're stable for the duration of a session but not across sessions, so always look them up via `get_event_id` rather than caching the integer.
 
 **Subscribing:**
 
+`remote.call` is **not** legal during `on_load`, yet event handlers must be registered in both `on_init` and `on_load` for determinism. Bridge the gap with a one-shot `on_nth_tick(1)` — it fires on the same tick for every peer (so it stays multiplayer-deterministic), and both `remote.call` and `script.on_event` are legal inside it:
+
 ```lua
--- in your control.lua's on_init AND on_load (events must be registered both)
-local function register_mts_events()
+-- Resolve the event ID and register the real handler. Safe from a runtime
+-- context (on_nth_tick / on_init), never from on_load.
+local function subscribe_mts_events()
     if not remote.interfaces["mts-v1"] then return end
     local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
     script.on_event(id, function(event)
@@ -67,8 +77,18 @@ local function register_mts_events()
     end)
 end
 
-script.on_init(register_mts_events)
-script.on_load(register_mts_events)
+-- Defer to the next tick so we can remote.call for the ID even on a load path.
+-- Registering on_nth_tick itself is legal in on_load (no remote.call, no
+-- storage write); the deferred body runs in a normal context.
+local function defer_subscribe()
+    script.on_nth_tick(1, function()
+        script.on_nth_tick(1, nil)  -- one-shot: unregister after the first fire
+        subscribe_mts_events()
+    end)
+end
+
+script.on_init(defer_subscribe)
+script.on_load(defer_subscribe)
 ```
 
 The `on_team_surface_created` event is the most useful one for terrain/decoration mods that need to run setup exactly once per team surface (rather than reacting per-chunk). The `on_team_created` event is useful for force-level setup — granting starting research, applying buffs, etc.
@@ -86,6 +106,10 @@ Synchronous queries you can call any time:
 | `get_surface_owner(surface_name)`                   | The owning team's `force_name`, or `nil`           |
 | `list_team_surfaces(force_name)`                    | Array of surface names owned by that team          |
 | `is_team_paused(force_name)`                        | `true` if the team is currently paused             |
+| `is_team_online(force_name)`                        | `true` if any member is connected — counts a member spectating another team |
+| `get_effective_force(player_index)`                 | The player's effective team `force_name` — their real team even while spectating another surface — or `nil` |
+| `get_team_label(force_name)`                         | MTS-styled rich-text label (team's coloured tag + current leader in brackets), or `nil`. Reflects live state — re-fetch after a rename/leader/colour change |
+| `get_starter_items()`                               | Array of admin-configured starter items (`{name=, count=}`), for a delivery-override consumer seeding teams that spawn later |
 
 ### 2.3 Actions
 
@@ -95,8 +119,11 @@ Functions that mutate world state. Call from a real event context (not `on_load`
 |-----------------------------------------------------|-----------------------------------------------------------------------------------------|
 | `pause_team(force_name)`                            | Freeze the team: disable every power source (the airtight freeze), deactivate remaining entities via the amortized sweep, and (Space Age) cut pole wires for a visible "unplugged" look. Returns `true` if a pause started. |
 | `unpause_team(force_name, opts)`                     | Resume the team: re-enable power sources, reactivate entities, and (Space Age) staggered-reconnect the pole wires so the lights ripple back. `opts = {mode, duration}` reserved for a future timed-pause v2. Returns `true` if a resume started. |
-| `create_team_surface(force_name, spec)`             | Create (or look up) the team's variant surface for a base planet. `spec = {planet, map_gen_settings, name}`. Returns the surface name, or `nil`. Space Age only. |
+| `create_team_surface(force_name, spec)`             | Create (or look up) an ephemeral, caller-seeded surface for a team. `spec = {name, planet, map_gen_settings}` — `name` is **required** and must be non-variant (not `mts-<planet>-N` / `team-N-<planet>`); `planet` is used only for Space Age planet association; `map_gen_settings` carries the caller's seed. Returns the surface name, or `nil`. Works with or without Space Age. |
 | `retire_team_surface(force_name, surface_name)`     | Delete a team-owned surface and unwind its bookkeeping. Returns `true` on success, `false` if the surface is invalid or not owned by that team. |
+| `set_spawn_label_enabled(surface_name, enabled)`    | Suppress (`false`) or restore (`true`) MTS's default spawn label on a surface a consumer labels itself. |
+| `disband_team(force_name)`                          | Disband a team: move every member back to the landing pen, release the slot, and clean up the team's surfaces. Use for a loss condition (e.g. a critical structure destroyed). |
+| `ensure_passive_radar(force_name, surface, position)` | Ensure a hidden, powerless, non-charting passive radar exists so an empty team surface stays live-viewable for spectators. `surface` may be a name, index, or `LuaSurface`. Idempotent per `(surface, position)`; re-call after every surface clone. Returns the `LuaEntity`, or `nil` if the surface/force is invalid. |
 
 A `team_info` table has the following shape:
 
@@ -104,12 +131,13 @@ A `team_info` table has the following shape:
 {
     force_name           = "team-3",
     display_name         = "The Reds",     -- player-chosen name, or force_name
-    status               = "occupied",      -- "occupied" | "available" | "released"
+    status               = "occupied",      -- "occupied" | "available"
     is_occupied          = true,
     leader_player_index  = 7,
     member_count         = 4,
     is_paused            = false,
-    clock_start_tick     = 1234,            -- when the team's clock started
+    clock_start_tick     = 1234,            -- tick the team's clock started
+    online_ticks         = 98760,           -- total ticks a member has been online
 }
 ```
 
@@ -132,7 +160,40 @@ for _, info in ipairs(remote.call("mts-v1", "get_team_list")) do
 end
 ```
 
-### 2.4 Choosing between mirroring, events, and queries
+### 2.4 Registration (call once, then listen)
+
+These extend MTS's own UI or milestone machinery. Register **once**, from your `on_init` **and** `on_configuration_changed` (where `remote.call` is legal and storage writes are allowed) — the registry persists in `storage`, so it survives save/load and stays identical on every peer. Re-registering the same `name` overwrites; it is safe to call on every config change.
+
+| Call                                                     | Effect                                                                                       |
+|----------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| `register_team_tab(spec)`                                | Add a tab to the Team Settings panel. `spec = {name, caption, order, mod}`. Then fill the frame handed to you by `on_team_tab_built`. |
+| `register_welcome_tab(spec)`                             | Add a tab to the welcome screen (rendered **before** MTS's About/Discord; the first registered tab is selected by default). Same `spec` shape; listen to `on_welcome_tab_built`. |
+| `register_platform_hub_widget(spec)`                     | Anchor a widget into the native space-platform-hub GUI. `spec = {name, caption, order, position, mod}` (`position` is a `relative_gui_position`, default `"right"`); listen to `on_platform_hub_gui_built`. |
+| `register_starter_item_delivery(mod_name)`              | Take over delivery of the admin-configured starter items (MTS then stops inserting them into player inventories). Pass **your mod name** so the override self-clears if your mod is removed. Listen to `on_starter_items_added` for live additions and read `get_starter_items()` for teams that spawn later. |
+| `register_milestone(spec)`                               | Define a consumer milestone. `spec = {category, verb, noun, first_threshold, thresholds}`. `first_threshold` (optional) gets a first-to-reach announcement only; each entry in `thresholds` gets both first **and** fastest. |
+| `report_milestone(force_name, category, count)`         | Report a team's current counter for a registered milestone; MTS announces first/fastest via the same records + broadcast + Discord path as its built-in milestones. Event-driven — call it as the counter advances, don't poll. |
+
+**Include a `mod` field** (your mod name) in any `register_team_tab` / `register_welcome_tab` / `register_platform_hub_widget` spec: MTS sweeps registrations whose owning mod was removed on the next `on_configuration_changed`. Entries registered without a `mod` field persist indefinitely.
+
+```lua
+-- Register a Team Settings tab, then populate it when MTS builds it.
+local function register_mts_ui()
+    if not remote.interfaces["mts-v1"] then return end
+    remote.call("mts-v1", "register_team_tab",
+        { name = "my-mod", caption = "My Mod", order = "z", mod = "my-mod" })
+end
+script.on_init(register_mts_ui)
+script.on_configuration_changed(register_mts_ui)
+
+-- Fill the content frame each time the panel is (re)built (subscribe via the
+-- deferred one-shot from §2.1).
+local function on_tab_built(event)
+    if event.tab_name ~= "my-mod" then return end
+    event.element.add{ type = "label", caption = "Hello from my mod" }
+end
+```
+
+### 2.5 Choosing between mirroring, events, and queries
 
 | You want to…                                          | Use                                                      |
 |-------------------------------------------------------|----------------------------------------------------------|
@@ -142,6 +203,8 @@ end
 | React when a player joins or leaves a team            | `on_player_joined_team` / `on_player_left_team`          |
 | Check "is this a team surface?" inside another handler| `is_team_surface` query                                  |
 | Walk all active teams (e.g. for a scoreboard)         | `get_team_list` query                                    |
+| Add your own UI to Team Settings / welcome / hub      | `register_team_tab` / `register_welcome_tab` / `register_platform_hub_widget` + the matching `*_built` event |
+| Announce your own per-team milestones                 | `register_milestone` + `report_milestone`                |
 
 ---
 

@@ -297,8 +297,12 @@ function engine.report_external(force_name, category, count)
     engine.init_storage()
     local spec = storage.milestone_external[category]
     if not spec then return end
+    -- Guard force_name before indexing game.forces with it: a non-string key
+    -- (LuaForce/number/table) errors otherwise (AT-1). is_team_force is now
+    -- type-safe, so this rejects bad input without crashing.
+    if not force_utils.is_team_force(force_name) then return end
     local force = game.forces[force_name]
-    if not (force and force.valid and force_utils.is_team_force(force.name)) then return end
+    if not (force and force.valid) then return end
 
     if spec.first_threshold and count >= spec.first_threshold then
         check_external(spec, force, spec.first_threshold, true)
