@@ -14,6 +14,12 @@ local helpers     = require("scripts.helpers")
 
 local M = {}
 
+-- remote_api.raise_team_clock_started, injected at load time (control.lua).
+-- pre_start can't require remote_api at the top level, and Factorio forbids a
+-- runtime require inside a handler, so the hook is wired in at parse time.
+local raise_clock_started = nil
+function M.set_clock_started_hook(fn) raise_clock_started = fn end
+
 local GROUP_NAME = "mts-pre-start"
 
 -- All GUI interactions must be kept so the player can click "Start Playing"
@@ -120,10 +126,8 @@ function M.commit(player)
     end
     team_clock.on_claim(force_name)
     team_clock.refresh(force_name)
-    if clock_started_now then
-        -- Lazy require to keep pre_start's load free of any remote_api cycle.
-        require("scripts.remote_api").raise_team_clock_started(
-            force_name, storage.team_clock_start[force_name])
+    if clock_started_now and raise_clock_started then
+        raise_clock_started(force_name, storage.team_clock_start[force_name])
     end
 
     -- Start the leader's personal clock.

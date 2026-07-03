@@ -38,8 +38,18 @@ local remote_api        = require("scripts.remote_api")
 -- -> remote_api require cycle (remote_api can't require it directly, and
 -- Factorio forbids require() at runtime).
 remote_api.set_deferred_deps({ team_surfaces = require("scripts.team_surfaces") })
+-- Let team_surfaces re-raise on_team_surface_created after it finishes building a
+-- surface (planet association + chunk pre-gen), without requiring remote_api.
+require("scripts.team_surfaces").set_raise_hook(remote_api.raise_team_surface_created)
 local pre_start         = require("scripts.pre_start")
 require("scripts.team_disband")  -- injects remote_api.disband_impl (mts-v1 disband_team)
+-- Inject the shared rename rule into the Team Settings GUI. team_rename requires
+-- gui.team_settings (for update_all_for_force + MAX_TEAM_NAME_LEN), so the GUI
+-- can't require it back -- wire it at parse time (Factorio forbids runtime require).
+team_settings.set_rename_fn(require("scripts.team_rename").attempt)
+-- Same reason: pre_start can't require remote_api (cycle) and a runtime require is
+-- illegal, so inject its staged-start clock-started raise at parse time.
+pre_start.set_clock_started_hook(remote_api.raise_team_clock_started)
 
 -- Inject starter-item delivery hooks into admin_flags. It can't require
 -- remote_api itself (that closes a load-time cycle via team_clock → spectator →

@@ -20,6 +20,16 @@ local function disband(force_name)
     local force = game.forces[force_name]
     if not (force and force.valid) then return end
 
+    -- Occupancy guard: every team-N force is pre-created and never destroyed, so
+    -- game.forces[force_name] is valid even for a slot that was never claimed.
+    -- Without this, disband_team on an unoccupied slot runs cleanup + release and
+    -- raises a spurious on_team_released (with no matching on_team_created), and a
+    -- consumer that defensively re-calls disband_team from its on_team_released
+    -- handler would recurse until the Lua stack overflows. An occupied-but-empty
+    -- slot (members force-moved away) still passes and is handled below.
+    local slot = tonumber(force_name:match("^team%-(%d+)$"))
+    if (storage.team_pool or {})[slot] ~= "occupied" then return end
+
     local members = {}
     for _, p in pairs(force.players) do members[#members + 1] = p end
 

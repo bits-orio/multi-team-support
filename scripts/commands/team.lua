@@ -7,9 +7,7 @@ local force_utils  = require("scripts.force_utils")
 local landing_pen  = require("gui.landing_pen")
 local spectator    = require("scripts.spectator")
 local confirm      = require("gui.confirm")
-local awards_gui   = require("gui.awards")
-local spawn_labels = require("scripts.spawn_labels")
-local remote_api   = require("scripts.remote_api")
+local team_rename  = require("scripts.team_rename")
 
 local M = {}
 
@@ -130,32 +128,15 @@ function M.register()
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             if not caller then game.print("This command can only be used by a player."); return end
-            if landing_pen.is_in_pen(caller) then
-                caller.print("You are not on a team yet."); return
-            end
-            if not force_utils.is_team_leader(caller) then
-                caller.print("Only the team leader can rename the team."); return
-            end
-            local new_name = cmd.parameter
-            if not new_name or new_name:match("^%s*$") then
+            -- A missing argument is a command-usage error (distinct from an empty
+            -- GUI field); everything else -- on-team/leader guard, length,
+            -- uniqueness, no-op, apply, broadcast, on_team_renamed, refresh -- is
+            -- the shared rule in scripts/team_rename.
+            if not cmd.parameter or cmd.parameter:match("^%s*$") then
                 caller.print("Usage: /mts-rename <new name>"); return
             end
-            new_name = new_name:match("^%s*(.-)%s*$")
-            if #new_name > 16 then new_name = new_name:sub(1, 16) end
-
-            storage.team_names = storage.team_names or {}
-            for fn, name in pairs(storage.team_names) do
-                if fn ~= caller.force.name and name == new_name then
-                    caller.print("Another team already uses that name."); return
-                end
-            end
-            storage.team_names[caller.force.name] = new_name
-            helpers.broadcast("[Team] " .. helpers.colored_name(caller.name, caller.chat_color)
-                .. " renamed their team to " .. helpers.team_tag_with_leader(caller.force.name))
-            spawn_labels.refresh_for_force(caller.force.name)
-            teams_gui.update_all()
-            awards_gui.update_all()
-            remote_api.raise_team_renamed(caller.force.name, new_name)
+            local ok, err = team_rename.attempt(caller, cmd.parameter)
+            if not ok and err then caller.print(err) end
         end)
 
     commands.add_command("mts-teams",

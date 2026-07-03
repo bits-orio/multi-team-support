@@ -27,6 +27,28 @@ local surface_utils = require("scripts.surface_utils")
 
 local team_surfaces = {}
 
+-- Surface names whose on_team_surface_created raise is deferred until
+-- create_team_surface finishes planet association + spawn-chunk pre-gen. Set and
+-- cleared within a single synchronous create_team_surface call, so a plain
+-- upvalue is desync-safe (every peer runs the same code path in the same tick).
+local deferred = {}
+
+-- remote_api.raise_team_surface_created, injected at load time (this module must
+-- NOT require remote_api -- see header). Doing the re-raise here rather than in
+-- the mts-v1 wrapper means BOTH callers of create_team_surface get it (the wrapper
+-- and the internal compat/mts_dimension_warp path).
+local raise_hook = nil
+
+function team_surfaces.set_raise_hook(fn) raise_hook = fn end
+
+--- True while create_team_surface is mid-build for this surface name. The
+--- events/ticks.lua on_surface_created handler checks this to SUPPRESS its inline
+--- on_team_surface_created raise, so consumers don't see the surface before it has
+--- a planet or any generated chunks; we re-raise once it is fully formed.
+function team_surfaces.is_deferring(name)
+    return deferred[name] == true
+end
+
 local function is_team_force(force_name)
     return type(force_name) == "string" and force_name:find("^team%-") ~= nil
 end
@@ -66,13 +88,21 @@ function team_surfaces.create_team_surface(force_name, spec)
     end
 
     -- Register ownership BEFORE creation so the engine's on_surface_created
-    -- handler resolves get_owner -> this force (driving visibility/labels/event).
+    -- handler resolves get_owner -> this force (driving visibility/labels).
     storage.surface_owner_overrides[name] = force_name
+
+    -- Defer the on_team_surface_created event: game.create_surface raises
+    -- on_surface_created synchronously (events/ticks.lua), which would otherwise
+    -- fire on_team_surface_created right now -- before the surface has a planet
+    -- or any generated chunks. The marker makes the ticks.lua handler skip that
+    -- inline raise; we re-raise below once the surface is fully formed.
+    deferred[name] = true
 
     -- Create with the caller's settings (seed included). The non-variant name
     -- means normalize_variant_seed leaves that seed untouched.
     local ok, surface = pcall(function() return game.create_surface(name, spec.map_gen_settings) end)
     if not (ok and surface and surface.valid) then
+        deferred[name] = nil
         storage.surface_owner_overrides[name] = nil
         return nil
     end
@@ -86,6 +116,11 @@ function team_surfaces.create_team_surface(force_name, spec)
     -- Pre-generate the spawn area so a later clone/teleport lands on real terrain.
     surface.request_to_generate_chunks({0, 0}, 3)
     surface.force_generate_chunk_requests()
+
+    -- Surface now has its planet + spawn chunks: raise the deferred event so
+    -- consumers (e.g. MTS Dimension Warp) see a fully-formed surface.
+    deferred[name] = nil
+    if raise_hook then raise_hook(surface.name, force_name) end
 
     return surface.name
 end

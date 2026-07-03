@@ -84,14 +84,33 @@ end
 local function strip_team_from_records(records_table, team)
     if not records_table then return end
     for key, entry in pairs(records_table) do
-        local fi = entry.first   and entry.first.team   == team
-        local fai = entry.fastest and entry.fastest.team == team
-        if fi and fai then
+        -- Drop this team's own leaderboard slice so a recycled slot (which reuses
+        -- the same "team-N" force name) can record its OWN completion instead of
+        -- inheriting the previous occupant's frozen entry (records.update refuses
+        -- to overwrite an existing entries[force_name]).
+        if entry.entries then entry.entries[team] = nil end
+
+        -- If the leaver held first and/or fastest, recompute them from the
+        -- SURVIVING entries rather than nil-ing the whole record key -- the old
+        -- code destroyed every other team's entry for this achievement when the
+        -- leaver held both. "first" here becomes "earliest surviving team" (the
+        -- true first-achiever is genuinely gone once its slot recycles).
+        local held = (entry.first   and entry.first.team   == team)
+                  or (entry.fastest and entry.fastest.team == team)
+        if held then
+            local first, fastest
+            for _, e in pairs(entry.entries or {}) do
+                if not first   or e.tick    < first.tick      then first   = e end
+                if not fastest or e.elapsed < fastest.elapsed then fastest = e end
+            end
+            entry.first, entry.fastest = first, fastest
+        end
+
+        -- Drop the key only when nothing remains (no surviving entries and no
+        -- first/fastest -- the latter guards pre-leaderboard saves whose entries
+        -- table was never populated).
+        if not (entry.first or entry.fastest or (entry.entries and next(entry.entries))) then
             records_table[key] = nil
-        elseif fi then
-            entry.first = entry.fastest
-        elseif fai then
-            entry.fastest = entry.first
         end
     end
 end
@@ -156,17 +175,20 @@ function M.claim_team_slot(player, opts)
 
     reset_force_state(force)
     copy_force_state(game.forces.player, force)
-    player.force    = force
-    force.custom_color = player.color
 
+    -- Populate the full team state and raise on_team_created BEFORE putting the
+    -- leader on the force. player.force = force synchronously fires
+    -- on_player_changed_force -> on_player_joined_team, so writing the state
+    -- first means that event (and any consumer's get_team_info from it) sees a
+    -- fully-occupied team with its leader/clock set, and observes on_team_created
+    -- first, rather than a half-written slot.
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = player.index
     storage.team_pool[slot] = "occupied"
 
     -- Track whether THIS claim is the call that starts the clock, so we raise
-    -- on_team_clock_started exactly once (after raise_team_created below). A
-    -- staged start defers the clock (skip_clock) and fires the event from
-    -- pre_start.commit instead.
+    -- on_team_clock_started exactly once. A staged start defers the clock
+    -- (skip_clock) and fires the event from pre_start.commit instead.
     local clock_started_now = false
     if not opts.skip_clock then
         storage.team_clock_start = storage.team_clock_start or {}
@@ -186,6 +208,11 @@ function M.claim_team_slot(player, opts)
     if clock_started_now then
         remote_api.raise_team_clock_started(force_name, storage.team_clock_start[force_name])
     end
+
+    -- Leader joins last: fires on_player_joined_team after the team is fully
+    -- written and on_team_created has already been observed by consumers.
+    player.force       = force
+    force.custom_color = player.color
     return force_name
 end
 
@@ -365,9 +392,14 @@ function M.remove_from_team(player)
     end
 
     if member_count <= 1 then
-        local deleted  = M.cleanup_force_surfaces(old_force_name)
+        -- Move the leaver off the team BEFORE tearing its surfaces down, so
+        -- on_player_left_team (fired synchronously by player.force =) reaches
+        -- consumers while the team's surfaces are still valid. release_team_slot
+        -- still runs last, preserving the on_player_left_team -> on_team_released
+        -- order.
         local spec_force = game.forces["spectator"]
         if spec_force then player.force = spec_force end
+        local deleted  = M.cleanup_force_surfaces(old_force_name)
         M.release_team_slot(old_force_name)
         local msg = "[Team] " .. team_tag .. " has been disbanded."
         if #deleted > 0 then msg = msg .. " Their base has been cleaned up." end

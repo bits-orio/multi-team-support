@@ -12,9 +12,6 @@
 local helpers     = require("scripts.helpers")
 local nav         = require("gui.nav")
 local force_utils = require("scripts.force_utils")
-local teams_gui   = require("gui.teams")
-local awards_gui  = require("gui.awards")
-local spawn_labels = require("scripts.spawn_labels")
 local remote_api  = require("scripts.remote_api")
 local pen_gui     = require("gui.pen_gui")
 local lfm_hint    = require("gui.lfm_hint")
@@ -24,8 +21,11 @@ local team_settings = {}
 local NAV_BTN_NAME = "sb_team_settings_btn"
 local FRAME_NAME   = "sb_team_settings_frame"
 
--- Max length for a custom team name (matches /mts-rename).
+-- Max length for a custom team name. Exported so scripts/team_rename (the shared
+-- rule for /mts-rename + this panel) reads one constant, while the GUI's live
+-- length cap below keeps using the local.
 local MAX_TEAM_NAME_LEN = 16
+team_settings.MAX_TEAM_NAME_LEN = MAX_TEAM_NAME_LEN
 
 -- ─── Storage ──────────────────────────────────────────────────────────
 
@@ -275,44 +275,18 @@ end
 
 -- ─── Event handlers ──────────────────────────────────────────────────
 
---- Attempt a rename. Duplicates-check mirrors /mts-rename.
-local function try_rename(player, raw_text)
-    if not is_leader(player) then
-        player.print("Only the team leader can rename the team.")
-        return
-    end
-    local new_name = (raw_text or ""):match("^%s*(.-)%s*$")
-    if not new_name or new_name == "" then
-        player.print("Team name cannot be empty.")
-        return
-    end
-    if #new_name > MAX_TEAM_NAME_LEN then
-        player.print("Team name is too long (max " .. MAX_TEAM_NAME_LEN .. " characters).")
-        return
-    end
+-- Rename runs through scripts/team_rename (shared with /mts-rename). Its attempt
+-- function is INJECTED at load time (from control.lua) rather than required here:
+-- team_rename requires THIS module (for update_all_for_force + MAX_TEAM_NAME_LEN),
+-- so the GUI can't require it back at the top level (cycle), and Factorio forbids
+-- require() at runtime -- so neither require form is usable inside the handler.
+local rename_fn = nil
+function team_settings.set_rename_fn(fn) rename_fn = fn end
 
-    local force_name = player.force.name
-    local current    = helpers.display_name(force_name)
-    if new_name == current then return end   -- no-op
-
-    storage.team_names = storage.team_names or {}
-    for fn, name in pairs(storage.team_names) do
-        if fn ~= force_name and name == new_name then
-            player.print("Another team already uses that name.")
-            return
-        end
-    end
-
-    storage.team_names[force_name] = new_name
-    helpers.broadcast("[Team] " .. helpers.colored_name(player.name, player.chat_color)
-        .. " renamed their team to " .. helpers.team_tag(force_name))
-
-    spawn_labels.refresh_for_force(force_name)
-    team_settings.update_all_for_force(force_name)
-    -- Teams panel caches team names, so refresh any open copies.
-    teams_gui.update_all()
-    awards_gui.update_all()
-    pen_gui.update_pen_gui_all()
+local function do_rename(player, raw_text)
+    if not rename_fn then return end
+    local ok, err = rename_fn(player, raw_text)
+    if not ok and err then player.print(err) end
 end
 
 --- Handle GUI clicks. Returns true if consumed.
@@ -332,7 +306,7 @@ function team_settings.on_gui_click(event)
         -- Save button and textfield share the same name_row parent.
         local field = el.parent and el.parent.sb_team_settings_name
         if field and field.valid then
-            try_rename(player, field.text)
+            do_rename(player, field.text)
         end
         return true
     end
@@ -394,7 +368,7 @@ function team_settings.on_gui_confirmed(event)
     if not (el and el.valid and el.name == "sb_team_settings_name") then return false end
     local player = game.get_player(event.player_index)
     if not (player and is_on_team(player)) then return true end
-    try_rename(player, el.text)
+    do_rename(player, el.text)
     return true
 end
 

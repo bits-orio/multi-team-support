@@ -7,6 +7,7 @@ local clone_mirror   = require("compat.clone_mirror")
 local dangoreus      = require("compat.dangoreus")
 local reassign_player_force = require("compat.reassign_player_force")
 local surface_utils  = require("scripts.surface_utils")
+local team_surfaces  = require("scripts.team_surfaces")
 local spawn_labels   = require("scripts.spawn_labels")
 local remote_api     = require("scripts.remote_api")
 local teams_gui      = require("gui.teams")
@@ -56,7 +57,12 @@ function M.register()
         local owner = surface_utils.get_owner(surface)
         if owner then
             spawn_labels.draw(owner, surface)
-            remote_api.raise_team_surface_created(surface.name, owner)
+            -- Skip the inline raise for a surface create_team_surface is still
+            -- building; it re-raises after planet association + chunk pre-gen so
+            -- consumers don't observe an unassociated, ungenerated surface.
+            if not team_surfaces.is_deferring(surface.name) then
+                remote_api.raise_team_surface_created(surface.name, owner)
+            end
             teams_gui.update_all()
         end
         planet_map.hide_base_planets_for_all()
