@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.58
+Date: 2026-07-03
+  Features:
+    - The landing pen now has an admin-editable info panel at its centre. Set a per-run description
+      (which mods, the goal, the rules) from the Admin panel's new "Run Info" tab, so players who
+      land in know what they're playing. The panel is display-only -- edited only from the Admin
+      panel -- and comes pre-set with the info icon, shown in alt-mode and tagged on the map.
+  Bugfixes:
+    - The landing pen is now charted for every team, so it no longer appears as a black island when
+      a player looks back at it after spawning onto their own surface.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.57
 Date: 2026-07-03
   Features:
