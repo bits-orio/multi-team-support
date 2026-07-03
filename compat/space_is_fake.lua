@@ -32,7 +32,6 @@
 -- (sif-map = "obsidiax"), whose lava-heat runtime rules are keyed to
 -- surface.name == "nauvis" and would also need generalizing.
 
-local remote_api = require("scripts.remote_api")
 
 local M = {}
 
@@ -167,20 +166,19 @@ function M.after_spawn(player)
     place_starting_area(surface, player.position)
 end
 
--- Called from init_events().
-function M.register_events()
+-- Fanned out from the single MTS-owned on_team_released dispatcher in
+-- events/ticks.lua (see CC-1). Clears the setup guard for the released slot's
+-- surface names by the deterministic slot number, NOT by game.surfaces
+-- existence: game.delete_surface is deferred, so this same-tick handler still
+-- sees the surface, and the old existence check never cleared it -- leaving the
+-- recycled slot's fresh surface without SiF starting-area setup (ST-1).
+function M.on_team_released(e)
     if not M.is_active() then return end
-    -- On slot recycle the team's surface is deleted. Clear the setup guard for
-    -- any surface that no longer exists, so the next occupant of a recycled
-    -- slot (fresh surface, same name) gets its starting area.
-    script.on_event(remote_api.events.on_team_released, function()
-        if not storage.sif_setup_done then return end
-        for name in pairs(storage.sif_setup_done) do
-            if not game.surfaces[name] then
-                storage.sif_setup_done[name] = nil
-            end
-        end
-    end)
+    if not storage.sif_setup_done then return end
+    local slot = e.force_name:match("^team%-(%d+)$")
+    if not slot then return end
+    storage.sif_setup_done["mts-nauvis-" .. slot]        = nil  -- SA home variant
+    storage.sif_setup_done["team-" .. slot .. "-nauvis"] = nil  -- non-SA fallback
 end
 
 return M

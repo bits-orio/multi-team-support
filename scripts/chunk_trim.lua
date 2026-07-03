@@ -110,7 +110,8 @@ end
 -- ─── Public API ───────────────────────────────────────────────────────
 
 function chunk_trim.init_storage()
-    storage.chunk_trim_queue = storage.chunk_trim_queue or nil
+    -- storage.chunk_trim_queue is created lazily by the trim command; nothing to
+    -- initialize here. Kept as a no-op because control.lua calls it.
 end
 
 --- Returns true if a trim is currently in progress.

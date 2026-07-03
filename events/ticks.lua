@@ -92,16 +92,19 @@ function M.register()
     script.on_event(defines.events.on_entity_logistic_slot_changed,
         planet_map.on_logistic_slot_changed)
 
-    -- Ultracube compat: drive player setup and force-slot recycling.
-    ultracube_compat.register_events()
-
-    -- Space Is Fake compat: clear the per-surface starting-area guard on slot
-    -- recycle so reused Nauvis variants get set up again.
-    space_is_fake.register_events()
-
-    -- Gridlocked compat: reset chunk-point balance on team create/release so
-    -- recycled force slots don't inherit the previous occupant's points.
-    gridlocked.register_events()
+    -- Compat fan-out: Factorio keeps only the LAST script.on_event per event id
+    -- per mod, so the compat shims can't each register these MTS custom events --
+    -- they'd clobber each other and only the last-registered would fire (CC-1).
+    -- One MTS-owned registration per id calls every shim's self-guarding handler
+    -- in a deterministic order.
+    script.on_event(remote_api.events.on_team_created, function(e)
+        gridlocked.on_team_created(e)
+    end)
+    script.on_event(remote_api.events.on_team_released, function(e)
+        ultracube_compat.on_team_released(e)   -- fresh cube + victory reset
+        space_is_fake.on_team_released(e)       -- clear SiF starting-area guard
+        gridlocked.on_team_released(e)          -- reset chunk-point balance
+    end)
 
     -- dangOreus compat: block non-miners on ore, spill on destroyed containers.
     if dangoreus.is_active() then

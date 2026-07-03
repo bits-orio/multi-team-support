@@ -88,7 +88,6 @@ end
 
 script.on_init(function()
     log("[multi-team-support] on_init fired")
-    storage.gui_collapsed            = {}
     storage.gui_location             = {}
     storage.stats_gui_state          = {}
     storage.stats_gui_location       = {}
@@ -105,7 +104,6 @@ script.on_init(function()
     storage.pending_vanilla_tp       = {}
     storage.admin_flags              = {}
     storage.pending_admin_check      = {}
-    storage.admin_gui_collapsed      = {}
     storage.admin_gui_location       = {}
     storage.left_teams               = {}
     storage.player_clock_start       = {}
@@ -195,7 +193,6 @@ script.on_configuration_changed(function()
             pause_control.unpause_team(fn, names)
         end
     end
-    storage.team_settings = nil
 
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}

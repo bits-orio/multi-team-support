@@ -16,7 +16,7 @@
 -- HUD label. We call it on on_team_created and on_team_released so every team
 -- starts from a clean slate regardless of what the previous occupant did.
 
-local remote_api = require("scripts.remote_api")
+local remote_safe = require("compat.remote_safe")
 
 local M = {}
 
@@ -25,22 +25,25 @@ function M.is_active()
 end
 
 local function reset_force_points(force_name)
-    if not remote.interfaces["gridlocked"] then return end
     local force = game.forces[force_name]
     if not (force and force.valid) then return end
-    remote.call("gridlocked", "reset_force", force.index)
+    -- remote_safe.call guards both the interface and the reset_force function
+    -- existing before calling (CG-2).
+    remote_safe.call("gridlocked", "reset_force", force.index)
 end
 
-function M.register_events()
+-- Plain handlers fanned out from the single MTS-owned dispatcher in
+-- events/ticks.lua. Factorio keeps only ONE script.on_event per event id per
+-- mod, so the shims can't each register on_team_created/on_team_released (they'd
+-- clobber each other -- CC-1). Each self-guards on is_active().
+function M.on_team_created(e)
     if not M.is_active() then return end
+    reset_force_points(e.force_name)
+end
 
-    script.on_event(remote_api.events.on_team_created, function(e)
-        reset_force_points(e.force_name)
-    end)
-
-    script.on_event(remote_api.events.on_team_released, function(e)
-        reset_force_points(e.force_name)
-    end)
+function M.on_team_released(e)
+    if not M.is_active() then return end
+    reset_force_points(e.force_name)
 end
 
 return M

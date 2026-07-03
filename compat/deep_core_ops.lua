@@ -9,6 +9,8 @@
 --
 -- Call on_player_created(player) from spawn_into_world, guarded by is_active().
 
+local remote_safe = require("compat.remote_safe")
+
 local dco = {}
 
 --- Starting items given to each player character when spawning into DCO.
@@ -28,12 +30,15 @@ end
 function dco.on_player_created(player)
     local force_name = player.force.name
 
+    -- Guard every remote.call: is_active() only proves the mod is present, not
+    -- that its interface/functions still exist. A missing one now degrades to nil
+    -- (player stays on the pen) instead of hard-erroring every spawn (CG-1).
     -- Create the ship for this team force if DCO doesn't know about it yet.
-    if not remote.call("DeepCoreOperations", "get_force_platform", force_name) then
-        remote.call("DeepCoreOperations", "add_player_force", force_name)
+    if not remote_safe.call("DeepCoreOperations", "get_force_platform", force_name) then
+        remote_safe.call("DeepCoreOperations", "add_player_force", force_name)
     end
 
-    local platform_data = remote.call("DeepCoreOperations", "get_force_platform", force_name)
+    local platform_data = remote_safe.call("DeepCoreOperations", "get_force_platform", force_name)
     local ship    = platform_data and platform_data.ship
     local surface = ship and ship.surfaces[1]
 

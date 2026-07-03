@@ -38,7 +38,7 @@
 -- We call reset_force(force_name) when on_team_released fires, which clears
 -- those flags so the next team to claim the slot starts fresh.
 
-local remote_api = require("scripts.remote_api")
+local remote_safe = require("compat.remote_safe")
 
 local ultracube = {}
 
@@ -70,24 +70,14 @@ function ultracube.after_spawn(player)
     remote.call("Ultracube", "setup_player", player.index)
 end
 
--- Called from init_events().
-function ultracube.register_events()
+-- Fanned out from the single MTS-owned on_team_released dispatcher in
+-- events/ticks.lua (see CC-1 -- shims can't each register the same event id).
+function ultracube.on_team_released(e)
     if not ultracube.is_active() then return end
-    if not remote.interfaces["Ultracube"] then return end
-
-    -- on_player_joined_team fires during force assignment, before the
-    -- player has been teleported to their team surface. setup_player is
-    -- therefore NOT called here — it is called explicitly at each spawn
-    -- site via after_spawn() once the teleport has completed.
-
-    script.on_event(remote_api.events.on_team_released, function(e)
-        -- The force slot is being recycled. Clear Ultracube's per-force flags
-        -- so the next team to claim this slot gets a fresh starting cube and
-        -- an unblocked victory condition.
-        if remote.interfaces["Ultracube"]["reset_force"] then
-            remote.call("Ultracube", "reset_force", e.force_name)
-        end
-    end)
+    -- The force slot is being recycled. Clear Ultracube's per-force flags so the
+    -- next team to claim this slot gets a fresh starting cube and an unblocked
+    -- victory condition. remote_safe.call guards interface + function existence.
+    remote_safe.call("Ultracube", "reset_force", e.force_name)
 end
 
 return ultracube
