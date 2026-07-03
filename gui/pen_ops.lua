@@ -10,6 +10,7 @@ local voidblock     = require("compat.voidblock")
 local deep_core_ops = require("compat.deep_core_ops")
 local compat_utils  = require("compat.compat_utils")
 local pen_gui       = require("gui.pen_gui")
+local buddy_store   = require("scripts.buddy_store")
 
 local M = {}
 
@@ -40,6 +41,11 @@ function M.finish_spawn(player)
     storage.spawned_players = storage.spawned_players or {}
     storage.spawned_players[player.index] = true
     if storage.pen_slots then storage.pen_slots[player.index] = nil end
+    -- A player leaving the pen can no longer be a buddy requester, so drop any
+    -- request they had pending (and its Accept dialogs on members' screens).
+    -- Makes this the single "left the pen" cleanup point for every spawn path,
+    -- including the admin pen-disable force-spawn.
+    buddy_store.clear(player.index)
     if player.gui.screen.sb_pen_frame then
         player.gui.screen.sb_pen_frame.destroy()
     end

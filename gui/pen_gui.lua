@@ -5,6 +5,7 @@ local admin_gui   = require("gui.admin")
 local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local terrain     = require("gui.landing_pen_terrain")
+local buddy_store = require("scripts.buddy_store")
 
 local SURFACE_NAME = terrain.SURFACE_NAME
 
@@ -54,8 +55,7 @@ local function add_join_team_section(frame, player)
     limit_note.style.font       = "default-small"
     limit_note.style.font_color = {0.7, 0.7, 0.7}
 
-    storage.buddy_requests = storage.buddy_requests or {}
-    local my_request = storage.buddy_requests[player.index]
+    local my_request = buddy_store.request_of(player.index)
 
     for _, row_info in ipairs(rows) do
         local row = frame.add{type = "flow", direction = "horizontal"}
@@ -76,10 +76,14 @@ local function add_join_team_section(frame, player)
 
         row.add{type = "empty-widget"}.style.horizontally_stretchable = true
 
-        local member_count = #row_info.force.players
-        local has_room = member_count < limit
+        local member_count  = #row_info.force.players
+        local has_room      = member_count < limit
+        -- Counts members who are remote-viewing (temporarily on the spectator
+        -- force) too, so a team isn't shown "offline" just because its members
+        -- are spectating.
+        local online_member = buddy_store.online_member_count(row_info.force_name) > 0
 
-        if my_request == row_info.leader.index then
+        if my_request == row_info.force_name then
             local pending = row.add{type = "label", caption = "Pending..."}
             pending.style.font         = "default-small"
             pending.style.font_color   = {1, 1, 0.4}
@@ -97,8 +101,10 @@ local function add_join_team_section(frame, player)
                 caption = "Full (" .. member_count .. "/" .. limit .. ")"}
             full.style.font       = "default-small"
             full.style.font_color = {1, 0.4, 0.4}
-        elseif not row_info.leader.connected then
-            local off = row.add{type = "label", caption = "Leader offline"}
+        elseif not online_member then
+            -- Any member can accept, so the row is joinable whenever ANY member
+            -- is online — not just the leader.
+            local off = row.add{type = "label", caption = "No members online"}
             off.style.font       = "default-small"
             off.style.font_color = {0.55, 0.55, 0.55}
         elseif my_request then
@@ -116,9 +122,9 @@ local function add_join_team_section(frame, player)
                 name    = "sb_buddy_request",
                 caption = "Request to join",
                 style   = "confirm_button",
-                tags    = {sb_target_index = row_info.leader.index},
-                tooltip = "Ask " .. row_info.leader.name
-                    .. " to join " .. helpers.display_name(row_info.force_name),
+                tags    = {sb_target_force = row_info.force_name},
+                tooltip = "Ask " .. helpers.display_name(row_info.force_name)
+                    .. " to let you join",
             }
         end
     end
@@ -154,21 +160,37 @@ function M.build_pen_gui(player)
     frame.style.minimal_width = 360
     frame.style.maximal_width = 480
 
-    storage.buddy_requests = storage.buddy_requests or {}
-    local has_pending = storage.buddy_requests[player.index] ~= nil
+    local has_pending     = buddy_store.request_of(player.index) ~= nil
+    local slots_available = occupied_team_count() < force_utils.max_teams()
     local btn = frame.add{
         type    = "button",
         name    = "sb_spawn_btn",
         caption = "Start a new team",
         style   = "confirm_button",
-        enabled = not has_pending,
+        enabled = not has_pending and slots_available,
         tooltip = has_pending
-            and "Cancel your pending join request first to start a new team."
+                and "Cancel your pending join request first to start a new team."
+            or (not slots_available
+                and "All team slots are in use — request to join a recruiting team below.")
             or  "Claim a new team slot and spawn into the game.",
     }
     btn.style.top_margin               = 4
     btn.style.bottom_margin            = 2
     btn.style.horizontally_stretchable = true
+
+    -- At capacity: every team slot is taken, so a new team can't be started.
+    -- Point the player at the recruiting list instead of leaving them stuck.
+    if slots_available == false and not has_pending then
+        local note = frame.add{type = "label"}
+        note.caption = "We've reached the maximum number of teams. Request to join a team "
+            .. "that's recruiting below, or wait for a slot to open up."
+        note.style.single_line   = false
+        note.style.maximal_width = 440
+        note.style.font          = "default-small"
+        note.style.font_color    = {0.75, 0.75, 0.75}
+        note.style.top_margin    = 2
+        note.style.bottom_margin = 2
+    end
 
     if admin_gui.flag("buddy_join_enabled") and occupied_team_count() > 0 and recruiting_team_exists() then
         local scroll = frame.add{

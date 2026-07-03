@@ -7,6 +7,7 @@ local force_utils      = require("scripts.force_utils")
 local pen_gui          = require("gui.pen_gui")
 local pen_ops          = require("gui.pen_ops")
 local buddy_requests   = require("gui.buddy_requests")
+local buddy_store      = require("scripts.buddy_store")
 
 local landing_pen = {}
 
@@ -85,22 +86,13 @@ end
 -- ─── Return to Pen ────────────────────────────────────────────────────
 
 function landing_pen.return_to_pen(player)
-    storage.buddy_requests = storage.buddy_requests or {}
-    for req_idx, tgt_idx in pairs(storage.buddy_requests) do
-        if tgt_idx == player.index then
-            storage.buddy_requests[req_idx] = nil
-            local requester = game.get_player(req_idx)
-            if requester and requester.connected then
-                requester.print(helpers.colored_name(player.name, player.chat_color)
-                    .. " is no longer available for buddy join.")
-                landing_pen.build_pen_gui(requester)
-            end
-        end
-    end
+    -- Tear down any Accept/Reject dialogs this player was holding as a team
+    -- member. Requests are addressed to a TEAM, so they are cancelled when the
+    -- team's slot is released (team_slots.wipe_slot_state) — not per-member here,
+    -- since a member returning to the pen may leave other members who can still
+    -- accept.
+    buddy_store.destroy_all_frames_for(player)
 
-    if player.gui.screen.sb_buddy_req_frame then
-        player.gui.screen.sb_buddy_req_frame.destroy()
-    end
     for _, frame_name in pairs({"sb_platforms_frame", "sb_research_frame",
                                 "sb_stats_frame", "sb_return_button_frame"}) do
         if player.gui.screen[frame_name] then player.gui.screen[frame_name].destroy() end

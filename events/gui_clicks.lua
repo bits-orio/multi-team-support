@@ -20,6 +20,7 @@ local team_clock        = require("scripts.team_clock")
 local lfm_hint          = require("gui.lfm_hint")
 local pre_start         = require("scripts.pre_start")
 local start_playing_gui = require("gui.start_playing_gui")
+local buddy_store       = require("scripts.buddy_store")
 
 local M = {}
 
@@ -65,10 +66,10 @@ function M.register()
 
         if el.name == "sb_buddy_request" then
             local player = game.get_player(event.player_index)
-            if player and landing_pen.is_in_pen(player) and el.tags and el.tags.sb_target_index then
-                local target = game.get_player(el.tags.sb_target_index)
-                if target and target.connected and not landing_pen.is_in_pen(target) then
-                    landing_pen.send_buddy_request(player, target)
+            if player and landing_pen.is_in_pen(player) and el.tags and el.tags.sb_target_force then
+                local force_name = el.tags.sb_target_force
+                if game.forces[force_name] and buddy_store.online_member_count(force_name) > 0 then
+                    landing_pen.send_buddy_request(player, force_name)
                 end
             end
             return

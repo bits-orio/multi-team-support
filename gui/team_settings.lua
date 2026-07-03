@@ -124,8 +124,9 @@ local function build_team_tab(content, force_name, leader, team_tag)
     local is_lfm      = (storage.team_looking_for_more or {})[force_name] == true
     local ever_recruited = (storage.lfm_ever_recruited or {})[force_name]
 
-    -- Callout banner: show to the leader until they have enabled recruiting at least once.
-    if leader and not is_lfm and not ever_recruited then
+    -- Callout banner: show to any member until the team has enabled recruiting
+    -- at least once (any member can start recruiting, not just the leader).
+    if not is_lfm and not ever_recruited then
         local hint = content.add{type = "label"}
         hint.caption = "[img=utility/warning_icon]  [color=1,0.85,0.2]New players can't find your team yet!\nClick \"Start recruiting\" below to appear in the landing pen.[/color]"
         hint.style.single_line   = false
@@ -151,7 +152,6 @@ local function build_team_tab(content, force_name, leader, team_tag)
         tooltip = is_lfm
             and "Stop recruiting — your team will no longer appear in the landing pen."
             or  "Start recruiting — your team will appear in the landing pen join list.",
-        enabled = leader,
     }
     lfm_btn.style.top_margin = 2
 end
@@ -338,8 +338,9 @@ function team_settings.on_gui_click(event)
     end
 
     if el.name == "sb_team_settings_lfm_toggle" then
+        -- Any team member can toggle recruiting (not just the leader).
         local player = game.get_player(event.player_index)
-        if not (player and is_on_team(player) and is_leader(player)) then return true end
+        if not (player and is_on_team(player)) then return true end
         local force_name = player.force.name
         storage.team_looking_for_more = storage.team_looking_for_more or {}
         local now_lfm = not storage.team_looking_for_more[force_name]

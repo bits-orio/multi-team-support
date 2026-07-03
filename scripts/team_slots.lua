@@ -11,6 +11,7 @@ local remote_api  = require("scripts.remote_api")
 local spawn_labels = require("scripts.spawn_labels")
 local team_clock  = require("scripts.team_clock")
 local pause_state = require("scripts.pause.state")
+local buddy_store = require("scripts.buddy_store")
 
 local M = {}
 
@@ -215,6 +216,18 @@ function M.wipe_slot_state(force_name)
     storage.lfm_ever_recruited[force_name] = nil
     storage.pre_start_pending = storage.pre_start_pending or {}
     storage.pre_start_pending[force_name] = nil
+
+    -- Cancel any pending buddy requests addressed to this team and tear down the
+    -- Accept/Reject dialogs its members were holding. Every disband path (admin
+    -- disband, solo-leave, disband_team) funnels through here, so this is the one
+    -- place that reliably clears requests to a vanishing team (DB-1). The pen
+    -- rows for affected requesters refresh via the callers' update_pen_gui_all.
+    for _, req_idx in ipairs(buddy_store.clear_for_team(force_name)) do
+        local requester = game.get_player(req_idx)
+        if requester and requester.connected then
+            requester.print("The team you requested to join is no longer available.")
+        end
+    end
 
     -- Clear the pause marker so a recycled slot never inherits a stale "paused"
     -- flag (which would silently disable the next team's warp loop). Just the

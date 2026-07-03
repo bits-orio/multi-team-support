@@ -40,14 +40,27 @@ function M.register()
             -- team-aware bridge message, so flag it to suppress the duplicate team-join.
             storage.odb_suppress_claim = storage.odb_suppress_claim or {}
             storage.odb_suppress_claim[player.index] = true
-            force_utils.claim_team_slot(player)
-            storage.spawned_players = storage.spawned_players or {}
-            storage.spawned_players[player.index] = true
-            storage.pending_spawn_pop = storage.pending_spawn_pop or {}
-            storage.pending_spawn_pop[player.index] = player.force.name
-            h.spawn_into_world(player)
-            force_utils.start_player_clock(player)
-            team_clock.refresh(player.force.name)
+            local force_name = force_utils.claim_team_slot(player)
+            if not force_name then
+                -- Every team slot is full. Do NOT fall through to spawn_into_world
+                -- here: the player is still on the built-in "player" force, which
+                -- would strand them on a personal "player-nauvis" clone surface
+                -- with no team. Route them into the landing pen instead (it holds
+                -- unlimited players) so they can wait for a slot or request to
+                -- join a recruiting team; the pen shows a capacity notice.
+                storage.odb_suppress_claim[player.index] = nil
+                local spec_force = game.forces["spectator"]
+                if spec_force then player.force = spec_force end
+                landing_pen.place_player(player)
+            else
+                storage.spawned_players = storage.spawned_players or {}
+                storage.spawned_players[player.index] = true
+                storage.pending_spawn_pop = storage.pending_spawn_pop or {}
+                storage.pending_spawn_pop[player.index] = force_name
+                h.spawn_into_world(player)
+                force_utils.start_player_clock(player)
+                team_clock.refresh(force_name)
+            end
         end
         teams_gui.update_all()
     end)
