@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.57
+Date: 2026-07-03
+  Features:
+    - Team recruitment is now controlled by every team member, not just the leader: any member can
+      toggle their team open for recruitment and accept an incoming buddy request.
+  Changes:
+    - Rocket-launch announcements to Discord now scale in tiers as a team's launch total grows --
+      every launch up to 10, then one per 5 to 100, per 25 to 500, per 50 to 1000, and one per 100
+      after that. Each announcement lands on a round multiple (…45300, 45400), so a megabase no
+      longer floods the feed.
+  Bugfixes:
+    - An online player spectating another team could be orphaned onto a stranger's team when their
+      own team was disbanded and the slot was reused. Online spectators are now accounted for.
+    - Fixed a multiplayer desync caused by a reconnecting player's top-bar navigation buttons ending
+      up in a different order than on other clients.
+    - The Team Settings rename button now behaves exactly like the /mts-rename command and notifies
+      integrating mods; renames from the GUI are no longer missed by downstream mods.
+    - create_team_surface can no longer take over ownership of another team's existing surface, and
+      the foreign-surface bounce now covers ephemeral surfaces, the map editor, and a landing-pen
+      fallback so a player is never stranded.
+    - Compatibility cleanup for Ultracube, Space Is Fake, and gridlocked now runs reliably when more
+      than one is installed (previously only the last-registered mod's cleanup fired).
+    - The mts-v1 integration API no longer crashes when a third-party mod passes an unexpected value
+      (wrong type, out-of-range player index, and similar); bad input is rejected gracefully.
+    - Hardened chunk trimming and several disband and team-lifecycle edge cases against rare crashes.
+  Optimizations:
+    - Production-stat and milestone polling now scan only each team's own surfaces instead of every
+      surface in the game, and several per-viewer GUI refreshes were de-duplicated -- noticeably
+      less work on large servers.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.56
 Date: 2026-07-02
   Changes:
