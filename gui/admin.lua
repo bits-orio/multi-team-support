@@ -1,9 +1,10 @@
 -- gui/admin.lua
 -- Admin panel GUI: feature flags tab, starter items tab, nav button.
 
-local helpers     = require("scripts.helpers")
-local nav         = require("gui.nav")
-local admin_flags = require("scripts.admin_flags")
+local helpers        = require("scripts.helpers")
+local nav            = require("gui.nav")
+local admin_flags    = require("scripts.admin_flags")
+local pen_info_panel = require("gui.pen_info_panel")
 
 local admin_gui = {}
 
@@ -181,6 +182,40 @@ function admin_gui.build_admin_gui(player)
         tooltip = "Add this item to the starter list",
     }
 
+    -- ── Run Info tab (landing-pen display panel) ─────────────────────────
+    local info_tab     = tabs.add{type = "tab", caption = "Run Info"}
+    local info_content = tabs.add{type = "flow", direction = "vertical",
+        name = "sb_admin_info_content"}
+    info_content.style.left_padding    = 8
+    info_content.style.right_padding   = 8
+    info_content.style.top_padding     = 8
+    info_content.style.bottom_padding  = 8
+    info_content.style.vertical_spacing = 6
+    tabs.add_tab(info_tab, info_content)
+
+    local info_hdr = info_content.add{type = "label",
+        caption = "Description shown on the landing-pen panel:"}
+    info_hdr.style.font = "default-bold"
+    info_content.add{type = "label",
+        caption = "Players read this when they land. Edit and Save any time.",
+    }.style.font_color = {0.6, 0.6, 0.6}
+
+    local info_box = info_content.add{
+        type = "text-box",
+        name = "sb_admin_info_text",
+        text = pen_info_panel.get_text(),
+    }
+    info_box.word_wrap      = true
+    info_box.style.width    = 320
+    info_box.style.height   = 120
+    info_content.add{
+        type    = "button",
+        name    = "sb_admin_info_save",
+        caption = "Save description",
+        style   = "confirm_button",
+        tooltip = "Update the landing-pen info panel with this text.",
+    }
+
     tabs.selected_tab_index = prev_tab
 end
 
@@ -204,6 +239,18 @@ function admin_gui.on_gui_click(event)
     if el.name == "sb_admin_close" then
         local player = game.get_player(event.player_index)
         if player and is_admin(player) then admin_gui.toggle(player) end
+        return true
+    end
+
+    if el.name == "sb_admin_info_save" then
+        local player = game.get_player(event.player_index)
+        if player and is_admin(player) then
+            local box = el.parent and el.parent.sb_admin_info_text
+            if box and box.valid then
+                pen_info_panel.set_text(box.text)
+                player.print("Landing-pen info panel updated.")
+            end
+        end
         return true
     end
 

@@ -12,6 +12,7 @@ local spawn_labels = require("scripts.spawn_labels")
 local team_clock  = require("scripts.team_clock")
 local pause_state = require("scripts.pause.state")
 local buddy_store = require("scripts.buddy_store")
+local pen_info_panel = require("gui.pen_info_panel")
 
 local M = {}
 
@@ -184,6 +185,9 @@ function M.claim_team_slot(player, opts)
 
     reset_force_state(force)
     copy_force_state(game.forces.player, force)
+    -- force.reset() above wiped this force's chart, so re-reveal the landing pen
+    -- for it -- otherwise the player sees a black island when they look back.
+    pen_info_panel.chart_for(force)
 
     -- Populate the full team state and raise on_team_created BEFORE putting the
     -- leader on the force. player.force = force synchronously fires

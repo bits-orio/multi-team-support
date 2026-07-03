@@ -6,6 +6,8 @@
 -- The pen is a circular island with a lab-dark-2 floor, water moat,
 -- grass ring, and out-of-map void beyond.
 
+local pen_info_panel = require("gui.pen_info_panel")
+
 local landing_pen_terrain = {}
 
 -- ─── Layout Constants ──────────────────────────────────────────────────
@@ -40,36 +42,42 @@ end
 
 --- Create the landing-pen surface with a circular island and ground text.
 function landing_pen_terrain.get_or_create_surface()
-    if game.surfaces[SURFACE_NAME] then
-        return game.surfaces[SURFACE_NAME]
+    local surface = game.surfaces[SURFACE_NAME]
+    local created = false
+    if not surface then
+        surface = game.create_surface(SURFACE_NAME, {
+            default_enable_all_autoplace_controls = false,
+            autoplace_settings = {
+                entity     = {treat_missing_as_default = false, settings = {}},
+                tile       = {treat_missing_as_default = false, settings = {}},
+                decorative = {treat_missing_as_default = false, settings = {}},
+            },
+        })
+        surface.always_day  = true
+        surface.show_clouds = false
+
+        surface.request_to_generate_chunks({x = 0, y = 0}, 2)
+        surface.force_generate_chunk_requests()
+
+        rendering.draw_text{
+            text = "MULTI-TEAM SUPPORT", surface = surface,
+            target = {x = 0, y = -8},
+            color = {r = 0.9, g = 0.7, b = 0.3, a = 0.8},
+            scale = 5, font = "default-large-bold", alignment = "center",
+        }
+        rendering.draw_text{
+            text = "Spawn when ready", surface = surface,
+            target = {x = 0, y = 4},
+            color = {r = 1.0, g = 1.0, b = 1.0, a = 0.8},
+            scale = 3, font = "default-large", alignment = "center",
+        }
+        created = true
     end
 
-    local surface = game.create_surface(SURFACE_NAME, {
-        default_enable_all_autoplace_controls = false,
-        autoplace_settings = {
-            entity     = {treat_missing_as_default = false, settings = {}},
-            tile       = {treat_missing_as_default = false, settings = {}},
-            decorative = {treat_missing_as_default = false, settings = {}},
-        },
-    })
-    surface.always_day  = true
-    surface.show_clouds = false
-
-    surface.request_to_generate_chunks({x = 0, y = 0}, 2)
-    surface.force_generate_chunk_requests()
-
-    rendering.draw_text{
-        text = "MULTI-TEAM SUPPORT", surface = surface,
-        target = {x = 0, y = -8},
-        color = {r = 0.9, g = 0.7, b = 0.3, a = 0.8},
-        scale = 5, font = "default-large-bold", alignment = "center",
-    }
-    rendering.draw_text{
-        text = "Spawn when ready", surface = surface,
-        target = {x = 0, y = 4},
-        color = {r = 1.0, g = 1.0, b = 1.0, a = 0.8},
-        scale = 3, font = "default-large", alignment = "center",
-    }
+    -- Admin-editable info panel at dead center + chart the island for every
+    -- force so it's never a black island when viewed from afar.
+    pen_info_panel.ensure(surface)
+    if created then pen_info_panel.chart_all() end
 
     return surface
 end
@@ -91,7 +99,9 @@ function landing_pen_terrain.on_chunk_generated(event)
     event.surface.set_tiles(tiles)
 
     for _, entity in ipairs(event.surface.find_entities(area)) do
-        if entity.type ~= "character" then
+        -- Keep player characters and the admin info panel; clear everything else
+        -- so a regenerated chunk can't wipe the centre panel.
+        if entity.type ~= "character" and not pen_info_panel.is_panel(entity) then
             entity.destroy()
         end
     end
