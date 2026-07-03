@@ -69,11 +69,20 @@ local function trim_surface(surface, entity_buffer, player_buffer, caller_idx)
         end
     end
 
+    -- Dilate by entity_buffer PER DISTINCT OCCUPIED CHUNK, not per entity. Many
+    -- entities share a chunk, so collecting the distinct occupied chunks first
+    -- (O(entities)) then dilating each once (O(occupied_chunks * (2r+1)^2)) gives
+    -- the identical keep-set as dilating every entity would, without the
+    -- O(entities * (2r+1)^2) blowup on a dense base (PF-6).
+    local occupied = {}
     for _, e in pairs(surface.find_entities_filtered{force = force}) do
-        mark_buffer(
-            math.floor(e.position.x / CHUNK_SIZE),
-            math.floor(e.position.y / CHUNK_SIZE),
-            entity_buffer)
+        local cx = math.floor(e.position.x / CHUNK_SIZE)
+        local cy = math.floor(e.position.y / CHUNK_SIZE)
+        occupied[cx] = occupied[cx] or {}
+        occupied[cx][cy] = true
+    end
+    for cx, col in pairs(occupied) do
+        for cy in pairs(col) do mark_buffer(cx, cy, entity_buffer) end
     end
     for _, p in pairs(game.connected_players) do
         if p.physical_surface == surface then

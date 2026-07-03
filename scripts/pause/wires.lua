@@ -39,7 +39,8 @@
 -- We now read each WireConnection.origin, cut with it, record it, and reconnect
 -- with it. The airtight power freeze (pause/power) is independent of all this.
 
-local space_age = require("scripts.space_age")
+local space_age     = require("scripts.space_age")
+local surface_utils = require("scripts.surface_utils")
 
 local wires = {}
 
@@ -72,7 +73,11 @@ end
 --- safe across surfaces.
 local function build_pole_index(force)
     local index = {}
-    for _, surface in pairs(game.surfaces) do
+    -- Only the force's OWN surfaces can hold its poles (wires.cut records only
+    -- from those), so scan them instead of every surface in the game (PF-10).
+    -- Still rebuilt per reconnect batch on purpose: re-deriving owned surfaces
+    -- each call drops any retired mid-reconnect, avoiding stale LuaEntity handles.
+    for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
         if surface and surface.valid then
             local poles = surface.find_entities_filtered{
                 type  = "electric-pole",

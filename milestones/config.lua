@@ -14,13 +14,17 @@
 --
 -- To add a new tracker, append a new table to config.trackers.
 
+local surface_utils = require("scripts.surface_utils")
+
 local config = {}
 
--- Helper to aggregate item production across all surfaces.
--- In Factorio 2.0, get_item_production_statistics is per-surface.
+-- Aggregate item production across the FORCE'S OWN surfaces (not every surface
+-- in the game). A team has no production on surfaces it doesn't own, so the
+-- total is identical while the 300-tick poll skips every other team's surfaces
+-- (PF-2). In Factorio 2.0, get_item_production_statistics is per-surface.
 local function total_produced(force, item_name)
     local total = 0
-    for _, surface in pairs(game.surfaces) do
+    for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
         local stats = force.get_item_production_statistics(surface)
         if stats then
             -- get_input_count returns total produced (items flowing into the stats)
@@ -33,7 +37,7 @@ end
 -- Same, for fluids (e.g. crude oil), which use a separate statistics object in 2.0.
 local function total_produced_fluid(force, fluid_name)
     local total = 0
-    for _, surface in pairs(game.surfaces) do
+    for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
         local stats = force.get_fluid_production_statistics(surface)
         if stats then
             total = total + (stats.get_input_count(fluid_name) or 0)

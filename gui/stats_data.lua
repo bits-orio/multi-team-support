@@ -2,7 +2,8 @@
 -- Constants, prototype discovery, item-list resolution, and data helpers
 -- for the production stats GUI.
 
-local helpers = require("scripts.helpers")
+local helpers       = require("scripts.helpers")
+local surface_utils = require("scripts.surface_utils")
 
 local M = {}
 
@@ -329,7 +330,10 @@ end
 
 function M.get_count(force, item_name, precision)
     local total = 0
-    for _, surface in pairs(game.surfaces) do
+    -- A force has zero production on surfaces it doesn't own, so scanning only
+    -- its own surfaces yields the same total while skipping every other team's
+    -- (PF-1) -- the game.surfaces scan cost the item count nothing but time.
+    for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
         local ok, stats = pcall(function()
             return force.get_item_production_statistics(surface)
         end)

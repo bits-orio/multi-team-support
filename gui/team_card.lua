@@ -229,43 +229,56 @@ end
 
 --- Update only the last-active labels without a full GUI rebuild.
 function M.update_activity_labels_all()
+    -- Each force's activity (caption/colour/tooltip) is identical across every
+    -- viewer at a given tick, and collect_team_members loops all players -- so
+    -- compute it ONCE per force here instead of per (viewer x force) inside the
+    -- render loop below (PF-8).
+    local per_force = {}
+    for _, force in pairs(game.forces) do
+        if not teams_data.SKIP_FORCES[force.name] then
+            local members   = teams_data.collect_team_members(force)
+            local last_tick = teams_data.team_last_active_tick(members.members)
+            if last_tick then
+                local ago_ticks  = game.tick - last_tick
+                local any_online = false
+                for _, p in ipairs(members.members) do
+                    if p.connected then any_online = true; break end
+                end
+                local ago_text = any_online and "active" or teams_data.fmt_ago(ago_ticks)
+                local color
+                if ago_ticks < 216000 then
+                    color = {0.4, 1.0, 0.4}
+                elseif ago_ticks < 5184000 then
+                    color = {1.0, 0.8, 0.2}
+                else
+                    color = {1.0, 0.4, 0.4}
+                end
+                per_force[force.name] = {
+                    caption = " · " .. ago_text,
+                    color   = color,
+                    tooltip = teams_data.build_activity_tooltip(members.members),
+                }
+            end
+        end
+    end
+
     for _, player in pairs(game.connected_players) do
         local frame = player.gui.screen.sb_platforms_frame
         if not frame then goto next_player end
         local scroll = frame.sb_platforms_scroll
         if not scroll then goto next_player end
 
-        for _, force in pairs(game.forces) do
-            if teams_data.SKIP_FORCES[force.name] then goto next_force end
-            local card = scroll["sb_card_" .. force.name]
-            if not (card and card.valid) then goto next_force end
-            local hdr = card.sb_card_hdr
-            if not (hdr and hdr.valid) then goto next_force end
-            local lbl = hdr.sb_card_activity
-            if not (lbl and lbl.valid) then goto next_force end
-
-            local members = teams_data.collect_team_members(force)
-            local last_tick = teams_data.team_last_active_tick(members.members)
-            if not last_tick then goto next_force end
-
-            local ago_ticks = game.tick - last_tick
-            local any_online = false
-            for _, p in ipairs(members.members) do
-                if p.connected then any_online = true; break end
+        for force_name, data in pairs(per_force) do
+            local card = scroll["sb_card_" .. force_name]
+            if card and card.valid then
+                local hdr = card.sb_card_hdr
+                local lbl = hdr and hdr.valid and hdr.sb_card_activity
+                if lbl and lbl.valid then
+                    lbl.caption          = data.caption
+                    lbl.style.font_color = data.color
+                    lbl.tooltip          = data.tooltip
+                end
             end
-            local ago_text = any_online and "active" or teams_data.fmt_ago(ago_ticks)
-            local color
-            if ago_ticks < 216000 then
-                color = {0.4, 1.0, 0.4}
-            elseif ago_ticks < 5184000 then
-                color = {1.0, 0.8, 0.2}
-            else
-                color = {1.0, 0.4, 0.4}
-            end
-            lbl.caption          = " · " .. ago_text
-            lbl.style.font_color = color
-            lbl.tooltip          = teams_data.build_activity_tooltip(members.members)
-            ::next_force::
         end
         ::next_player::
     end

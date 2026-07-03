@@ -42,7 +42,28 @@ function surface_utils.get_owner(surface)
     local override = (storage.surface_owner_overrides or {})[surface.name]
     if override and game.forces[override] then return override end
 
-    -- Space platforms owned by team forces
+    -- Space Age: per-team planet variants have their own surfaces named
+    -- after the planet (e.g. "mts-nauvis-1"). The planet_map keeps a
+    -- reverse lookup built at on_init. O(1), so checked before the O(forces x
+    -- platforms) scan below -- this is the common case for a variant surface.
+    local by_planet = (storage.map_planet_to_force or {})[surface.name]
+    if by_planet and game.forces[by_planet] then
+        return by_planet
+    end
+
+    -- Fallback (non-Space-Age): cloned surfaces named "team-N-planet". Use a
+    -- permissive suffix (.+, matching variant_base_planet above) so planet names
+    -- containing '-' or '_' (e.g. team-1-neo-nauvis) still resolve. O(1) name
+    -- match, so it also precedes the platforms scan.
+    local force_name = surface.name:match("^(team%-%d+)%-.+$")
+    if force_name and game.forces[force_name] then
+        return force_name
+    end
+
+    -- Space platforms owned by team forces. O(forces x platforms), so LAST: a
+    -- platform surface carries no name-based record, making this the only branch
+    -- that can resolve it -- but a planet-variant/clone surface (the common case)
+    -- never reaches here, having matched an O(1) lookup above (PF-7).
     for _, force in pairs(game.forces) do
         if force.name:find("^team%-") then
             for _, plat in pairs(force.platforms) do
@@ -54,24 +75,23 @@ function surface_utils.get_owner(surface)
         end
     end
 
-    -- Space Age: per-team planet variants have their own surfaces named
-    -- after the planet (e.g. "mts-nauvis-1"). The planet_map keeps a
-    -- reverse lookup built at on_init.
-    local by_planet = (storage.map_planet_to_force or {})[surface.name]
-    if by_planet and game.forces[by_planet] then
-        return by_planet
-    end
-
-    -- Fallback (non-Space-Age): cloned surfaces named "team-N-planet". Use a
-    -- permissive suffix (.+, matching variant_base_planet above) so planet names
-    -- containing '-' or '_' (e.g. team-1-neo-nauvis) still resolve. Safe as the
-    -- last branch: variant/override/platform surfaces were already matched above.
-    local force_name = surface.name:match("^(team%-%d+)%-.+$")
-    if force_name and game.forces[force_name] then
-        return force_name
-    end
-
     return nil
+end
+
+--- All surfaces currently owned by a force (by force name), as LuaSurface
+--- objects. Shared by the production-stat pollers (milestones, stats GUI) and
+--- the pause wire-reconnect index so they scan a team's own 1-3 surfaces
+--- instead of every surface in the game (PF-1/PF-2/PF-10). Recomputed each call
+--- since ownership shifts as surfaces are created/retired; a caller that polls
+--- repeatedly within one pass should cache the result itself.
+function surface_utils.owned_surfaces_by_force(force_name)
+    local out = {}
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid and surface_utils.get_owner(surface) == force_name then
+            out[#out + 1] = surface
+        end
+    end
+    return out
 end
 
 --- Pin a team variant surface to a per-base-planet seed so every team's copy

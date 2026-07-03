@@ -167,21 +167,26 @@ function M.register()
 
     script.on_nth_tick(1,     function() debug_engine.tick() end)
     script.on_nth_tick(2,     function() follow_cam.tick() end)
-    script.on_nth_tick(6,     function()
-        for _, force in pairs(game.forces) do
-            if force_utils.is_team_force(force.name) and force.current_research then
-                teams_gui.update_queue_progress_all()
-                return
-            end
-        end
-    end)
     -- Staggered visual wire reconnect after an API-driven unpause. Cheap no-op
     -- when nothing is pending; self-clears each force the instant it finishes.
     script.on_nth_tick(10,    function() pause_control.tick() end)
     -- Remember each player's home-view zoom so returning from spectating
     -- another team restores it (no zoom-changed event exists).
     script.on_nth_tick(20,    function() spectator.track_home_zoom() end)
-    script.on_nth_tick(30,    function() chunk_trim.tick() end)
+    script.on_nth_tick(30,    function()
+        chunk_trim.tick()
+        -- Research-progress bars, refreshed at 30 ticks (0.5s) rather than 6
+        -- (10 Hz). Research spans seconds-to-minutes, so a half-second cadence
+        -- is visually identical while cutting the viewers x forces x queue-slot
+        -- scan to a fifth (PF-10). Folded in here because on_nth_tick keys one
+        -- handler per period -- a separate on_nth_tick(30) would clobber this one.
+        for _, force in pairs(game.forces) do
+            if force_utils.is_team_force(force.name) and force.current_research then
+                teams_gui.update_queue_progress_all()
+                break
+            end
+        end
+    end)
     script.on_nth_tick(60,    function()
         -- Keep player colours readable/distinct FIRST (no engine event fires on a
         -- colour change, so we poll; cheap + self-terminating). Running it before
