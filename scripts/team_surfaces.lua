@@ -83,6 +83,13 @@ function team_surfaces.create_team_surface(force_name, spec)
     -- ownership that an earlier wipe dropped -- the old early-return wrote nothing,
     -- so a re-call could never repair a lost entry.
     if game.surfaces[name] then
+        -- Only (re-)assert ownership when the surface is unowned or already ours.
+        -- Refusing when another force owns it stops a consumer call with a
+        -- colliding name from silently hijacking (and later deleting, via retire
+        -- or the disband sweep) another team's surface. A dropped-override heal
+        -- still works: that surface reports no owner, so cur == nil.
+        local cur = surface_utils.get_owner(game.surfaces[name])
+        if cur ~= nil and cur ~= force_name then return nil end
         storage.surface_owner_overrides[name] = force_name
         return name
     end

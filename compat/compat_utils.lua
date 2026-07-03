@@ -56,6 +56,19 @@ function compat_utils.process_pending_teleports()
                 storage.pending_vanilla_tp[player_index] = nil
             end
         else
+            -- Destination surface is gone (retired/disbanded before this deferred
+            -- teleport ran). Don't silently drop a live player onto nowhere -- put
+            -- them on the landing pen if it exists, rather than leaving them on a
+            -- team force with no home surface.
+            if player and player.valid then
+                local pen = game.surfaces["landing-pen"]
+                if pen and pen.valid then
+                    local pos = (player.character
+                        and pen.find_non_colliding_position(player.character.name, {0, 0}, 16, 1))
+                        or player.force.get_spawn_position(pen)
+                    player.teleport(pos or {0, 0}, pen)
+                end
+            end
             storage.pending_vanilla_tp[player_index] = nil
         end
     end

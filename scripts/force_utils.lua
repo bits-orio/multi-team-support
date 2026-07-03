@@ -7,7 +7,6 @@
 local helpers       = require("scripts.helpers")
 local spectator     = require("scripts.spectator")
 local surface_utils = require("scripts.surface_utils")
-local planet_map    = require("scripts.planet_map")
 local team_slots    = require("scripts.team_slots")
 
 local force_utils = {}
@@ -60,25 +59,13 @@ function force_utils.on_foreign_surface(player)
     if not surface then return false end
     local my_force = effective_force(player)
     if not my_force then return false end
-    local my_force_name = my_force.name
-
-    local owner_force = surface.name:match("^(team%-%d+)%-%w+$")
-    if owner_force and owner_force ~= my_force_name then return true end
-
-    local variant_owner = planet_map.get_force_by_planet(surface.name)
-    if variant_owner and variant_owner ~= my_force_name then return true end
-
-    for _, force in pairs(game.forces) do
-        if force ~= my_force and force_utils.is_team_force(force.name) then
-            for _, plat in pairs(force.platforms) do
-                if plat.surface and plat.surface.valid
-                   and plat.surface.index == surface.index then
-                    return true
-                end
-            end
-        end
-    end
-    return false
+    -- Derive from the single ownership resolver instead of re-implementing it.
+    -- This also covers mts-v1 ephemeral surfaces (surface_owner_overrides), which
+    -- the old hand-rolled checks missed -- so a player standing on another team's
+    -- ephemeral (e.g. MDW) surface now bounces. Unowned surfaces (landing-pen,
+    -- default nauvis, spectator) return nil -> not foreign, as before.
+    local owner = surface_utils.get_owner(surface)
+    return owner ~= nil and owner ~= my_force.name
 end
 
 -- ─── Home Surface ─────────────────────────────────────────────────────
@@ -89,26 +76,38 @@ function force_utils.get_home_surface(player)
     return surface_utils.get_home_surface(force, player.index)
 end
 
+-- Land at ORIGIN, nudged to a non-colliding position when the player has a
+-- character, so a bounce can't wedge them in water/cliffs on an outer-planet
+-- variant. Falls back to raw ORIGIN for a characterless controller (god/pen).
+local function safe_origin(surface, player)
+    if player.character then
+        return surface.find_non_colliding_position(player.character.name, helpers.ORIGIN, 8, 0.5)
+            or helpers.ORIGIN
+    end
+    return helpers.ORIGIN
+end
+
 function force_utils.bounce_if_foreign(player)
     if not player or not player.connected then return end
-    if player.controller_type == defines.controllers.remote then return end
+    local ct = player.controller_type
+    -- Remote view and the map editor let an admin observe another team's surface
+    -- without physically being there -- don't yank them home.
+    if ct == defines.controllers.remote or ct == defines.controllers.editor then return end
     if not force_utils.on_foreign_surface(player) then return end
+
     local spawned = storage.spawned_players and storage.spawned_players[player.index]
-    if spawned then
-        local home = force_utils.get_home_surface(player)
-        if not home then
-            helpers.diag("bounce_if_foreign: no home found (spawned)", player)
-            return
-        end
-        helpers.diag("bounce_if_foreign: TELEPORT → " .. home.name
-            .. " (spawned branch)", player)
-        player.teleport(helpers.ORIGIN, home)
+    local home    = spawned and force_utils.get_home_surface(player) or nil
+    if spawned and home then
+        helpers.diag("bounce_if_foreign: TELEPORT → " .. home.name .. " (home)", player)
+        player.teleport(safe_origin(home, player), home)
     else
+        -- Unspawned, OR spawned but the home surface is gone (own team disbanded
+        -- while standing elsewhere): fall back to the pen rather than stranding
+        -- the player on a rival surface.
         local pen = game.surfaces["landing-pen"]
         if pen and pen.valid and player.surface.name ~= "landing-pen" then
-            helpers.diag("bounce_if_foreign: TELEPORT → landing-pen"
-                .. " (UNSPAWNED branch)", player)
-            player.teleport(helpers.ORIGIN, pen)
+            helpers.diag("bounce_if_foreign: TELEPORT → landing-pen (fallback)", player)
+            player.teleport(safe_origin(pen, player), pen)
         end
     end
 end

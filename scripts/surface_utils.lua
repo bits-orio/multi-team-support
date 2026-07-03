@@ -62,8 +62,11 @@ function surface_utils.get_owner(surface)
         return by_planet
     end
 
-    -- Fallback (non-Space-Age): cloned surfaces named "team-N-planet"
-    local force_name = surface.name:match("^(team%-%d+)%-%w+$")
+    -- Fallback (non-Space-Age): cloned surfaces named "team-N-planet". Use a
+    -- permissive suffix (.+, matching variant_base_planet above) so planet names
+    -- containing '-' or '_' (e.g. team-1-neo-nauvis) still resolve. Safe as the
+    -- last branch: variant/override/platform surfaces were already matched above.
+    local force_name = surface.name:match("^(team%-%d+)%-.+$")
     if force_name and game.forces[force_name] then
         return force_name
     end
