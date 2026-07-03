@@ -24,8 +24,20 @@ function M.init_storage()
     storage.global_records = storage.global_records or {}
     storage.global_records.first_rocket          = storage.global_records.first_rocket or false
     storage.global_records.first_planet_landings = storage.global_records.first_planet_landings or {}
-    -- force name -> rockets_launched total at the last bridge announcement
-    storage.rocket_announced = storage.rocket_announced or {}
+    -- force name -> the last announced launch MARK. Seeded from each force's
+    -- current total on FIRST creation so adding/updating the mod on a live save
+    -- doesn't re-announce the current neighbourhood -- it stays quiet until the
+    -- next genuine mark is crossed. (Existing deployments already hold raw totals
+    -- here from older versions, which give the same quiet behaviour, so the guard
+    -- leaves them untouched.)
+    if not storage.rocket_announced then
+        storage.rocket_announced = {}
+        for _, force in pairs(game.forces) do
+            if force.valid and (force.rockets_launched or 0) > 0 then
+                storage.rocket_announced[force.name] = force.rockets_launched
+            end
+        end
+    end
 end
 
 -- Tried in order; first valid path wins. "achievement_unlocked" is the
@@ -56,23 +68,60 @@ end
 -- ─── First rocket launched ────────────────────────────────────────────
 
 -- Late-game teams launch rockets continuously (tens of thousands of launches),
--- which floods the Discord bridge. Announce every launch up to 10 total, then
--- one per 5 launches up to 100, then one per 25.
+-- which would flood the Discord bridge. The announcement cadence WIDENS in tiers
+-- as the running total grows, so the number of posts per tier stays bounded no
+-- matter how big the base gets:
 --
--- Announce when the counter reaches-or-passes the NEXT ROUND MULTIPLE of the step
--- (…30275, 30300, 30325), rather than `total % step == 0`: force.rockets_launched
--- skips and duplicates values when several rockets resolve close together (live
--- logs show "...30254, 30254, 30256..."), so the exact-multiple check goes silent
--- for a whole window when the multiple lands on a skipped value, and double-posts
--- when a duplicate lands on one. Reach-or-pass keeps announced totals on round
--- numbers in the common case and only overshoots by the skip amount otherwise.
-local function should_announce_rocket(force_name, total)
-    if total <= 10 then return true end
-    local step = (total <= 100) and 5 or 25
-    local last = storage.rocket_announced[force_name] or 0
-    if total < last then return true end -- counter reset (force deleted/recreated): re-arm
-    local next_mark = (math.floor(last / step) + 1) * step
-    return total >= next_mark
+--   total ≤ 10     every launch      (10 posts)
+--   total ≤ 100    one per 5         (18 posts: 15, 20, … 100)
+--   total ≤ 500    one per 25        (16 posts: 125, 150, … 500)
+--   total ≤ 1000   one per 50        (10 posts: 550, 600, … 1000)
+--   total > 1000   one per 100       (terminal cadence, forever)
+--
+-- So a 45k-launch megabase posts once every ~100 rockets, not the old every-25.
+-- Each tier is ~10–18 posts, then a flat 1-per-100 — the feed never speeds up
+-- again past 1000 launches.
+local ROCKET_TIERS = {
+    { upto = 10,        step = 1   },
+    { upto = 100,       step = 5   },
+    { upto = 500,       step = 25  },
+    { upto = 1000,      step = 50  },
+    { upto = math.huge, step = 100 },
+}
+
+--- The announcement step for a given running total (see ROCKET_TIERS).
+local function rocket_announce_step(total)
+    for _, tier in ipairs(ROCKET_TIERS) do
+        if total <= tier.upto then return tier.step end
+    end
+    return 100  -- unreachable: the math.huge tier catches everything; defensive
+end
+
+-- Report the HIGHEST step-multiple the counter has reached that hasn't been
+-- announced yet, rather than testing `total % step == 0`. Two engine realities:
+--   • force.rockets_launched skips and duplicates values when several rockets
+--     resolve close together (live logs show "...30254, 30254, 30256..."), so a
+--     plain exact-multiple test goes silent when the multiple is skipped and
+--     double-posts when a duplicate lands on one.
+--   • the announced number should read cleanly, not as a raw overshoot (…45301).
+-- floor(total/step)*step is the highest multiple the counter has reached; report
+-- it whenever it exceeds the last reported mark. The feed never goes silent,
+-- never double-posts, and every announced number past 10 is a step multiple
+-- (…45300, 45400) — always ending in 0 or 5. Deriving the mark from the CURRENT
+-- total (not last+step) also means a fresh install / counter reset on an already-
+-- huge force jumps straight to the current neighbourhood instead of crawling up
+-- from a low number. A tier boundary widens the step, so the next mark lands on
+-- the wider grid (after 100 the next is 125, after 1000 it's 1100).
+--- @return integer|nil  the mark reached — the highest unannounced step multiple
+---   past 10, or the raw count at/below 10 — or nil when no new mark is due.
+local function rocket_announce_mark(last, total)
+    if total < last then return total end          -- counter reset (force recreated): re-arm on raw count
+    if total <= 10 then                            -- pre-alignment tier: every launch, raw count
+        return (total > last) and total or nil
+    end
+    local step = rocket_announce_step(total)
+    local mark = math.floor(total / step) * step   -- highest step multiple the counter has reached
+    return (mark > last) and mark or nil
 end
 
 function M.on_rocket_launched(event)
@@ -83,15 +132,20 @@ function M.on_rocket_launched(event)
     local force = rocket.force
 
     -- Team-specific Discord announcement (suppresses vanilla.rocket_launched),
-    -- throttled by should_announce_rocket to keep late-game spam down.
-    if force_utils.is_team_force(force.name) and should_announce_rocket(force.name, force.rockets_launched) then
-        storage.rocket_announced[force.name] = force.rockets_launched
-        local team = (storage.team_names or {})[force.name] or force.name
-        remote_api.emit_to_bridge("mts.rocket_launched", {
-            team         = team,
-            flight_count = force.rockets_launched,
-            text         = string.format("%s launched a rocket (total: %d)", team, force.rockets_launched),
-        })
+    -- throttled by rocket_announce_mark to keep late-game spam down. The reported
+    -- total is the round MARK (a step multiple), not the raw counter, so the feed
+    -- reads on clean numbers.
+    if force_utils.is_team_force(force.name) then
+        local mark = rocket_announce_mark(storage.rocket_announced[force.name] or 0, force.rockets_launched)
+        if mark then
+            storage.rocket_announced[force.name] = mark
+            local team = (storage.team_names or {})[force.name] or force.name
+            remote_api.emit_to_bridge("mts.rocket_launched", {
+                team         = team,
+                flight_count = mark,
+                text         = string.format("%s launched a rocket (total: %d)", team, mark),
+            })
+        end
     end
 
     -- First-ever rocket global milestone (fires once per save).
