@@ -937,8 +937,11 @@ function remote_api.register()
         -- MTS Dimension Warp's dock resume prompt + member-gather) must use this
         -- rather than the live player.force.name. Returns nil for a bad index.
         get_effective_force = function(player_index)
-            local p = player_index and game.get_player(player_index)
-            if not (p and p.valid) then return nil end
+            -- game.get_player THROWS on an out-of-range index (e.g. 99999 ->
+            -- "allowed values are from 1 to 65536"), so a consumer passing garbage
+            -- must not crash MTS -- resolve behind pcall (AT-1 trust boundary).
+            local ok, p = pcall(function() return game.get_player(player_index) end)
+            if not (ok and p and p.valid) then return nil end
             return (storage.spectator_real_force or {})[p.index] or p.force.name
         end,
 
