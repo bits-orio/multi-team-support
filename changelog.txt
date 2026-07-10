@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.60
+Date: 2026-07-10
+  Features:
+    - Compatibility with the "ClaustOrephobic" mod: every team's spawn now gets the same guaranteed
+      deepwater pump hole the dangOreus compat places, plus one crude-oil node at 300% yield a
+      configurable distance out from spawn (new map setting "ClaustOrephobic: spawn oil distance",
+      default 64 tiles, about 2 chunks). Oil never generates in the starting area on its ore worlds,
+      and such maps are often rolled with water set to none.
+  Bugfixes:
+    - Starter items now keep what is inside armor: "Copy from my inventory" captures each armor's
+      equipment grid and spawn kits restore it, so an armor copied from mods like Faster Start no
+      longer arrives empty. The admin list marks such entries with [+grid] and lists the equipment
+      in the tooltip.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.59
 Date: 2026-07-03
   Changes:
