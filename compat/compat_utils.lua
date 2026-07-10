@@ -39,6 +39,49 @@ function compat_utils.planet_display_name(planet)
     return planet:sub(1, 1):upper() .. planet:sub(2)
 end
 
+--- True for a team's nauvis variant under either naming scheme:
+--- "team-N-nauvis" (base 2.0 clone) or "mts-nauvis-N" (Space Age variant).
+--- Shared by chunk-gen compat shims (dangOreus, ClaustOrephobic) that
+--- decorate each team's spawn chunk.
+function compat_utils.is_team_nauvis_variant(surface_name)
+    if not surface_name then return false end
+    if surface_name:find("^team%-%d+%-nauvis$") then return true end
+    if surface_name:find("^mts%-nauvis%-%d+$")  then return true end
+    return false
+end
+
+-- Deepwater hole placed near origin so offshore pumps always have a spot:
+-- dangOreus shrinks the starter lake below the vanilla size, and
+-- ClaustOrephobic-style ore worlds are often run with water scaled to none.
+-- Offset diagonally from spawn (0,0) so players don't drown on landing,
+-- kept entirely within chunk (0,0) so it's placed atomically.
+local ORIGIN_WATER_TILE_NAME   = "deepwater"
+local ORIGIN_WATER_HOLE_SIZE   = 4
+local ORIGIN_WATER_HOLE_ORIGIN = {x = 3, y = 3}
+
+local ORIGIN_WATER_TILE_POSITIONS = {}
+for dy = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
+    for dx = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
+        ORIGIN_WATER_TILE_POSITIONS[#ORIGIN_WATER_TILE_POSITIONS + 1] = {
+            ORIGIN_WATER_HOLE_ORIGIN.x + dx,
+            ORIGIN_WATER_HOLE_ORIGIN.y + dy,
+        }
+    end
+end
+
+--- Place the origin deepwater hole on a surface. Call from chunk (0,0)'s
+--- on_chunk_generated, AFTER clone_mirror, so the water overwrites cloned
+--- tiles and removes any ore entities that landed on these tiles.
+function compat_utils.place_origin_water_hole(surface)
+    local tiles = {}
+    for _, pos in ipairs(ORIGIN_WATER_TILE_POSITIONS) do
+        tiles[#tiles + 1] = {name = ORIGIN_WATER_TILE_NAME, position = pos}
+    end
+    -- correct_tiles=true keeps water/land transitions clean;
+    -- remove_colliding_entities clears any ore that landed on these tiles.
+    surface.set_tiles(tiles, true, true, true, false)
+end
+
 --- Process queued surface teleports. Must be called from on_tick.
 function compat_utils.process_pending_teleports()
     if not storage.pending_vanilla_tp then return end

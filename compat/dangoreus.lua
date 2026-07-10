@@ -28,6 +28,8 @@
 -- spawn so offshore pumps work even when dangOreus's starting-radius
 -- is shrunk below the vanilla starter lake.
 
+local compat_utils = require("compat.compat_utils")
+
 local dangoreus = {}
 
 -- ─── Constants ────────────────────────────────────────────────────────
@@ -62,24 +64,6 @@ local DANGORE_EASY_EXCEPTIONS = {
     ["inserter"]           = true,
 }
 
--- Deepwater hole placed near origin so offshore pumps work even when
--- dangOreus's starting-radius is shrunk below the vanilla starter lake.
--- Offset diagonally from spawn (0,0) so players don't drown on landing,
--- kept entirely within chunk (0,0) so it's placed atomically.
-local ORIGIN_WATER_TILE_NAME  = "deepwater"
-local ORIGIN_WATER_HOLE_SIZE  = 4
-local ORIGIN_WATER_HOLE_ORIGIN = {x = 3, y = 3}
-
-local ORIGIN_WATER_TILE_POSITIONS = {}
-for dy = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
-    for dx = 0, ORIGIN_WATER_HOLE_SIZE - 1 do
-        ORIGIN_WATER_TILE_POSITIONS[#ORIGIN_WATER_TILE_POSITIONS + 1] = {
-            ORIGIN_WATER_HOLE_ORIGIN.x + dx,
-            ORIGIN_WATER_HOLE_ORIGIN.y + dy,
-        }
-    end
-end
-
 -- ─── Detection ────────────────────────────────────────────────────────
 
 function dangoreus.is_active()
@@ -88,12 +72,7 @@ end
 
 --- Should this surface be treated as a team nauvis clone / variant?
 --- Mirrors the patterns clone_mirror uses for chunk-gen.
-function dangoreus.is_enabled_surface(surface_name)
-    if not surface_name then return false end
-    if surface_name:find("^team%-%d+%-nauvis$") then return true end
-    if surface_name:find("^mts%-nauvis%-%d+$")  then return true end
-    return false
-end
+dangoreus.is_enabled_surface = compat_utils.is_team_nauvis_variant
 
 -- ─── Storage ──────────────────────────────────────────────────────────
 
@@ -121,17 +100,6 @@ end
 
 -- ─── Origin water hole ────────────────────────────────────────────────
 
-local function place_origin_water_hole(surface)
-    local tiles = {}
-    for _, pos in ipairs(ORIGIN_WATER_TILE_POSITIONS) do
-        tiles[#tiles + 1] = {name = ORIGIN_WATER_TILE_NAME, position = pos}
-    end
-    -- correct_tiles=true keeps water/land transitions clean;
-    -- remove_colliding_entities clears any ore that landed on these tiles
-    -- via clone_mirror.
-    surface.set_tiles(tiles, true, true, true, false)
-end
-
 --- Run AFTER clone_mirror so the water hole overwrites cloned tiles
 --- and ore at the spawn pump location. Only runs for the chunk
 --- containing origin.
@@ -140,7 +108,7 @@ function dangoreus.on_chunk_generated(event)
     local surface = event.surface
     if not dangoreus.is_enabled_surface(surface.name) then return end
     if event.area.left_top.x ~= 0 or event.area.left_top.y ~= 0 then return end
-    place_origin_water_hole(surface)
+    compat_utils.place_origin_water_hole(surface)
 end
 
 -- ─── Anti-building on ore ─────────────────────────────────────────────

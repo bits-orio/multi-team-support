@@ -26,4 +26,16 @@ data:extend({
         allow_blank = true,
         order = "b-a",
     },
+    {
+        -- Only consulted when ClaustOrephobic (zzz-claustorephobic) is active:
+        -- how far out (in tiles, diagonally from spawn) the guaranteed spawn
+        -- crude-oil node is placed. 64 tiles = about 2 chunks.
+        type = "int-setting",
+        name = "mts_claust_oil_distance_tiles",
+        setting_type = "runtime-global",
+        default_value = 64,
+        minimum_value = 0,
+        maximum_value = 1024,
+        order = "b-b",
+    },
 })
