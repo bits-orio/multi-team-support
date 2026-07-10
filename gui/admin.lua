@@ -16,6 +16,7 @@ admin_gui.buddy_team_limit          = admin_flags.buddy_team_limit
 admin_gui.get_flag_label            = admin_flags.get_flag_label
 admin_gui.get_starter_items         = admin_flags.get_starter_items
 admin_gui.auto_populate_starter_items = admin_flags.auto_populate_starter_items
+admin_gui.insert_starter_item       = admin_flags.insert_starter_item
 
 local NAV_BTN_NAME         = "sb_admin_btn"
 local BUDDY_TEAM_LIMIT_MIN = admin_flags.BUDDY_TEAM_LIMIT_MIN
@@ -135,7 +136,13 @@ function admin_gui.build_admin_gui(player)
             name_flow.style.vertical_align    = "center"
             name_flow.style.horizontal_spacing = 4
             pcall(function() name_flow.add{type = "sprite", sprite = "item/" .. item.name} end)
-            name_flow.add{type = "label", caption = item.name}
+            local name_lbl = name_flow.add{type = "label", caption = item.name}
+            if item.grid then
+                local parts = {}
+                for _, eq in ipairs(item.grid) do parts[#parts + 1] = eq.name end
+                name_lbl.caption = item.name .. " [+grid]"
+                name_lbl.tooltip = "Equipment: " .. table.concat(parts, ", ")
+            end
             tbl.add{type = "label", caption = "x" .. item.count}
             tbl.add{
                 type    = "sprite-button",
@@ -265,7 +272,10 @@ function admin_gui.on_gui_click(event)
             for _, item in pairs(storage.starter_items) do
                 local prev = old_counts[item.name] or 0
                 if item.count > prev then
-                    diff[#diff + 1] = {name = item.name, count = item.count - prev}
+                    -- Carry the grid so already-spawned players get the armor
+                    -- loaded too (insert_starter_item strips it before the
+                    -- engine insert; the delivery-override raise strips it).
+                    diff[#diff + 1] = {name = item.name, count = item.count - prev, grid = item.grid}
                 end
             end
             if #diff > 0 then

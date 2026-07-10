@@ -124,13 +124,63 @@ end
 
 -- ─── Starter Item Helpers ──────────────────────────────────────────────
 
+--- Fill the equipment grid of the armor `entry` was just inserted as. Finds
+--- the first same-named stack with an empty grid (the fresh insert; a worn
+--- armor the player already loaded keeps its equipment), then re-creates the
+--- captured layout. Each put is pcall'd so one equipment name removed by a
+--- mod change doesn't void the rest of the grid.
+local function restore_grid_equipment(player, entry)
+    for _, inv_type in pairs({
+        defines.inventory.character_armor,
+        defines.inventory.character_main,
+    }) do
+        local inv = player.get_inventory(inv_type)
+        if inv then
+            for i = 1, #inv do
+                local stack = inv[i]
+                if stack and stack.valid_for_read and stack.name == entry.name
+                   and stack.grid and #stack.grid.equipment == 0 then
+                    for _, eq in pairs(entry.grid) do
+                        pcall(function()
+                            local placed = stack.grid.put{
+                                name     = eq.name,
+                                position = eq.position,
+                                quality  = eq.quality,
+                            }
+                            if placed and eq.energy then placed.energy = eq.energy end
+                        end)
+                    end
+                    return
+                end
+            end
+        end
+    end
+end
+
+--- Insert one starter-item entry into a player, restoring armor equipment
+--- when the entry carries a captured grid. The engine insert gets a clean
+--- {name, count} table -- entry tables can carry extra fields (grid) that
+--- ItemStackIdentification would reject.
+function M.insert_starter_item(player, item)
+    pcall(function()
+        player.insert{name = item.name, count = item.count}
+        if item.grid then restore_grid_equipment(player, item) end
+    end)
+end
+
 --- Give specific items to all currently-spawned players. When a delivery
 --- override is registered (e.g. Brave New MTS, whose teams have no player
 --- character), hand the items to the consumer via on_starter_items_added
 --- instead of inserting them into player inventories.
 function M.distribute_items_to_spawned(items)
     if delivery.override() then
-        delivery.raise(items)
+        -- Keep the mts-v1 event payload shape stable ({name, count} only):
+        -- consumers insert these into chests, where a grid is meaningless.
+        local clean = {}
+        for i, item in ipairs(items) do
+            clean[i] = {name = item.name, count = item.count}
+        end
+        delivery.raise(clean)
         return
     end
     storage.spawned_players = storage.spawned_players or {}
@@ -138,7 +188,7 @@ function M.distribute_items_to_spawned(items)
         local p = game.get_player(idx)
         if p and p.valid and p.connected and p.character then
             for _, item in pairs(items) do
-                pcall(function() p.insert(item) end)
+                M.insert_starter_item(p, item)
             end
         end
     end
@@ -157,7 +207,29 @@ function M.announce_starter_items_added(items, admin_player)
     helpers.broadcast(who .. " added " .. table.concat(parts, ", ") .. " to the starter items list.")
 end
 
---- Collect all items from a player's character inventories.
+--- Serialize an armor stack's equipment grid into a storage-safe table, or
+--- nil when the stack has no grid / an empty one. Captures name, position,
+--- quality, and stored energy per equipment so a granted copy comes out
+--- loaded the same way (e.g. faster-start's pre-filled power armor).
+local function serialize_grid(stack)
+    local grid = stack.grid
+    if not grid then return nil end
+    local out = {}
+    for _, eq in pairs(grid.equipment) do
+        out[#out + 1] = {
+            name     = eq.name,
+            position = {x = eq.position.x, y = eq.position.y},
+            quality  = eq.quality and eq.quality.name or nil,
+            energy   = eq.energy > 0 and eq.energy or nil,
+        }
+    end
+    if #out == 0 then return nil end
+    return out
+end
+
+--- Collect all items from a player's character inventories. Entries are
+--- {name, count} plus an optional `grid` (equipment layout) captured from
+--- the first stack of that name that carries one.
 function M.collect_character_items(player)
     local items, seen = {}, {}
     if not player.character then return items end
@@ -174,8 +246,15 @@ function M.collect_character_items(player)
                 if stack and stack.valid_for_read then
                     if seen[stack.name] then
                         seen[stack.name].count = seen[stack.name].count + stack.count
+                        if not seen[stack.name].grid then
+                            seen[stack.name].grid = serialize_grid(stack)
+                        end
                     else
-                        local entry = {name = stack.name, count = stack.count}
+                        local entry = {
+                            name  = stack.name,
+                            count = stack.count,
+                            grid  = serialize_grid(stack),
+                        }
                         seen[stack.name] = entry
                         items[#items + 1] = entry
                     end
