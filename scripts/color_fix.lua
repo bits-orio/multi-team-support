@@ -5,10 +5,14 @@
 --     against the dark chat / GUI background otherwise;
 --   * brown / tan / muddy-orange colours are pushed to a vivid orange -- dark
 --     browns and light tans alike blend into Factorio's terrain otherwise;
---   * a colour that clashes with another player's is moved to the colour furthest
---     from everyone else's, picked from a palette spread across the readable gamut
+--   * a colour that clashes with another player's -- or with the TERRAIN tans
+--     that floating text sits on -- is moved to the colour furthest from
+--     everyone else's, picked from a palette spread across the readable gamut
 --     (rotating a single player's own hue just makes clashing players pile up in
---     the same gap, so we sample the WHOLE gamut instead).
+--     the same gap, so we sample the WHOLE gamut instead). The terrain anchors
+--     matter because the dark rule brightens toward luminance ~0.65, which is
+--     close to desert ground itself: an olive/khaki can pass every other rule
+--     and still vanish outdoors.
 --
 -- Live changes arrive via Factorio 2.1's on_player_color_changed
 -- (events/player_lifecycle.lua). Our own corrective writes echo back through
@@ -142,12 +146,23 @@ local function readable(c)
     return c, "keep"
 end
 
--- Colours of every player EXCEPT `skip_index` (the live set to differ from).
+-- Terrain anchors: representative Nauvis ground tans (light sand, mid dirt,
+-- olive scrub). Seeded into every clash set as virtual "players" so no one is
+-- assigned a colour that camouflages against the ground itself.
+local TERRAIN_COLOURS = {
+    { r = 0.82, g = 0.65, b = 0.42, a = 1 },  -- light desert sand
+    { r = 0.62, g = 0.47, b = 0.30, a = 1 },  -- mid dirt brown
+    { r = 0.66, g = 0.62, b = 0.32, a = 1 },  -- olive / khaki scrub
+}
+
+-- Colours of every player EXCEPT `skip_index`, plus the terrain anchors
+-- (the live set a fixed colour must stay distinct from).
 local function other_colours(skip_index)
     local out = {}
     for _, q in pairs(game.players) do
         if q.index ~= skip_index then out[#out + 1] = normalize(q.color) end
     end
+    for _, t in ipairs(TERRAIN_COLOURS) do out[#out + 1] = t end
     return out
 end
 
@@ -210,6 +225,8 @@ end
 function M.fix_all(caller)
     storage.color_fix_last = storage.color_fix_last or {}
     local taken, names = {}, {}
+    -- Seed with the terrain anchors so the fresh spread also avoids them.
+    for _, t in ipairs(TERRAIN_COLOURS) do taken[#taken + 1] = t end
     for _, p in pairs(game.players) do
         local c = normalize(p.color)
         local nc = readable(c)
