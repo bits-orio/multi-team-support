@@ -60,6 +60,18 @@ local function copy_force_state(source, target)
     if source.is_space_platforms_unlocked() then
         pcall(target.unlock_space_platforms)
     end
+    -- 2.1 RW force state a recycled slot must inherit. Verified in-engine: a
+    -- fresh force reads false/false/1/0 and a researched source reads true, so
+    -- a blind copy can only grant what the source actually has. pcall'd per
+    -- property (like the quality copies) in case any is absent without Space Age.
+    for _, prop in ipairs({
+        "unlock_logistic_network",
+        "unlock_travel_to_space_platforms",
+        "cargo_landing_pad_limit",
+        "max_cargo_bay_unloading_distance",
+    }) do
+        pcall(function() target[prop] = source[prop] end)
+    end
 end
 
 --- Reset a force's tech tree back to a clean state.

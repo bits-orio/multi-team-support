@@ -60,6 +60,7 @@ local function configure(panel)
     panel.destructible = false
     panel.minable_flag = false
     panel.operable     = false
+    panel.protected    = true -- 2.1: never a target for automated weapons
     pcall(function()
         panel.display_panel_always_show   = true
         panel.display_panel_show_in_chart = true

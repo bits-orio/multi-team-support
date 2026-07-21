@@ -761,6 +761,10 @@ local function ensure_passive_radar_impl(force_name, surface_ref, position)
         radar.destructible = false
         radar.operable     = false
         radar.minable_flag = false
+        -- 2.1: also stop automated weapons targeting it -- the radar is
+        -- team-owned (at war with biters) and destructible=false only blocks
+        -- the damage, not the aggro/ammo waste.
+        radar.protected    = true
         return radar
     end
 
