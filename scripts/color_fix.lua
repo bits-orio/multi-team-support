@@ -3,8 +3,8 @@
 --
 --   * dark colours (low luminance) are brightened toward white -- hard to read
 --     against the dark chat / GUI background otherwise;
---   * brown / muddy-orange colours are pushed to a vivid orange -- they blend
---     into Factorio's terrain otherwise;
+--   * brown / tan / muddy-orange colours are pushed to a vivid orange -- dark
+--     browns and light tans alike blend into Factorio's terrain otherwise;
 --   * a colour that clashes with another player's is moved to the colour furthest
 --     from everyone else's, picked from a palette spread across the readable gamut
 --     (rotating a single player's own hue just makes clashing players pile up in
@@ -29,8 +29,11 @@ local DARK     = 0.50    -- perceived luminance below this is "too dark"
 local TARGET   = 0.65    -- brighten a dark colour up to this luminance
 local BHMIN    = 20      -- brown = orange hue band (degrees) ...
 local BHMAX    = 50
-local BSMIN    = 0.15    -- ... with at least this saturation ...
-local BVMAX    = 0.80    -- ... and value below this (a vivid orange has V~1)
+local BSMIN    = 0.15    -- ... with at least this saturation. ANY value counts:
+                         -- light tans (high V) blend into desert terrain just
+                         -- like dark browns. A vivid orange (S>=BSAT, V=1) is
+                         -- the rebuild's own fixed point, so it passes through
+                         -- unchanged rather than re-triggering.
 local BSAT     = 0.60    -- browns are rebuilt at this minimum saturation ...
 local BTV      = 1.00    -- ... and full value -> a bright distinct orange
 local MINDIST2 = 0.0625  -- colours closer than sqrt(0.0625)=0.25 (RGB) clash
@@ -126,7 +129,7 @@ end
 -- Brighten darks, push browns to vivid orange. Returns (colour, reason).
 local function readable(c)
     local h, s, v = rgb2hsv(c)
-    if h >= BHMIN and h <= BHMAX and s >= BSMIN and v <= BVMAX then
+    if h >= BHMIN and h <= BHMAX and s >= BSMIN then
         -- Rebuild as a vivid orange. A RED-leaning brown can still come out below
         -- the readability floor (red has low luminance), so lift it to TARGET --
         -- this also keeps the result stable (it won't re-trigger the dark rule).
