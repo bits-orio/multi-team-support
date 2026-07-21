@@ -14,6 +14,7 @@ local team_clock        = require("scripts.team_clock")
 local start_playing_gui = require("gui.start_playing_gui")
 local color_fix         = require("scripts.color_fix")
 local team_color        = require("scripts.team_color")
+local pause_notify      = require("scripts.pause.notify")
 
 local M = {}
 
@@ -88,6 +89,9 @@ function M.register()
             team_color.adopt_if_leader(player)
         end
         if player then spectator.on_player_joined(player) end
+        -- Re-raise the pause alert for a member joining mid-pause (a force
+        -- alert only reaches players connected at raise time).
+        if player then pause_notify.on_player_joined(player) end
         if player then
             if landing_pen.is_in_pen(player) then
                 landing_pen.place_player(player)

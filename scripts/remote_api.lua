@@ -35,6 +35,8 @@ local spawn_labels  = require("scripts.spawn_labels")
 -- pause/control has no require cycle (it pulls only pause/power|wires|state),
 -- so it is required directly here.
 local pause_control = require("scripts.pause.control")
+local pause_state   = require("scripts.pause.state")
+local pause_notify  = require("scripts.pause.notify")
 -- team_surfaces -> team_slots -> remote_api IS a require cycle. Factorio forbids
 -- require() at runtime, so it also can't be lazy-loaded inside the interface
 -- functions; control.lua injects it at parse time via set_deferred_deps().
@@ -103,10 +105,17 @@ remote_api.events = {
     -- (countdowns, grace periods) from the exact birth tick MTS uses.
     on_team_clock_started     = script.generate_event_name(),
 
+    -- Raised when a team is paused / resumed -- by the /mts-pause and
+    -- /mts-resume admin commands or the mts-v1 pause_team / unpause_team
+    -- actions. Payload: { force_name, source } where source is "admin" or
+    -- "script". Fires on actual transitions only (a re-pause of an already
+    -- paused team is silent), and regardless of the team_alerts_enabled admin
+    -- flag -- that flag gates only the in-game alert presentation.
+    on_team_paused            = script.generate_event_name(),
+    on_team_resumed           = script.generate_event_name(),
+
     -- ── v2 candidates (uncomment to enable) ──────────────────────────
     -- on_team_leader_changed   = script.generate_event_name(),
-    -- on_team_paused           = script.generate_event_name(),
-    -- on_team_resumed          = script.generate_event_name(),
     -- on_friendship_activated  = script.generate_event_name(),
     -- on_friendship_broken     = script.generate_event_name(),
     -- on_team_surfaces_cleaned = script.generate_event_name(),
@@ -280,6 +289,8 @@ local BRIDGE_LABELS = {
     milestone_first      = "🥇",
     milestone_record     = "⏱️",
     rocket_launched      = "🚀",
+    team_paused          = "⏸️",
+    team_resumed         = "▶️",
 }
 
 --- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed). Fills in
@@ -314,6 +325,8 @@ function remote_api.register_with_bridge()
             { key = "player_left",          description = "A player left the game (team-aware)" },
             { key = "player_switched_team", description = "A player switched teams mid-game" },
             { key = "rocket_launched",      description = "A team launched a rocket" },
+            { key = "team_paused",          description = "A team was paused by an admin" },
+            { key = "team_resumed",         description = "A team was resumed by an admin" },
         },
     })
     -- We announce these ourselves with team info, so turn off the bridge's team-less
@@ -368,6 +381,11 @@ local function bridge_text(name, d)
         return string.format("%s left %s", who or "A player", team)
     elseif name == "on_team_surface_created" then
         return string.format("Surface %s was created for %s", d.surface_name, team)
+    elseif name == "on_team_paused" then
+        -- Only admin-source pauses reach the bridge (see raise_team_paused).
+        return string.format("%s was paused by an admin", team)
+    elseif name == "on_team_resumed" then
+        return string.format("%s was resumed by an admin", team)
     end
     return nil
 end
@@ -477,6 +495,19 @@ function remote_api.validate_delivery_override()
     end
 end
 
+function remote_api.raise_team_paused(force_name, source)
+    -- Discord hears ADMIN pauses only: script pauses are routine gameplay for
+    -- consumers (e.g. a docking mod pausing on every dock cycle) and would
+    -- spam the channel. The mts-v1 event itself always fires.
+    raise("on_team_paused", { force_name = force_name, source = source or "script" },
+        { no_bridge = source ~= "admin" })
+end
+
+function remote_api.raise_team_resumed(force_name, source)
+    raise("on_team_resumed", { force_name = force_name, source = source or "script" },
+        { no_bridge = source ~= "admin" })
+end
+
 -- ── v2 candidates (uncomment alongside the matching event ID) ────────
 -- function remote_api.raise_team_leader_changed(force_name, old_player_index, new_player_index)
 --     raise("on_team_leader_changed", {
@@ -484,14 +515,6 @@ end
 --         old_leader_player_index = old_player_index,
 --         new_leader_player_index = new_player_index,
 --     })
--- end
---
--- function remote_api.raise_team_paused(force_name)
---     raise("on_team_paused", { force_name = force_name })
--- end
---
--- function remote_api.raise_team_resumed(force_name)
---     raise("on_team_resumed", { force_name = force_name })
 -- end
 --
 -- function remote_api.raise_friendship_activated(force_name_a, force_name_b)
@@ -916,11 +939,26 @@ function remote_api.register()
         -- team's surfaces via list_team_surfaces and hand the names to it.
         pause_team = function(force_name)
             local surfaces = list_team_surfaces_impl(force_name)
-            return pause_control.pause_team(force_name, surfaces)
+            local was = pause_state.is_paused(force_name)
+            local ok = pause_control.pause_team(force_name, surfaces)
+            -- Consumers (MDW) call this unprotected from tick handlers: the
+            -- notification layer must never throw out of this action, so it
+            -- is pcall-contained, and fires on actual transitions only.
+            if ok and not was then
+                pcall(pause_notify.show, force_name, "script")
+                pcall(remote_api.raise_team_paused, force_name, "script")
+            end
+            return ok
         end,
         unpause_team = function(force_name, opts)
             local surfaces = list_team_surfaces_impl(force_name)
-            return pause_control.unpause_team(force_name, surfaces, opts)
+            local was = pause_state.is_paused(force_name)
+            local ok = pause_control.unpause_team(force_name, surfaces, opts)
+            if ok and was then
+                pcall(pause_notify.clear, force_name)
+                pcall(remote_api.raise_team_resumed, force_name, "script")
+            end
+            return ok
         end,
         -- Read-only: is this team currently paused? (Marker set once a
         -- pause/resume sweep completes; reflects intent immediately for the

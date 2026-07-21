@@ -12,6 +12,9 @@ local surface_utils = require("scripts.surface_utils")
 local chunk_trim   = require("scripts.chunk_trim")
 local color_fix    = require("scripts.color_fix")
 local team_color   = require("scripts.team_color")
+local pause_state  = require("scripts.pause.state")
+local pause_notify = require("scripts.pause.notify")
+local remote_api   = require("scripts.remote_api")
 
 local M = {}
 
@@ -139,8 +142,13 @@ function M.register()
             if not force_name or not game.forces[force_name] then
                 caller.print("Team '" .. param .. "' does not exist."); return
             end
+            local was_paused = pause_state.is_paused(force_name)
             if not pause_control.unpause_team(force_name, owned_surface_names(force_name)) then
                 caller.print("Could not resume " .. force_name .. " (not a team force)."); return
+            end
+            if was_paused then
+                pause_notify.clear(force_name)
+                remote_api.raise_team_resumed(force_name, "admin")
             end
             caller.print("Resume sweep started for " .. helpers.team_tag_with_leader(force_name)
                 .. ". Entities will be re-activated over the next few ticks.")
@@ -163,8 +171,13 @@ function M.register()
             if not force_name or not game.forces[force_name] then
                 caller.print("Team '" .. param .. "' does not exist."); return
             end
+            local was_paused = pause_state.is_paused(force_name)
             if not pause_control.pause_team(force_name, owned_surface_names(force_name)) then
                 caller.print("Could not pause " .. force_name .. " (not a team force)."); return
+            end
+            if not was_paused then
+                pause_notify.show(force_name, "admin")
+                remote_api.raise_team_paused(force_name, "admin")
             end
             caller.print("Pause sweep started for " .. helpers.team_tag_with_leader(force_name)
                 .. ". Entities will be deactivated over the next few ticks."

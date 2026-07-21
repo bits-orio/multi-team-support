@@ -40,3 +40,8 @@ data:extend({
 -- Hidden passive radar that consumer mods place via mts-v1 `ensure_passive_radar`
 -- to keep empty team surfaces live-viewable for spectators. See the file header.
 require("prototypes.entities.passive-radar")
+
+-- Hidden per-team anchor entity for force alerts (2.1): alerts must point at an
+-- entity, and MTS otherwise has no guaranteed per-team one. Ensured lazily by
+-- scripts/pause/notify.lua. See the file header.
+require("prototypes.entities.alert-anchor")

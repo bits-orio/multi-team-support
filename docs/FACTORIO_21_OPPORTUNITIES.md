@@ -76,7 +76,7 @@ All five MTS consumers reviewed against the six planned phases (Brave New MTS, o
 - **MTS Dimension Warp** — Phase 5 as originally designed would have broken it three ways (home surface retired on first warp; `clone_entities = true` duplicates anchors; unprotected `remote.call` of `pause_team` from tick context). All three addressed: ensure-on-use idempotent per surface, hardened no-throw `pause_team`/`unpause_team`, neutral wording for script pauses. Its four registered real planets are deliberately included in Phase 3's hidden base-planet set (V8 verifies surface association survives).
 - **The Cave** — neutral; same collapse hazard as Diggy, same fix. Side finding: a real, deliberate mts-v1 consumer with **no declared dependency** on MTS and absent from `MTS_API.md`'s verified list — add it to the compat test matrix and suggest upstream declare `? multi-team-support`.
 
-**Adopted additive mts-v1 surface (Phase 5):** `on_team_paused` / `on_team_unpaused` events (implementing the drafted `raise_team_paused`/`raise_team_resumed` stubs) with a `source` field, bridge catalogue entries for admin pauses. Freeze-compatible.
+**Adopted additive mts-v1 surface (Phase 5):** `on_team_paused` / `on_team_resumed` events (implementing the drafted `raise_team_paused`/`raise_team_resumed` stubs) with a `source` field, bridge catalogue entries for admin pauses. Freeze-compatible.
 
 **Deferred consumer-driven mts-v1 backlog** (additive, demand-evidenced; pick up in a follow-up effort):
 

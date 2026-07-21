@@ -55,6 +55,8 @@ Custom events you can subscribe to:
 | `on_welcome_tab_built`      | `player_index`, `tab_name`, `element`   | The welcome screen is (re)built — once per registered welcome tab; `element` is the empty content frame to populate |
 | `on_platform_hub_gui_built` | `player_index`, `widget_name`, `element`, `entity` | A player opens a space platform hub — once per registered widget; `element` is the anchored content frame, `entity` the hub |
 | `on_starter_items_added`    | `items` (`{name=, count=}` list)        | An admin adds starter items while a delivery override is registered — the override consumer must deliver them |
+| `on_team_paused`            | `force_name`, `source` (`"admin"`/`"script"`) | A team is paused — `/mts-pause` or the `pause_team` action. Fires on actual transitions only, and regardless of the `team_alerts_enabled` admin flag (that flag gates only the in-game alert) |
+| `on_team_resumed`           | `force_name`, `source`                  | A team resumes — `/mts-resume` or `unpause_team`. Same transition-only guarantee as `on_team_paused` |
 
 The last four events pair with the registration functions in §2.4: register a tab / widget / override once, then listen to the matching `*_built` / `*_added` event to fill the frame (or deliver the items) each time MTS raises it.
 
