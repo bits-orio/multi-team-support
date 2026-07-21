@@ -13,10 +13,23 @@ local remote_api        = require("scripts.remote_api")
 local team_clock        = require("scripts.team_clock")
 local start_playing_gui = require("gui.start_playing_gui")
 local color_fix         = require("scripts.color_fix")
+local team_color        = require("scripts.team_color")
 
 local M = {}
 
 function M.register()
+    -- Player colour changes are event-driven in 2.1 (replaced the 60-tick
+    -- poll). Order matters: color_fix runs first so a leader's force adopts
+    -- the FIXED (readable/distinct) colour, not the raw one; color_fix's own
+    -- corrective write echoes back through this event and is suppressed by
+    -- its color_fix_last value-compare.
+    script.on_event(defines.events.on_player_color_changed, function(event)
+        local player = game.get_player(event.player_index)
+        if not (player and player.valid) then return end
+        color_fix.on_color_changed(player)
+        team_color.adopt_if_leader(player)
+    end)
+
     script.on_event(defines.events.on_player_created, function(event)
         local player = game.get_player(event.player_index)
         h.register_nav_buttons(player)
@@ -67,7 +80,13 @@ function M.register()
 
     script.on_event(defines.events.on_player_joined_game, function(event)
         local player = game.get_player(event.player_index)
-        if player then color_fix.on_joined(player) end
+        if player then
+            color_fix.on_joined(player)
+            -- Direct dispatch: a clean-arriving colour writes nothing (no event
+            -- echo), yet the force colour may still have drifted while the
+            -- leader was away -- adoption must not depend on the event.
+            team_color.adopt_if_leader(player)
+        end
         if player then spectator.on_player_joined(player) end
         if player and landing_pen.is_in_pen(player) then
             landing_pen.place_player(player)

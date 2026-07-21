@@ -1,7 +1,6 @@
 -- events/ticks.lua
 -- on_tick, all on_nth_tick handlers, plus map/surface/world events.
 
-local h              = require("events.helpers")
 local landing_pen    = require("gui.landing_pen")
 local clone_mirror   = require("compat.clone_mirror")
 local dangoreus      = require("compat.dangoreus")
@@ -29,43 +28,13 @@ local vanilla        = require("compat.vanilla")
 local mts_dimension_warp = require("compat.mts_dimension_warp")
 local admin_gui      = require("gui.admin")
 local force_utils    = require("scripts.force_utils")
-local team_settings  = require("gui.team_settings")
 local helpers        = require("scripts.helpers")
 local lfm_hint       = require("gui.lfm_hint")
 local spectator      = require("scripts.spectator")
-local color_fix      = require("scripts.color_fix")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
 local M = {}
-
---- Poll each connected team leader's colour; when it drifts from the team's
---- stored colour, adopt it and refresh every GUI that renders a team colour. No
---- engine event fires on a player colour change, so this is polled (from the
---- 60-tick handler). color_fix.poll() runs first so the team adopts the FIXED
---- (readable/distinct) leader colour rather than the raw one.
-local function sync_leader_colors()
-    color_fix.poll()
-    for force_name, leader_idx in pairs(storage.team_leader or {}) do
-        local force  = game.forces[force_name]
-        local leader = game.get_player(leader_idx)
-        if force and force.valid and leader and leader.valid and leader.connected then
-            local c, fc = leader.color, force.custom_color
-            if not fc
-                or math.abs(c.r - fc.r) > 0.001
-                or math.abs(c.g - fc.g) > 0.001
-                or math.abs(c.b - fc.b) > 0.001
-            then
-                force.custom_color = c
-                spawn_labels.refresh_for_force(force_name)
-                h.refresh_all_gameplay_guis()
-                awards_gui.update_all()
-                follow_cam.rebuild_all()
-                team_settings.update_all_for_force(force_name)
-            end
-        end
-    end
-end
 
 --- True if any team force currently has active research (gates the throttled
 --- research-progress-bar refresh).
@@ -223,7 +192,6 @@ function M.register()
         -- handler per period -- a separate on_nth_tick(30) would clobber this one.
         if any_team_researching() then teams_gui.update_queue_progress_all() end
     end)
-    script.on_nth_tick(60,    function() sync_leader_colors() end)
     script.on_nth_tick(300,   function()
         if milestones.tick() then awards_gui.update_all() end
     end)

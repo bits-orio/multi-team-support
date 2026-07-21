@@ -11,6 +11,7 @@ local pause_control = require("scripts.pause.control")
 local surface_utils = require("scripts.surface_utils")
 local chunk_trim   = require("scripts.chunk_trim")
 local color_fix    = require("scripts.color_fix")
+local team_color   = require("scripts.team_color")
 
 local M = {}
 
@@ -220,6 +221,9 @@ function M.register()
             if not caller then game.print("This command can only be used by a player."); return end
             if not caller.admin then caller.print("Only admins can fix player colours."); return end
             color_fix.fix_all(caller)
+            -- Direct dispatch: bulk script writes must not rely on the engine
+            -- echoing them as colour events for force adoption.
+            team_color.adopt_all()
         end)
 end
 

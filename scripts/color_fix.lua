@@ -10,11 +10,14 @@
 --     (rotating a single player's own hue just makes clashing players pile up in
 --     the same gap, so we sample the WHOLE gamut instead).
 --
--- Factorio raises NO event when a player changes colour (assigning
--- LuaPlayer::color is documented not to fire on_entity_color_changed), so live
--- changes are caught by a cheap poll (events/ticks.lua) that only re-fixes a
--- player whose colour actually changed -- no flicker once everyone is settled.
--- Joins are handled on on_player_joined_game (events/player_lifecycle.lua).
+-- Live changes arrive via Factorio 2.1's on_player_color_changed
+-- (events/player_lifecycle.lua). Our own corrective writes echo back through
+-- that same event: storage.color_fix_last holds the last colour we set (or
+-- verified as fine) per player, stored BEFORE the write, and on_color_changed
+-- skips any change that matches it -- correct whether the engine dispatches
+-- the event synchronously inside the assignment or deferred later in the tick.
+-- Joins are handled on on_player_joined_game (a join is not a colour change,
+-- but the arriving colour may still need fixing and seeds color_fix_last).
 
 local helpers     = require("scripts.helpers")
 local admin_flags = require("scripts.admin_flags")
@@ -161,9 +164,12 @@ function M.fix_player(player)
         why = (why == "keep") and "clash" or (why .. "+clash")
     end
     if differs(nc, c) then
+        -- Store BEFORE writing: the writes below fire on_player_color_changed,
+        -- and the echo suppression in on_color_changed compares against this --
+        -- under synchronous dispatch the nested handler runs mid-assignment.
+        storage.color_fix_last[player.index] = nc
         player.color = nc
         player.chat_color = nc
-        storage.color_fix_last[player.index] = nc
         return nc, why
     end
     storage.color_fix_last[player.index] = c
@@ -182,18 +188,18 @@ function M.on_joined(player)
     if nc then notify(player, nc) end
 end
 
---- Poll for colour changes (no engine event exists). Only re-fixes a connected
---- player whose colour differs from what we last set -- a no-op when settled.
-function M.poll()
+--- on_player_color_changed entry (2.1). Skips the echo of our own write --
+--- the new colour equals what fix_player stored moments ago -- and re-fixes
+--- anything else. fix_player is idempotent, so even a leaked echo terminates
+--- in one no-op pass rather than oscillating.
+function M.on_color_changed(player)
     if not admin_flags.flag("color_fix_enabled") then return end
+    if not (player and player.valid) then return end
     storage.color_fix_last = storage.color_fix_last or {}
-    for _, p in pairs(game.connected_players) do
-        local last = storage.color_fix_last[p.index]
-        if (not last) or differs(normalize(p.color), last) then
-            local nc = M.fix_player(p)
-            if nc then notify(p, nc) end
-        end
-    end
+    local last = storage.color_fix_last[player.index]
+    if last and not differs(normalize(player.color), last) then return end
+    local nc = M.fix_player(player)
+    if nc and player.connected then notify(player, nc) end
 end
 
 --- Admin "/mts-fixcolors": re-spread EVERY player from scratch in one clean pass
