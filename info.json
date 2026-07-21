@@ -5,9 +5,9 @@
   "author": "bits-orio",
   "description": "Same start. Different finish. Each player gets their own force with independent research and their own copy of the map. Race your friends, compare stats, toggle friendships, and optionally buddy up — all from one server.",
   "homepage": "https://github.com/bits-orio/multi-team-support",
-  "factorio_version": "2.0",
+  "factorio_version": "2.1",
   "dependencies": [
-    "base >= 2.0",
+    "base >= 2.1",
     "? space-age",
     "? platformer",
     "? VoidBlock",

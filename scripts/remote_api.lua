@@ -760,7 +760,7 @@ local function ensure_passive_radar_impl(force_name, surface_ref, position)
         if radar.force ~= force then radar.force = force end
         radar.destructible = false
         radar.operable     = false
-        radar.minable      = false
+        radar.minable_flag = false
         return radar
     end
 

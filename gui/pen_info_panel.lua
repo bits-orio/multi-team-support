@@ -58,7 +58,7 @@ end
 -- so its (permission-blocked) native edit GUI never opens.
 local function configure(panel)
     panel.destructible = false
-    panel.minable      = false
+    panel.minable_flag = false
     panel.operable     = false
     pcall(function()
         panel.display_panel_always_show   = true

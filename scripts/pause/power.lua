@@ -80,11 +80,13 @@ local function set_sources_on_surface(surface, force, active, charge_store, type
     for _, ent in ipairs(sources) do
         if ent.valid then
             type_counts[ent.type] = (type_counts[ent.type] or 0) + 1
-            if ent.active ~= active then
-                ent.active = active
+            -- 2.1: LuaEntity::active is read-only; disabled_by_script is the
+            -- script-owned flag (inverted sense).
+            if ent.disabled_by_script == active then
+                ent.disabled_by_script = not active
                 touched = touched + 1
             end
-            -- Accumulators: active=false does NOT stop them discharging stored
+            -- Accumulators: deactivating does NOT stop them discharging stored
             -- charge into the network. Zero the buffer on freeze (snapshotting it
             -- first) so a frozen base has no stored power to run on, and restore
             -- it on thaw -- no charge lost, no power leaked.
@@ -105,7 +107,7 @@ local function set_sources_on_surface(surface, force, active, charge_store, type
     return touched
 end
 
---- Disable (active=false) every power source the force owns across all the
+--- Deactivate every power source the force owns across all the
 --- given surfaces. Call at pause time.
 --- @param force    LuaForce
 --- @param surfaces LuaSurface[]   surfaces owned by the force

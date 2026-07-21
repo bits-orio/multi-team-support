@@ -229,9 +229,17 @@ local function build_proto_cache()
         end
     end
 
+    -- 2.1: LuaRecipePrototype::category was replaced by categories (array).
+    local function is_smelting(recipe)
+        for _, cat in pairs(recipe.categories) do
+            if cat == "smelting" then return true end
+        end
+        return false
+    end
+
     local plate_set = {}
     for _, recipe in pairs(prototypes.recipe) do
-        if recipe.category == "smelting" then
+        if is_smelting(recipe) then
             for _, product in pairs(recipe.products or {}) do
                 if product.type == "item" and not ore_set[product.name] then
                     plate_set[product.name] = true
