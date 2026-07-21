@@ -4,4 +4,4 @@
 
 Recording and staggered reconnection of pole wires is kept, but demoted to the **Space-Age-gated visual thaw** layer (it also spreads the re-energize cost over time).
 
-Open spikes before this is trusted: confirm `active = false` on an accumulator freezes its stored charge rather than draining it (else read-zero-restore), and decide whether burner-fuelled machines — which run without the grid — are handled or accepted as a leak.
+Open spikes before this is trusted: confirm `active = false` on an accumulator freezes its stored charge rather than draining it (else read-zero-restore), and decide whether burner-fuelled machines — which run without the grid — are handled or accepted as a leak. Likewise personal-equipment power (portable solar/fusion in armour) keeps a player's own grid running through a pause — the same accepted-leak category as burners; Factorio 2.1 made equipment power fields writable, so this is now fixable if wanted. Deferred, recorded in `docs/FACTORIO_21_OPPORTUNITIES.md` (B15).

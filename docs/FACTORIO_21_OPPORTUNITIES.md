@@ -31,6 +31,65 @@ From `CONTEXT.md`, `docs/PLAN.md`, and the ADRs:
 
 ---
 
+# Triage outcome (2026-07-20)
+
+Reviewed with codebase grounding; execution order and per-phase test checklists live in `docs/FACTORIO_21_PLAN.md`. Design policies: ADR-0003 (space-location visibility), ADR-0004 (notification channels).
+
+| Entry | Verdict | Decision / reason |
+|---|---|---|
+| A1 | **REJECT** (verified in-game 2026-07-21) | The hub Import-from picker ignores BOTH lock-derived invisibility (2.1 couples `lock_space_location` ⇄ `is_visible`) and explicit `set_script_visible` per-force hides — tested on a claimed team with a bulk hide of base + all foreign nauvis entries, picker fully reopened. No per-force mechanism filters it; the reactive rewrite handler is permanent (already logs corrections). Engine facts in ADR-0003. B8 is the only proactive alternative — DEFER stands. |
+| A2 | **ADOPT** | Echo suppression by value-compare against `color_fix_last`, kept but demoted to write-echo suppressor — correct under both sync and deferred dispatch; zero storage change, no migration. One ordering fix: store before write in `fix_player`. Plan Phase 2. |
+| A3 | **ADOPT**, narrowed (gated on verify V4) | Pause/unpause alerts **only** in v1 — grounding found the passive radar is NOT guaranteed (consumer-created only) and that paused teams currently get zero notification. New hidden per-team anchor entity at home spawn; flag `team_alerts_enabled` default on. Buddy/milestone/rival alerts rejected per ADR-0004 (already covered by frames / three channels / spam risk). Plan Phase 5. |
+| A4 | **ADOPT**, widened (gated on verify V5) | Team-wide, not buddy-pair: auto-pin joiner⇄online teammates on every team join (membership funnel), plus a Pin/Unpin button on each player row of the teams GUI (beside the follow-cam button; the spectate button is per-surface) for any connected player, cross-team included (consistent with open spectating). No resurrection of dismissed/lost pins; stateless via `get_pins()`. Flag `team_pins_enabled` default on. Plan Phase 6. |
+| A5 | **ADOPT** | All four properties (incl. `cargo_landing_pad_limit`, `max_cargo_bay_unloading_distance`) in `copy_force_state`, one pcall block, guarded per verify V6. Plan Phase 1. |
+| A6 | **ADOPT**, pen only | NOT redundant — grounding: pen players sit in the spectator permission group, and both groups deliberately allow `remote_view_surface`. Set in `place_player`/`return_to_pen`, cleared in `finish_spawn`. Staged-start members and spectators keep the space map. Plan Phase 4. |
+| B1 | **ADOPT** (rider) | Two one-liners in Phase 1; the radar is team-owned and at war with biters, so `protected` is a real ammo/aggro win. |
+| B2 | DEFER | Radar not hoverable (zero selection box) — dead on arrival for the interesting target. |
+| B3 | DEFER (audit) / **REJECT** (rewrite) | Audit is worthwhile but outside this effort's Tier-A scope; rewrite rejected per B4. |
+| B4 | **REJECT** (standing) | Trades ADR-0001's exact-restore guarantee for nothing MTS needs. |
+| B5 | DEFER | Good stats signal; needs an aggregation design across many networks per team. |
+| B6 | **REJECT** as automatic | Irreversible server-wide data deletion; permission lock has no demonstrated gap. |
+| B7 | **REJECT** — resolved from code | Settings-paste is *deliberately* outside `blueprint_lock`'s intent (header comment: block external imports only; in-game copy-paste explicitly untouched). Not a gap; no test needed. |
+| B8 | DEFER | Pending the `elem_filters` question; supplement to A1, never a substitute. |
+| B9 | DEFER | Strong UX idea, poor timing (starter-kit subsystem just changed; kit format migration). |
+| B10/B11 | DEFER | Grid-preservation test not scheduled this effort; run it when next touching starter kits — one answer decides both. |
+| B12 | DEFER | Premise unverified; grounding suggests the real loss site would be `return_to_pen`'s character kill/recreate, not force/surface moves. Test then decide. |
+| B13 | DEFER | Cheap, fun, not important. |
+| B14 | **REJECT** for core | Undermines "same start, different finish"; consumers can do it via their own access. |
+| B15 | DEFER + ADR-0001 amended | Personal-equipment power recorded in ADR-0001 as an accepted pause leak, now fixable in 2.1 — decision deferred, no longer unrecorded. |
+| B16 | **REJECT** | Radar GUI never opens by design; others have no MTS surface. |
+| B17 | DEFER | No evidence the hotkey escape causes problems; trapping risk outweighs. |
+| B18 | DEFER | Fine future admin flag; not this effort. |
+| B19 | **REJECT** for core | Consumer-side capability; document in `docs/MTS_API.md` when a consumer asks. Not bundled with A1. |
+| B20 | **REJECT** (standing) | Destruction tracking misnamed as notifications; poll-based, against project preference. |
+| B21 | DEFER | Real UX value, no urgency. |
+| B22 | DEFER | Trivial; revisit with consumer diagnostics work. |
+| B23 | **REJECT** | Usage checks found no surface. |
+
+# Consumer review outcome (2026-07-20)
+
+All five MTS consumers reviewed against the six planned phases (Brave New MTS, open-discord-bridge, Diggy, MTS Dimension Warp, The Cave). Per-mod verdicts, with everything non-neutral folded into `docs/FACTORIO_21_PLAN.md`:
+
+- **Brave New MTS** — no phase breaks it. Load-bearing invariants now recorded in the plan: Phase 4's pen gate must stay *state*-based (BNM parks every character on the pen surface permanently); Phase 5's anchor must survive BNM's footprint-clearing (ensure-on-use); V8 covers parked-platform departure (BNM's expansion loop); V5 covers pin targets in remote controllers.
+- **open-discord-bridge** — all phases neutral to its code, but its companion mod declares `factorio_version = "2.0"` and silently fails to load on 2.1, dropping every Discord announcement. **MTS 2.1 must ship paired with a companion release** (standing note in the plan). Phase 5 closes its pause blindness (bridge mirror for admin pauses).
+- **Diggy** — neutral except the Phase 5 anchor hazard: cave collapse `crush` → `entity.die()` bypasses `protected`/`destructible = false`. Covered by ensure-on-use + the die-the-anchor checklist item.
+- **MTS Dimension Warp** — Phase 5 as originally designed would have broken it three ways (home surface retired on first warp; `clone_entities = true` duplicates anchors; unprotected `remote.call` of `pause_team` from tick context). All three addressed: ensure-on-use idempotent per surface, hardened no-throw `pause_team`/`unpause_team`, neutral wording for script pauses. Its four registered real planets are deliberately included in Phase 3's hidden base-planet set (V8 verifies surface association survives).
+- **The Cave** — neutral; same collapse hazard as Diggy, same fix. Side finding: a real, deliberate mts-v1 consumer with **no declared dependency** on MTS and absent from `MTS_API.md`'s verified list — add it to the compat test matrix and suggest upstream declare `? multi-team-support`.
+
+**Adopted additive mts-v1 surface (Phase 5):** `on_team_paused` / `on_team_unpaused` events (implementing the drafted `raise_team_paused`/`raise_team_resumed` stubs) with a `source` field, bridge catalogue entries for admin pauses. Freeze-compatible.
+
+**Deferred consumer-driven mts-v1 backlog** (additive, demand-evidenced; pick up in a follow-up effort):
+
+| Proposal | Demand |
+|---|---|
+| `raise_team_alert` / `clear_team_alert` (keyed, positioned team alerts on the Phase 5 anchor machinery) | 3 consumers; Diggy + The Cave currently fake it with a same-tick throwaway entity. Anchor machinery is designed for this to layer on without rework. |
+| `set_admin_flag(name, value)` (or minimally `set_team_pins_enabled`) | BNM has no programmatic opt-out from team pins, which are a UX regression on remote-view-only servers. |
+| `is_team_force(force_name)` | BNM duplicates the `^team%-%d+$` regex in four files. |
+| `get_home_spawn(force_name)` → `{surface_name, position}` | Removes BNM's (0,0) assumption and Diggy's origin assumption. A query, not an entity handle — a handle would re-invite the `die()` problem. |
+| `broadcast_to_teams(force_name, message, opts)` with rate limiting + bridge policy | Diggy and The Cave both hand-roll cross-team collapse broadcasts. |
+
+---
+
 # Tier A — Strong candidates
 
 ## A1. `LuaForce::set_script_visible` on space locations — retire the platform-hub leak workaround
