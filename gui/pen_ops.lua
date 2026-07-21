@@ -39,9 +39,22 @@ function M.grant_starter_items(player)
     end
 end
 
+--- Gate the vanilla space map for pen players (2.1 LuaPlayer::disable_space_map).
+--- A pen player sits on the spectator FORCE, whose space locations are all
+--- visible -- the space map button is an open window into surfaces they don't
+--- own yet. pcall'd so it no-ops on installs where the property is absent.
+--- Gating keys on pen STATE (place/return vs finish_spawn), never on the pen
+--- SURFACE: Brave New MTS parks every character on the pen surface permanently
+--- while its players operate via remote view, so a surface-based gate would
+--- strip the space map from every BNM player.
+function M.set_space_map_gate(player, gated)
+    pcall(function() player.disable_space_map = gated end)
+end
+
 function M.finish_spawn(player)
     storage.spawned_players = storage.spawned_players or {}
     storage.spawned_players[player.index] = true
+    M.set_space_map_gate(player, false)
     if storage.pen_slots then storage.pen_slots[player.index] = nil end
     -- A player leaving the pen can no longer be a buddy requester, so drop any
     -- request they had pending (and its Accept dialogs on members' screens).

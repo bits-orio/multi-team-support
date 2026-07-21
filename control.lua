@@ -234,6 +234,14 @@ script.on_configuration_changed(function()
             storage.spawned_players[player.index] = true
         end
     end
+    -- Reconcile the space-map gate from pen state for everyone. Runs after the
+    -- back-fill above (which can flip an offline player to spawned without a
+    -- finish_spawn), gates pre-existing pen players on the upgrade that
+    -- introduced the gate, and heals any gate stuck by a swallowed offline
+    -- write. Idempotent.
+    for _, player in pairs(game.players) do
+        landing_pen.set_space_map_gate(player, landing_pen.is_in_pen(player))
+    end
     -- Start the per-team online clock from this upgrade onward (no retroactive
     -- back-fill): stamp online_since for teams that already have members online.
     for slot, status in pairs(storage.team_pool or {}) do

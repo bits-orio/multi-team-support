@@ -24,6 +24,11 @@ function landing_pen.is_in_pen(player)
 end
 
 function landing_pen.place_player(player)
+    -- Gate BEFORE the surface branch: a fresh joiner takes the deferred-teleport
+    -- path below (permission group applied later in process_pending_teleports)
+    -- and must not keep the space map in the meantime.
+    pen_ops.set_space_map_gate(player, true)
+
     local surface = terrain.get_or_create_surface()
     storage.pen_slots = storage.pen_slots or {}
 
@@ -117,6 +122,7 @@ function landing_pen.return_to_pen(player)
 
     local spec_group = game.permissions.get_group("spectator")
     if spec_group then spec_group.add_player(player) end
+    pen_ops.set_space_map_gate(player, true)
 
     if not player.connected then
         landing_pen.update_pen_gui_all()
@@ -138,6 +144,7 @@ end
 
 landing_pen.grant_starter_items     = pen_ops.grant_starter_items
 landing_pen.finish_spawn            = pen_ops.finish_spawn
+landing_pen.set_space_map_gate      = pen_ops.set_space_map_gate
 
 landing_pen.build_pen_gui           = pen_gui.build_pen_gui
 landing_pen.update_pen_gui_all      = pen_gui.update_pen_gui_all

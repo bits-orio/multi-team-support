@@ -88,8 +88,17 @@ function M.register()
             team_color.adopt_if_leader(player)
         end
         if player then spectator.on_player_joined(player) end
-        if player and landing_pen.is_in_pen(player) then
-            landing_pen.place_player(player)
+        if player then
+            if landing_pen.is_in_pen(player) then
+                landing_pen.place_player(player)
+            else
+                -- Reconcile the space-map gate from pen STATE on every
+                -- reconnect: offline transitions (kick while offline, pen
+                -- disable, config-changed back-fill) can bypass finish_spawn,
+                -- and the gate's pcall would mask a rejected offline write --
+                -- without this, a stuck gate would be permanent.
+                landing_pen.set_space_map_gate(player, false)
+            end
         end
         if player then h.register_nav_buttons(player) end
         -- Rebuild the Start Playing frame for players reconnecting during pre-start.
