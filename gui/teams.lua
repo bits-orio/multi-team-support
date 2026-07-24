@@ -10,6 +10,7 @@ local follow_cam    = require("gui.follow_cam")
 local friendship    = require("gui.friendship")
 local teams_data    = require("gui.teams_data")
 local team_card     = require("gui.team_card")
+local team_pins     = require("scripts.team_pins")
 
 local teams_gui = {}
 
@@ -143,6 +144,16 @@ function teams_gui.on_gui_click(event)
     if element.tags and element.tags.sb_spectate then
         local player = game.get_player(event.player_index)
         if player then on_spectate_click(player, element.tags) end
+        return true
+    end
+
+    if element.tags and element.tags.sb_pin_toggle then
+        local player = game.get_player(event.player_index)
+        local target = element.tags.target_idx and game.get_player(element.tags.target_idx)
+        if player and target then
+            team_pins.toggle(player, target)
+            teams_gui.build_gui(player)
+        end
         return true
     end
 

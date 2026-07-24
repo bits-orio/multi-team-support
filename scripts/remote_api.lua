@@ -37,6 +37,7 @@ local spawn_labels  = require("scripts.spawn_labels")
 local pause_control = require("scripts.pause.control")
 local pause_state   = require("scripts.pause.state")
 local pause_notify  = require("scripts.pause.notify")
+local team_pins     = require("scripts.team_pins")
 -- team_surfaces -> team_slots -> remote_api IS a require cycle. Factorio forbids
 -- require() at runtime, so it also can't be lazy-loaded inside the interface
 -- functions; control.lua injects it at parse time via set_deferred_deps().
@@ -570,6 +571,13 @@ function remote_api.on_player_changed_force(event)
     local is_spectator_hop = sf and sf[event.player_index] ~= nil
         and (new_name == "spectator" or old_name == "spectator")
     if is_spectator_hop then return end
+
+    -- Team pins ride this same funnel by direct dispatch (never via the mts-v1
+    -- events). Placed after the hop early-return so a spectate round-trip can
+    -- never churn pins; pcall-contained because this adapter runs inside the
+    -- engine force-change event for every join/leave path.
+    if old_team and player then pcall(team_pins.on_team_left, player, old_name) end
+    if new_team and player then pcall(team_pins.on_team_joined, player) end
 
     -- Bridge presentation: one deduped sentence per force change.
     local who = player and player.name or ("player " .. event.player_index)

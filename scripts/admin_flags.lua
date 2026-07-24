@@ -67,6 +67,11 @@ M.FLAGS = {
         label   = "Team Pause Alerts",
         tooltip = "When enabled, a team's members see a persistent map alert while their team is paused (by an admin, or by a mod's scripted pause such as a docking cycle). The alert clears on resume. mts-v1 pause events fire regardless of this flag.",
     },
+    {
+        key     = "team_pins_enabled",
+        label   = "Team Map Pins",
+        tooltip = "When enabled, teammates are automatically pinned on each other's maps when someone joins a team, and every player row in the Teams panel gets a Pin/Unpin button (usable across teams). A pin a player dismisses is never re-created automatically.",
+    },
 }
 
 local FLAG_DEFAULTS = {
@@ -79,6 +84,7 @@ local FLAG_DEFAULTS = {
     staged_start_enabled            = false,  -- opt-in; intended for speedrun servers
     color_fix_enabled               = true,   -- auto-keep player colours readable + distinct
     team_alerts_enabled             = true,   -- persistent map alert while a team is paused
+    team_pins_enabled               = true,   -- auto-pin teammates + Pin buttons in the Teams panel
 }
 
 M.BUDDY_TEAM_LIMIT_MIN     = 2

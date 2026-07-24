@@ -8,6 +8,7 @@ local landing_pen   = require("gui.landing_pen")
 local follow_cam    = require("gui.follow_cam")
 local research_diff = require("gui.research_diff")
 local teams_data    = require("gui.teams_data")
+local team_pins     = require("scripts.team_pins")
 
 local M = {}
 
@@ -90,6 +91,22 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
                                    .. " in a mini-camera (does not move your character)"),
         }
         cam_btn.style.left_margin = 4
+
+        -- Pin/Unpin toggle (2.1 map pins). Works across teams -- consistent
+        -- with open spectating, a pin reveals nothing spectate doesn't.
+        if admin_gui.flag("team_pins_enabled") then
+            local pinned = team_pins.is_pinned(viewer, member)
+            local pin_btn = row.add{
+                type    = "sprite-button",
+                sprite  = "utility/gps_map_icon",
+                style   = "mini_button",
+                tags    = {sb_pin_toggle = true, target_idx = member.index},
+                tooltip = pinned and ("Unpin " .. member.name .. " from your map")
+                                  or ("Pin " .. member.name
+                                      .. " on your map (live-tracks them; works across teams)"),
+            }
+            pin_btn.style.left_margin = 4
+        end
     end
 
     if member.connected then
