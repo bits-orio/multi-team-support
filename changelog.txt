@@ -8,6 +8,9 @@ Date: 2026-07-24
       the local visibility radars are placed for. The standard radar also drops from 300 kW to
       50 kW (modded radars keep their own power cost, and purpose-built scanner buildings are left
       alone). Passivized radars are renamed "Passive <Name>" with a matching description.
+  Changes:
+    - Max Teams now defaults to its ceiling: 60 without Space Age, 20 with it. Only affects fresh
+      installs; servers with a stored value keep their setting.
   Gui:
     - The teams GUI and production stats show each team's slot number as a dim #N badge, so a team
       that renamed itself (e.g. slot 1 calling itself "Team 2") can't be mistaken for another slot.
