@@ -19,6 +19,22 @@ data:extend({
         order = "a-a",
     },
     {
+        -- Passivize radars: keep their local reveal, drop the wide rotating
+        -- sector scan that permanently charts chunks; the base-game radar also
+        -- drops to 50 kW (modded radars keep their own power cost). On a
+        -- multi-team server every team carpets its territory with radars, and
+        -- each active radar charts a ~14-chunk-radius disc forever -- the union
+        -- across 20 teams is a major save-size / UPS sink. Startup because
+        -- reveal distances are immutable prototype fields (no runtime toggle is
+        -- possible). Implemented in prototypes/entities/passivize-radars.lua
+        -- (data-final-fixes).
+        type = "bool-setting",
+        name = "mts_passive_radars",
+        setting_type = "startup",
+        default_value = true,
+        order = "a-b",
+    },
+    {
         type = "string-setting",
         name = "mts_discord_url",
         setting_type = "runtime-global",

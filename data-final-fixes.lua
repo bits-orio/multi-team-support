@@ -16,6 +16,11 @@ if mods["belt-ban"] then
     require("prototypes.compat.belt_ban")
 end
 
+-- Passivize radars (drop their map-charting sector scan, keep local reveal) so
+-- 20 teams' radars don't bloat the save. Independent of Space Age; self-gates
+-- on the mts_passive_radars startup setting. Runs here to catch mod radars too.
+require("prototypes.entities.passivize-radars")
+
 if not mods["space-age"] then return end
 
 require("prototypes.planets")

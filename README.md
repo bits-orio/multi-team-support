@@ -19,6 +19,7 @@ Join the Discord: https://discord.gg/tWz4FT74pH
 - 👥 **Multi-player teams** — Buddy join lets multiple players share a team. Leader can kick and accept join requests; any member can leave.
 - 🎨 **Force colors** — Always derived from the current team leader's player color.
 - 🤝 **Friendship** — Two-sided requests between teams; mutual friendship shares chart and grants friend-view spectation.
+- 📡 **Passive radars** — Radars keep the area around them visible but no longer run the rotating scan that permanently charts the wider map; the standard radar also draws less power (50 kW instead of 300 kW, modded radars keep their own cost). On a multi-team server, 20 teams each carpeting their territory with map-charting radars is a major save-size and UPS sink; this bounds that growth while keeping the local visibility players place radars for. **On by default**; disable via startup setting *Passive radars (no map scanning)*. It only stops further charting — already-charted map stays charted — and purpose-built scanner buildings from other mods are left untouched.
 
 ### 🌌 Space Age Integration *(auto-detected)*
 - 🪐 **Per-team planet variants** — When Space Age is active, each team gets their own full solar system. The vanilla 5 (Nauvis, Vulcanus, Gleba, Fulgora, Aquilo) plus any modded planets registered via `data:extend` or planet libraries like PlanetsLib (Maraxsis, Lignumis, Muluna, etc.) all get per-team variants automatically. No collisions on shared planets.
