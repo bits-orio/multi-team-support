@@ -10,11 +10,13 @@ data:extend({
         type = "int-setting",
         name = "mts_max_teams",
         setting_type = "startup",
-        default_value = 20,
-        minimum_value = 2,
         -- Space Age requires planet variants to be pre-created per team, capping at 20.
         -- Without Space Age the only limit is Factorio's 64-force hard cap minus the
         -- 4 reserved forces (player, enemy, neutral, spectator), leaving 60 slots.
+        -- Default to the ceiling in both modes. Only affects installs where the
+        -- admin never stored a value; existing servers keep their saved setting.
+        default_value = mods["space-age"] and 20 or 60,
+        minimum_value = 2,
         maximum_value = mods["space-age"] and 20 or 60,
         order = "a-a",
     },
