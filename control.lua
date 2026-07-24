@@ -217,6 +217,7 @@ script.on_configuration_changed(function()
     storage.awards_gui_location      = storage.awards_gui_location      or {}
     storage.team_leader              = storage.team_leader              or {}
     storage.team_pool                = storage.team_pool                or {}
+    storage.team_slot_generation     = storage.team_slot_generation     or {}
     storage.team_names               = storage.team_names               or {}
     storage.team_clock_start         = storage.team_clock_start         or {}
     storage.left_teams               = storage.left_teams               or {}

@@ -4,6 +4,7 @@
 local nav        = require("gui.nav")
 local helpers    = require("scripts.helpers")
 local stats_data = require("gui.stats_data")
+local teams_data = require("gui.teams_data")
 
 local stats_gui = {}
 
@@ -228,13 +229,32 @@ function stats_gui.build_stats_gui(player, leaving_index)
         local name_cell = tbl.add{type = "flow", direction = "horizontal"}
         name_cell.style.vertical_align = "center"
         name_cell.style.minimal_width  = 160
+        if entry.slot then
+            local slot_lbl = name_cell.add{
+                type    = "label",
+                caption = "#" .. entry.slot,
+                tooltip = "Team slot " .. entry.slot .. " (" .. entry.force.name .. ")",
+            }
+            slot_lbl.style.font         = "default-small"
+            slot_lbl.style.font_color   = {0.55, 0.55, 0.55}
+            slot_lbl.style.right_margin = 4
+        end
         local name_lbl = name_cell.add{type = "label", caption = entry.caption}
         name_lbl.style.font = "default-bold"
         if not entry.online then
             name_lbl.style.font_color = {0.65, 0.65, 0.65}
-            local off_lbl = name_cell.add{type = "label", caption = " (offline)"}
+            -- Surface how stale a fully-offline team is (same last-seen data
+            -- and colour thresholds as the teams GUI activity label), so the
+            -- disband decision doesn't need a second GUI.
+            local act = entry.activity
+            local off_lbl = name_cell.add{
+                type    = "label",
+                caption = act and (" (offline · " .. teams_data.fmt_ago(act.ago_ticks) .. ")")
+                              or  " (offline)",
+                tooltip = act and act.tooltip or nil,
+            }
             off_lbl.style.font       = "default-small"
-            off_lbl.style.font_color = {0.45, 0.45, 0.45}
+            off_lbl.style.font_color = act and act.color or {0.45, 0.45, 0.45}
         end
         for col_idx = 1, cols do
             local count = row_counts[i][col_idx]

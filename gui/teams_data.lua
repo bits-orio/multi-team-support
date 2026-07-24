@@ -199,4 +199,37 @@ local function build_activity_tooltip(member_list)
 end
 M.build_activity_tooltip = build_activity_tooltip
 
+--- Activity summary for a team's member list, shared by the teams GUI cards,
+--- the production stats rows, and the disband dialog so they all agree.
+--- Returns nil when the team has no recorded activity, else:
+---   ago_ticks  - ticks since the most recent member activity
+---   any_online - true if any member is connected right now
+---   ago_text   - "active" when online, else fmt_ago(ago_ticks)
+---   color      - green < 1h, yellow < 24h, red older
+---   tooltip    - per-member playtime/last-seen breakdown
+function M.activity_info(member_list)
+    local last_tick = team_last_active_tick(member_list)
+    if not last_tick then return nil end
+    local ago_ticks  = game.tick - last_tick
+    local any_online = false
+    for _, p in ipairs(member_list) do
+        if p.connected then any_online = true; break end
+    end
+    local color
+    if ago_ticks < 216000 then
+        color = {0.4, 1.0, 0.4}
+    elseif ago_ticks < 5184000 then
+        color = {1.0, 0.8, 0.2}
+    else
+        color = {1.0, 0.4, 0.4}
+    end
+    return {
+        ago_ticks  = ago_ticks,
+        any_online = any_online,
+        ago_text   = any_online and "active" or fmt_ago(ago_ticks),
+        color      = color,
+        tooltip    = build_activity_tooltip(member_list),
+    }
+end
+
 return M

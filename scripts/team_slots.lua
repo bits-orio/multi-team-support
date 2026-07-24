@@ -134,6 +134,7 @@ function M.create_team_pool()
     storage.team_leader            = {}
     storage.team_clock_start       = {}
     storage.team_looking_for_more  = {}
+    storage.team_slot_generation   = {}
 
     for i = 1, max do
         local force_name = "team-" .. i
@@ -285,6 +286,13 @@ function M.release_team_slot(force_name)
 
     storage.team_pool = storage.team_pool or {}
     storage.team_pool[slot] = "available"
+
+    -- Bump the slot generation so anything that captured this slot's identity
+    -- while it was occupied (e.g. an open /mts-disband confirm dialog) can
+    -- detect that the slot has since been recycled by a different team.
+    storage.team_slot_generation = storage.team_slot_generation or {}
+    storage.team_slot_generation[slot] = (storage.team_slot_generation[slot] or 0) + 1
+
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = nil
     storage.team_clock_start = storage.team_clock_start or {}

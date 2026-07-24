@@ -2,6 +2,7 @@
 -- Admin-only commands: disband, pause, resume, trim.
 
 local teams_gui    = require("gui.teams")
+local teams_data   = require("gui.teams_data")
 local helpers      = require("scripts.helpers")
 local force_utils  = require("scripts.force_utils")
 local landing_pen  = require("gui.landing_pen")
@@ -38,6 +39,16 @@ local function perform_disband(admin_player, data)
     local slot = helpers.team_slot(force_name)
     if not slot or (storage.team_pool or {})[slot] ~= "occupied" then
         admin_player.print("That team slot is no longer occupied."); return
+    end
+
+    -- The dialog may have sat open while the team it described disbanded and a
+    -- NEW team claimed the same slot. The generation captured at show time
+    -- detects that recycle, so Confirm can never hit a team the admin never saw.
+    local current_gen = (storage.team_slot_generation or {})[slot] or 0
+    if data and data.slot_generation ~= nil and data.slot_generation ~= current_gen then
+        admin_player.print("Team slot " .. slot .. " has been recycled by a different team since"
+            .. " the dialog was opened. Re-run /mts-disband to review the current team.")
+        return
     end
 
     local team_tag = helpers.team_tag_with_leader(force_name)
@@ -107,9 +118,25 @@ function M.register()
 
             local force = game.forces[force_name]
             local count = force_utils.force_member_count(force)
+
+            -- Identify the team unambiguously: renamed teams (e.g. slot 1 calling
+            -- itself "Team 2") make name-only confirmation dangerously easy to
+            -- misread, so spell out slot, leader, and last activity.
+            local members = teams_data.collect_team_members(force)
+            local leader  = members.leader
+            local leader_line = (leader and leader.valid)
+                and ("\xE2\x98\x85 " .. helpers.colored_name(leader.name, leader.chat_color))
+                or "(no leader)"
+            local activity = teams_data.activity_info(members.members)
+            local last_active = activity
+                and (activity.any_online and "online now" or activity.ago_text)
+                or "never"
             confirm.show(caller, {
-                title        = "Disband " .. helpers.team_tag(force_name) .. "?",
-                message      = "Are you sure you want to disband " .. helpers.team_tag(force_name) .. "?\n\n"
+                title        = "Disband " .. helpers.team_tag(force_name) .. " (slot " .. slot .. ")?",
+                message      = "Team: " .. helpers.team_tag(force_name) .. "\n"
+                    .. "Slot: #" .. slot .. " (" .. force_name .. ")\n"
+                    .. "Leader: " .. leader_line .. "\n"
+                    .. "Last active: " .. last_active .. "\n\n"
                     .. "• " .. count .. " player" .. (count == 1 and "" or "s")
                     .. " will be sent back to the Landing Pen.\n"
                     .. "• All team surfaces and platforms will be deleted.\n"
@@ -117,7 +144,10 @@ function M.register()
                 confirm_text = "Disband Team",
                 cancel_text  = "Cancel",
                 action       = "disband",
-                data         = {force_name = force_name},
+                data         = {
+                    force_name      = force_name,
+                    slot_generation = (storage.team_slot_generation or {})[slot] or 0,
+                },
             })
         end)
 

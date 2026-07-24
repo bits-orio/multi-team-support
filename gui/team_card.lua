@@ -30,30 +30,30 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     name_label.style.font       = "default-bold"
     name_label.style.font_color = force_color
 
-    local last_tick = teams_data.team_last_active_tick(members.members)
-    if last_tick then
-        local ago_ticks = game.tick - last_tick
-        local any_online = false
-        for _, p in ipairs(members.members) do
-            if p.connected then any_online = true; break end
-        end
-        local ago_text = any_online and "active" or teams_data.fmt_ago(ago_ticks)
-        local color
-        if ago_ticks < 216000 then
-            color = {0.4, 1.0, 0.4}
-        elseif ago_ticks < 5184000 then
-            color = {1.0, 0.8, 0.2}
-        else
-            color = {1.0, 0.4, 0.4}
-        end
+    -- Slot number stays visible even when the team renames itself, so admins
+    -- can match a card to /mts-disband, /mts-pause etc. without hovering.
+    local slot = helpers.team_slot(force.name)
+    if slot then
+        local slot_label = hdr.add{
+            type    = "label",
+            caption = "#" .. slot,
+            tooltip = "Team slot " .. slot .. " (" .. force.name .. ")",
+        }
+        slot_label.style.font        = "default-small"
+        slot_label.style.font_color  = {0.55, 0.55, 0.55}
+        slot_label.style.left_margin = 4
+    end
+
+    local activity = teams_data.activity_info(members.members)
+    if activity then
         local ago_label = hdr.add{
             type    = "label",
             name    = "sb_card_activity",
-            caption = " · " .. ago_text,
-            tooltip = teams_data.build_activity_tooltip(members.members),
+            caption = " · " .. activity.ago_text,
+            tooltip = activity.tooltip,
         }
         ago_label.style.font        = "default-small"
-        ago_label.style.font_color  = color
+        ago_label.style.font_color  = activity.color
         ago_label.style.left_margin = 4
     end
 
@@ -236,27 +236,13 @@ function M.update_activity_labels_all()
     local per_force = {}
     for _, force in pairs(game.forces) do
         if not teams_data.SKIP_FORCES[force.name] then
-            local members   = teams_data.collect_team_members(force)
-            local last_tick = teams_data.team_last_active_tick(members.members)
-            if last_tick then
-                local ago_ticks  = game.tick - last_tick
-                local any_online = false
-                for _, p in ipairs(members.members) do
-                    if p.connected then any_online = true; break end
-                end
-                local ago_text = any_online and "active" or teams_data.fmt_ago(ago_ticks)
-                local color
-                if ago_ticks < 216000 then
-                    color = {0.4, 1.0, 0.4}
-                elseif ago_ticks < 5184000 then
-                    color = {1.0, 0.8, 0.2}
-                else
-                    color = {1.0, 0.4, 0.4}
-                end
+            local members  = teams_data.collect_team_members(force)
+            local activity = teams_data.activity_info(members.members)
+            if activity then
                 per_force[force.name] = {
-                    caption = " · " .. ago_text,
-                    color   = color,
-                    tooltip = teams_data.build_activity_tooltip(members.members),
+                    caption = " · " .. activity.ago_text,
+                    color   = activity.color,
+                    tooltip = activity.tooltip,
                 }
             end
         end

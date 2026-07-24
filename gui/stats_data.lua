@@ -4,6 +4,7 @@
 
 local helpers       = require("scripts.helpers")
 local surface_utils = require("scripts.surface_utils")
+local teams_data    = require("gui.teams_data")
 
 local M = {}
 
@@ -367,9 +368,14 @@ function M.player_forces(leaving_index)
             local occupied = slot and (storage.team_pool or {})[slot] == "occupied"
             if not occupied then goto next_force end
 
+            -- Effective-force members, not force.players: a member spectating
+            -- another team is temporarily on the spectator force, but their
+            -- team is not offline. Keeps the online flag consistent with the
+            -- activity data below and with the teams GUI.
+            local members = teams_data.collect_team_members(force)
             local online = false
-            for _, fp in ipairs(force.players) do
-                if fp.connected and fp.index ~= leaving_index then
+            for _, member in ipairs(members.members) do
+                if member.connected and member.index ~= leaving_index then
                     online = true; break
                 end
             end
@@ -378,6 +384,8 @@ function M.player_forces(leaving_index)
                 caption     = helpers.team_tag_with_leader(name),
                 force       = force,
                 online      = online,
+                slot        = slot,
+                activity    = teams_data.activity_info(members.members),
             }
             ::next_force::
         end
