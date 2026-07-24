@@ -12,6 +12,7 @@ MOD_DIRS=(
     "$HOME/factorio/mods"
     "$HOME/.factorio/mods"
     "$HOME/factorio2/mods"
+    "$HOME/factorio-2.1/mods"
 )
 
 for dir in "${MOD_DIRS[@]}"; do
