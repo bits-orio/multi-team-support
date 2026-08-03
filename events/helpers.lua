@@ -15,6 +15,7 @@ local deep_core_ops = require("compat.deep_core_ops")
 local voidblock     = require("compat.voidblock")
 local vanilla       = require("compat.vanilla")
 local mts_dimension_warp = require("compat.mts_dimension_warp")
+local hud_clock     = require("gui.hud_clock")
 
 local h = {}
 
@@ -45,6 +46,9 @@ function h.register_nav_buttons(player)
     admin_gui.on_player_created(player)
     team_settings.on_player_created(player)
     team_settings.refresh_nav_button(player)
+    -- Top-bar team clock: created eagerly here (and on force change) so it
+    -- appears without waiting for the next one-second tick refresh.
+    hud_clock.update_player(player)
 end
 
 --- Rebuild the stats GUI for every connected player who has it open.

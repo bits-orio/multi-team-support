@@ -95,6 +95,7 @@ end
 -- Re-export in-place updaters so events/ticks.lua keeps its existing calls.
 teams_gui.update_activity_labels_all  = team_card.update_activity_labels_all
 teams_gui.update_queue_progress_all   = team_card.update_queue_progress_all
+teams_gui.update_clock_labels_all     = team_card.update_clock_labels_all
 
 -- ─── Click Handlers ────────────────────────────────────────────────────
 

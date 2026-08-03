@@ -12,15 +12,9 @@ local research_diff = {}
 -- Time formatting
 -- ---------------------------------------------------------------------------
 
---- Convert a tick count to a human-readable duration string ("1h 23m 45s").
-function research_diff.fmt_duration(ticks)
-    local s = math.floor(ticks / 60)
-    local h = math.floor(s / 3600); s = s % 3600
-    local m = math.floor(s / 60);   s = s % 60
-    if h > 0 then return string.format("%dh %02dm %02ds", h, m, s) end
-    if m > 0 then return string.format("%dm %02ds", m, s) end
-    return string.format("%ds", s)
-end
+-- Re-export of the shared formatter (moved to helpers for the team clocks);
+-- kept here so existing research_diff.fmt_duration callers stay unchanged.
+research_diff.fmt_duration = helpers.fmt_duration
 
 -- ---------------------------------------------------------------------------
 -- Tech data helpers

@@ -147,6 +147,29 @@ function helpers.team_slot(name)
     return tonumber(name:match("^team%-(%d+)$"))
 end
 
+-- ─── Duration Formatting ───────────────────────────────────────────────
+
+--- Convert a tick count to a human-readable duration string ("1h 23m 45s").
+function helpers.fmt_duration(ticks)
+    local s = math.floor(ticks / 60)
+    local h = math.floor(s / 3600); s = s % 3600
+    local m = math.floor(s / 60);   s = s % 60
+    if h > 0 then return string.format("%dh %02dm %02ds", h, m, s) end
+    if m > 0 then return string.format("%dm %02ds", m, s) end
+    return string.format("%ds", s)
+end
+
+--- Minute-resolution variant ("1h 23m") for displays refreshed on a slow
+--- cadence (spawn labels), where a stale seconds digit would look broken.
+--- Rounds to the NEAREST minute: floor plus refresh staleness read almost
+--- two minutes behind near a minute boundary, which players notice.
+function helpers.fmt_duration_coarse(ticks)
+    local m = math.floor(ticks / 3600 + 0.5)
+    local h = math.floor(m / 60); m = m % 60
+    if h > 0 then return string.format("%dh %02dm", h, m) end
+    return string.format("%dm", m)
+end
+
 -- ─── Force Helpers ─────────────────────────────────────────────────────
 
 --- Get the display name for a force.

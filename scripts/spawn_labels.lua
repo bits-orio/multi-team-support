@@ -2,10 +2,11 @@
 -- Author: bits-orio
 -- License: GPL-3.0-or-later
 --
--- Renders a "<team_tag_with_leader>'s\n<location_name>" label at the spawn
--- area of every team-owned surface. The render-object id is tracked in
--- storage so the text can be live-refreshed when the team is renamed or
--- when the leader changes.
+-- Renders a "<team_tag_with_leader>'s\n<location_name>" label (plus a
+-- minute-resolution birth-clock line once the team's clock starts) at the
+-- spawn area of every team-owned surface. The render-object id is tracked in
+-- storage so the text can be live-refreshed when the team is renamed, when
+-- the leader changes, or on the periodic clock refresh.
 --
 -- Storage layout:
 --   storage.spawn_labels[force_name][surface_index] = render_object_id
@@ -55,7 +56,16 @@ local function location_name_for(surface, force)
 end
 
 local function compute_text(force_name, location_name)
-    return helpers.team_tag_with_leader(force_name) .. "'s\n" .. location_name
+    local text = helpers.team_tag_with_leader(force_name) .. "'s\n" .. location_name
+    -- Birth-clock line, nearest-minute resolution: labels refresh every 10s
+    -- (the 600-tick handler in events/ticks.lua), so a seconds digit would
+    -- sit visibly stale. Omitted until the team's clock starts.
+    local start = (storage.team_clock_start or {})[force_name]
+    if start then
+        text = text .. "\n[img=utility/clock] "
+            .. helpers.fmt_duration_coarse(game.tick - start)
+    end
+    return text
 end
 
 --- Draw or replace the spawn label for a (force, surface) pair.
@@ -110,6 +120,13 @@ function spawn_labels.refresh_for_force(force_name)
         else
             labels[surface_index] = nil
         end
+    end
+end
+
+--- Recompute text on every drawn label (periodic clock refresh).
+function spawn_labels.refresh_all()
+    for force_name in pairs(storage.spawn_labels or {}) do
+        spawn_labels.refresh_for_force(force_name)
     end
 end
 

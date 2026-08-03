@@ -2,6 +2,7 @@
 -- Card rendering and in-place updaters for the teams GUI.
 
 local helpers       = require("scripts.helpers")
+local hud_clock     = require("gui.hud_clock")
 local friendship    = require("gui.friendship")
 local admin_gui     = require("gui.admin")
 local landing_pen   = require("gui.landing_pen")
@@ -60,6 +61,18 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     local spacer = hdr.add{type = "empty-widget"}
     spacer.style.horizontally_stretchable = true
     research_diff.add_queue_icons(hdr, force, 7)
+end
+
+-- Birth-clock line under the card header. Kept in sync by
+-- update_clock_labels_all (60-tick handler) while the frame is open.
+local function add_card_clock(card, force_name)
+    local caption, tooltip, color = hud_clock.clock_caption(force_name)
+    if not caption then return end
+    local lbl = card.add{type = "label", name = "sb_card_clock"}
+    lbl.style.font       = "default-small"
+    lbl.caption          = caption
+    lbl.tooltip          = tooltip
+    lbl.style.font_color = color
 end
 
 local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_force_name, target_force, target_force_name, is_own_team)
@@ -220,6 +233,7 @@ function M.build_team_card(parent, force, viewer_player, viewer_force_name, curr
     card.style.bottom_margin = 4
 
     add_card_header(card, force, members, viewer_player, is_own)
+    add_card_clock(card, force.name)
     card.add{type = "line"}.style.top_margin = 2
     add_members_section(card, force, members, viewer_player, viewer_force_name, force.name, is_own)
     add_surfaces_section(card, force, surfaces, is_own, force.name == current_target, viewer_player)
@@ -267,6 +281,43 @@ function M.update_activity_labels_all()
             end
         end
         ::next_player::
+    end
+end
+
+--- Update only the per-card clock labels without a full GUI rebuild.
+--- Runs once a second (60-tick handler), so cost is kept proportional to
+--- what is actually on screen: bail when no viewer has the Teams frame open
+--- (the common case), then walk the cards each open frame contains rather
+--- than all of game.forces — with "show offline" off that's only the online
+--- teams. Captions are memoized per force across viewers.
+function M.update_clock_labels_all()
+    local scrolls = {}
+    for _, player in pairs(game.connected_players) do
+        local frame  = player.gui.screen.sb_platforms_frame
+        local scroll = frame and frame.sb_platforms_scroll
+        if scroll then scrolls[#scrolls + 1] = scroll end
+    end
+    if #scrolls == 0 then return end
+
+    local memo = {}
+    for _, scroll in ipairs(scrolls) do
+        for _, card in ipairs(scroll.children) do
+            local force_name = card.name and card.name:match("^sb_card_(.+)$")
+            local lbl = force_name and card.sb_card_clock
+            if lbl and lbl.valid then
+                local c = memo[force_name]
+                if not c then
+                    local caption, tooltip, color = hud_clock.clock_caption(force_name)
+                    c = {caption = caption, tooltip = tooltip, color = color}
+                    memo[force_name] = c
+                end
+                if c.caption then
+                    lbl.caption          = c.caption
+                    lbl.tooltip          = c.tooltip
+                    lbl.style.font_color = c.color
+                end
+            end
+        end
     end
 end
 

@@ -34,6 +34,7 @@ local helpers        = require("scripts.helpers")
 local lfm_hint       = require("gui.lfm_hint")
 local spectator      = require("scripts.spectator")
 local color_fix      = require("scripts.color_fix")
+local hud_clock      = require("gui.hud_clock")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -223,10 +224,22 @@ function M.register()
         -- handler per period -- a separate on_nth_tick(30) would clobber this one.
         if any_team_researching() then teams_gui.update_queue_progress_all() end
     end)
-    script.on_nth_tick(60,    function() sync_leader_colors() end)
+    script.on_nth_tick(60,    function()
+        sync_leader_colors()
+        -- One-second team clock refresh: the top-bar HUD clock for every
+        -- connected player, and the per-card clocks for viewers with the
+        -- Teams frame open (in-place caption writes, no rebuild). Folded in
+        -- here — on_nth_tick keys one handler per period.
+        hud_clock.update_all()
+        teams_gui.update_clock_labels_all()
+    end)
     script.on_nth_tick(300,   function()
         if milestones.tick() then awards_gui.update_all() end
     end)
+    -- Spawn-label clocks: minute resolution, but refreshed every 10s so the
+    -- rounded minute is never visibly stale. Touches only the rendering text
+    -- objects of teams that have labels drawn.
+    script.on_nth_tick(600,   function() spawn_labels.refresh_all() end)
     script.on_nth_tick(3600,  function() teams_gui.update_activity_labels_all() end)
     script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
     script.on_nth_tick(DISCORD_REMINDER_TICKS, function()

@@ -6,6 +6,7 @@ local team_settings = require("gui.team_settings")
 local force_utils   = require("scripts.force_utils")
 local admin_gui     = require("gui.admin")
 local pop_text      = require("scripts.pop_text")
+local hud_clock     = require("gui.hud_clock")
 
 local M = {}
 
@@ -18,6 +19,9 @@ function M.register()
         local player = game.get_player(event.player_index)
         if player and player.connected then
             team_settings.refresh_nav_button(player)
+            -- Swap the top-bar clock to the new team (or remove it) instantly
+            -- instead of waiting for the next one-second tick refresh.
+            hud_clock.update_player(player)
             if player.gui.screen.sb_team_settings_frame then
                 team_settings.build_gui(player)
             end
