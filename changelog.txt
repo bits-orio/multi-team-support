@@ -1,4 +1,39 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.62
+Date: 2026-08-04
+  Features:
+    - Team clocks everywhere: a persistent top-bar chip shows your team name and running time
+      (the official server-elapsed time used for records; online time in the tooltip once they
+      differ), every card in the Teams GUI shows that team's clock, and spawn labels carry a
+      minute-resolution clock line. Teams that haven't started show "not started".
+    - Team vs global chat: each TEAM is in global or team-only chat, toggled from a new
+      GLOBAL | TEAM switch at the top of the screen (or /mts-chat). The channel is
+      team-synchronized so one member replying in the wrong mode can't leak a private
+      conversation; switches are announced to the team and every member's switch updates
+      together. Start a message with ! to shout one message globally from team-only mode.
+      Team-only messages (including map pings) never reach the Discord bridge — only global
+      chat is forwarded. Landing-pen spectators always chat globally. Members spectating
+      another team keep team chat (tagged [spectating]), with a notice that other spectators
+      can see those messages too.
+    - Non-competitive mode (new admin flag, off by default) for private servers with
+      mixed-skill groups: admins can give individual teams easier settings via per-team
+      modifiers — first modifier: peaceful biters (applied to all of that team's surfaces).
+      Every change is announced to everyone. A team that ever receives a modifier is
+      permanently marked non-competitive (badge in the admin panel and /mts-modifiers; the
+      mark clears only on disband), and the mode cannot be turned off while any marked team
+      exists — so a briefly-handicapped team can't slip back into a "competitive" game.
+      Record announcements are tagged while the mode is on. Anyone can check every team's
+      settings with /mts-modifiers.
+  Gui:
+    - The top-bar chip and chat switch sit on translucent panels, and HUD text uses a subtle
+      dark halo so it stays readable over bright terrain and busy bases.
+    - The HUD shows a non-competitive tag (with your team's own modifiers) whenever that
+      mode is active, and the Teams GUI title and team cards reflect it too.
+  Bugfixes:
+    - Players accepted into a team now spawn at the team's original spawn point on its home
+      surface, not wherever the accepting member happened to be standing (which could be
+      another planet, a space platform, or a far-away outpost).
+---------------------------------------------------------------------------------------------------
 Version: 0.4.61
 Date: 2026-07-24
   Features:
