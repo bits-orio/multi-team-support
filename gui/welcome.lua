@@ -118,6 +118,7 @@ local function draw_about(parent)
         "/mts-players — list players and surfaces with GPS pings\n" ..
         "/mts-rename <name> — rename your team (leader only)\n" ..
         "/mts-leave — leave your team\n" ..
+        "/mts-chat — toggle team-only vs global chat (or use the GLOBAL | TEAM switch at the top of the screen)\n" ..
         "/mts-kick <player> — remove a teammate (leader only)"
     )
 end

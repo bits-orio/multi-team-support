@@ -14,6 +14,7 @@ local team_clock        = require("scripts.team_clock")
 local start_playing_gui = require("gui.start_playing_gui")
 local color_fix         = require("scripts.color_fix")
 local team_modifiers    = require("scripts.team_modifiers")
+local hud_clock         = require("gui.hud_clock")
 
 local M = {}
 
@@ -147,14 +148,19 @@ function M.register()
         end
     end)
 
-    -- Re-fit a maximized follow cam when the player resizes the window or
-    -- changes UI scale, so it keeps filling the screen.
-    local function refit_follow_cam(event)
+    -- Re-fit a maximized follow cam and re-anchor the center-top chat switch
+    -- when the player resizes the window or changes UI scale. One handler for
+    -- both concerns: a second script.on_event for the same id would clobber
+    -- this one.
+    local function on_display_changed(event)
         local player = game.get_player(event.player_index)
-        if player then follow_cam.on_display_changed(player) end
+        if player then
+            follow_cam.on_display_changed(player)
+            hud_clock.update_player(player)
+        end
     end
-    script.on_event(defines.events.on_player_display_resolution_changed, refit_follow_cam)
-    script.on_event(defines.events.on_player_display_scale_changed, refit_follow_cam)
+    script.on_event(defines.events.on_player_display_resolution_changed, on_display_changed)
+    script.on_event(defines.events.on_player_display_scale_changed, on_display_changed)
 
     script.on_event(defines.events.on_player_left_game, function(event)
         local player = game.get_player(event.player_index)

@@ -9,6 +9,7 @@ local spectator    = require("scripts.spectator")
 local confirm      = require("gui.confirm")
 local team_rename  = require("scripts.team_rename")
 local team_modifiers = require("scripts.team_modifiers")
+local hud_clock    = require("gui.hud_clock")
 
 local M = {}
 
@@ -169,6 +170,16 @@ function M.register()
             end
             local msg = table.concat(lines, "\n")
             if caller then caller.print(msg) else game.print(msg) end
+        end)
+
+    commands.add_command("mts-chat",
+        "Toggle your team's chat between team-only and global (same as the HUD chip)",
+        function(cmd)
+            local caller = cmd.player_index and game.get_player(cmd.player_index)
+            if not caller then
+                game.print("This command can only be used by a player."); return
+            end
+            hud_clock.toggle_chat_channel(caller)
         end)
 
     commands.add_command("mts-modifiers",

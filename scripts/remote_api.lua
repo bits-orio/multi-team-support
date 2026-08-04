@@ -280,6 +280,7 @@ local BRIDGE_LABELS = {
     milestone_first      = "🥇",
     milestone_record     = "⏱️",
     rocket_launched      = "🚀",
+    chat                 = "💬",
 }
 
 --- Emit an arbitrary event to the bridge (no-op if the bridge isn't installed). Fills in
@@ -314,11 +315,15 @@ function remote_api.register_with_bridge()
             { key = "player_left",          description = "A player left the game (team-aware)" },
             { key = "player_switched_team", description = "A player switched teams mid-game" },
             { key = "rocket_launched",      description = "A team launched a rocket" },
+            { key = "chat",                 description = "A chat message (global channel only)" },
         },
     })
     -- We announce these ourselves with team info, so turn off the bridge's team-less
     -- baseline versions. The bridge only suppresses a baseline event while we're loaded.
-    for _, key in ipairs({ "research_finished", "player_joined", "player_left", "rocket_launched" }) do
+    -- "chat" is here for privacy, not enrichment: the bridge's baseline captures EVERY
+    -- message, but team-only channel messages (scripts/chat_channel.lua) must never
+    -- reach Discord — events/chat.lua emits the bridge copy for global messages only.
+    for _, key in ipairs({ "research_finished", "player_joined", "player_left", "rocket_launched", "chat" }) do
         remote.call(BRIDGE_INTERFACE, "set_baseline", { event = key, enabled = false })
     end
 end
@@ -604,6 +609,22 @@ local function connection_text(verb, player)
         return string.format("%s %s — %s", player.name, verb, helpers.team_display(fn))
     end
     return string.format("%s %s", player.name, verb)
+end
+
+--- Bridge copy of a chat message. The bridge's baseline chat capture is
+--- disabled (register_with_bridge) so team-only messages never reach
+--- Discord; every message that SHOULD bridge — global channel, "!" shouts,
+--- spectator and server-console chatter — flows through here instead.
+--- force_name is the author's team (nil for spectators / the server).
+function remote_api.emit_chat(author_name, message, force_name)
+    local team = is_team_force_name(force_name)
+        and helpers.team_display(force_name) or nil
+    remote_api.emit_to_bridge("mts.chat", {
+        player = author_name,
+        team   = team,
+        text   = (team and (author_name .. " [" .. team .. "]") or author_name)
+            .. ": " .. message,
+    })
 end
 
 function remote_api.emit_player_joined(player)

@@ -40,3 +40,6 @@ data:extend({
 -- Hidden passive radar that consumer mods place via mts-v1 `ensure_passive_radar`
 -- to keep empty team surfaces live-viewable for spectators. See the file header.
 require("prototypes.entities.passive-radar")
+
+-- Chat mode switch segment-button styles (gui/chat_switch.lua).
+require("prototypes.styles")

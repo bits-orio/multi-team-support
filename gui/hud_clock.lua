@@ -2,8 +2,10 @@
 -- Author: bits-orio
 -- License: GPL-3.0-or-later
 --
--- Persistent top-bar team clock: the player's team name with the team's
--- birth-clock elapsed time underneath. The birth clock (server time since the
+-- Persistent top-bar team chip — "TeamName | 1h 44m 46s" in a framed one-line
+-- row right of the nav buttons — plus ownership of the center-top chat switch
+-- (gui/chat_switch.lua renders it; the click handlers live here). The birth
+-- clock (server time since the
 -- team started playing) is the official basis for records/awards; the
 -- schedule-fair online clock rides along in the tooltip once they diverge.
 --
@@ -15,9 +17,12 @@
 -- clock: display follows the effective force, not player.force.
 
 local helpers        = require("scripts.helpers")
+local nav            = require("gui.nav")
 local spectator      = require("scripts.spectator")
 local team_clock     = require("scripts.team_clock")
 local team_modifiers = require("scripts.team_modifiers")
+local chat_channel   = require("scripts.chat_channel")
+local chat_switch    = require("gui.chat_switch")
 
 local M = {}
 
@@ -52,47 +57,67 @@ function M.clock_caption(force_name)
         tooltip, CLOCK_COLOR
 end
 
---- Create, update, or remove the top-bar clock for one player, based on
---- their effective force. Idempotent; safe from any event context.
+--- Create, update, or remove the top-bar team chip (name | clock, framed,
+--- one line, sitting right of the nav buttons) plus the center-top chat
+--- switch, based on the player's effective force. Idempotent; safe from any
+--- event context.
 function M.update_player(player)
     if not (player and player.valid) then return end
     local top  = player.gui.top
-    local flow = top[FLOW_NAME]
+    local root = top[FLOW_NAME]
 
     local force_name = spectator.get_effective_force(player)
     local caption, tooltip, color = M.clock_caption(force_name)
     if not caption then
-        if flow then flow.destroy() end
+        if root then root.destroy() end
+        chat_switch.update_player(player, nil)
         return
     end
 
-    if not flow then
-        flow = top.add{type = "flow", name = FLOW_NAME, direction = "vertical"}
-        flow.style.left_margin = 8
-        flow.style.top_margin  = 6
-        local name_lbl = flow.add{type = "label", name = "mts_hud_team_name"}
+    -- Defensive rebuild across layout versions: saves from before the framed
+    -- one-line chip carry the old vertical label stack under this name.
+    if root and not root.mts_hud_row then root.destroy(); root = nil end
+
+    if not root then
+        root = top.add{type = "frame", name = FLOW_NAME, direction = "vertical"}
+        root.style.left_margin    = 8
+        root.style.top_margin     = 13  -- centers the chip on the 56px nav-button row
+        root.style.top_padding    = 3
+        root.style.bottom_padding = 4
+        root.style.left_padding   = 9
+        root.style.right_padding  = 9
+        local row = root.add{type = "flow", name = "mts_hud_row", direction = "horizontal"}
+        row.style.vertical_align     = "center"
+        row.style.horizontal_spacing = 8
+        local name_lbl = row.add{type = "label", name = "mts_hud_team_name"}
         name_lbl.style.font = "default-bold"
-        flow.add{type = "label", name = "mts_hud_team_time"}
+        row.add{type = "line", direction = "vertical"}
+        local time_lbl = row.add{type = "label", name = "mts_hud_team_time"}
+        -- Digits tick every second; a fixed width keeps the frame from
+        -- breathing (no monospace UI font exists to do it per-glyph).
+        time_lbl.style.minimal_width = 96
     end
 
+    local row      = root.mts_hud_row
     local force    = game.forces[force_name]
-    local name_lbl = flow.mts_hud_team_name
+    local name_lbl = row.mts_hud_team_name
     name_lbl.caption          = helpers.display_name(force_name)
     name_lbl.style.font_color = force and helpers.force_color(force) or helpers.WHITE
     name_lbl.tooltip          = tooltip
 
-    local time_lbl = flow.mts_hud_team_time
+    local time_lbl = row.mts_hud_team_time
     time_lbl.caption          = caption
     time_lbl.style.font_color = color
     time_lbl.tooltip          = tooltip
 
-    -- Non-competitive mode tag, with this team's own modifiers appended
-    -- ("non-competitive · peaceful") so an asymmetry is visible at a glance.
+    -- Non-competitive mode tag, second line under the chip row, with this
+    -- team's own modifiers appended ("non-competitive · peaceful") so an
+    -- asymmetry is visible at a glance.
     local tag, tag_tip = team_modifiers.hud_tag(force_name)
-    local tag_lbl = flow.mts_hud_mode_tag
+    local tag_lbl = root.mts_hud_mode_tag
     if tag then
         if not tag_lbl then
-            tag_lbl = flow.add{type = "label", name = "mts_hud_mode_tag"}
+            tag_lbl = root.add{type = "label", name = "mts_hud_mode_tag"}
             tag_lbl.style.font       = "default-small"
             tag_lbl.style.font_color = team_modifiers.MODE_COLOR
         end
@@ -101,6 +126,8 @@ function M.update_player(player)
     elseif tag_lbl then
         tag_lbl.destroy()
     end
+
+    chat_switch.update_player(player, force_name)
 end
 
 --- One-second refresh for every connected player (60-tick handler).
@@ -109,5 +136,36 @@ function M.update_all()
         M.update_player(player)
     end
 end
+
+--- Select a specific channel for the player's team (switch segment click);
+--- no-op when already active. On change, every member's HUD and switch
+--- refresh in the same action rather than on the next one-second tick.
+local function select_channel(player, channel)
+    local force_name = spectator.get_effective_force(player)
+    if not helpers.is_team_force(force_name) then return end
+    if chat_channel.set(force_name, channel, player) then
+        for _, member in ipairs(chat_channel.connected_members(force_name)) do
+            M.update_player(member)
+        end
+    end
+end
+
+--- Flip the player's team chat channel (/mts-chat).
+function M.toggle_chat_channel(player)
+    local force_name = spectator.get_effective_force(player)
+    if not helpers.is_team_force(force_name) then
+        player.print("Spectator chat is always global.")
+        return
+    end
+    select_channel(player,
+        chat_channel.is_local(force_name) and "global" or "local")
+end
+
+nav.on_click(chat_switch.SEG_GLOBAL, function(event)
+    select_channel(event.player, "global")
+end)
+nav.on_click(chat_switch.SEG_TEAM, function(event)
+    select_channel(event.player, "local")
+end)
 
 return M

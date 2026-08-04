@@ -11,6 +11,7 @@ local remote_api  = require("scripts.remote_api")
 local spawn_labels = require("scripts.spawn_labels")
 local team_clock  = require("scripts.team_clock")
 local team_modifiers = require("scripts.team_modifiers")
+local chat_channel = require("scripts.chat_channel")
 local pause_state = require("scripts.pause.state")
 local buddy_store = require("scripts.buddy_store")
 local pen_info_panel = require("gui.pen_info_panel")
@@ -300,6 +301,7 @@ function M.release_team_slot(force_name)
     storage.team_clock_start[force_name] = nil
     team_clock.on_release(force_name)
     team_modifiers.on_release(force_name)
+    chat_channel.on_release(force_name)
 
     M.wipe_slot_state(force_name)
 

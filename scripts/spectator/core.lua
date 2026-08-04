@@ -5,6 +5,7 @@
 local admin_gui     = require("gui.admin")
 local helpers       = require("scripts.helpers")
 local surface_utils = require("scripts.surface_utils")
+local chat_channel  = require("scripts.chat_channel")
 
 local M = {}
 
@@ -13,6 +14,14 @@ local M = {}
 function M.apply_spectator_state(player)
     if not M.is_spectating(player) then
         storage.spectator_real_force[player.index] = player.force.name
+        -- Team-only chat keeps working while spectating (relayed to the real
+        -- team by events/chat.lua), but the engine also delivers the native
+        -- copy to the spectator force — disclose that once per spectate.
+        if chat_channel.is_local(player.force.name) then
+            player.print("[color=0.45,0.8,1]You're spectating: team chat still"
+                .. " reaches your team, but other spectators can see it too."
+                .. "[/color]")
+        end
     end
     player.force = game.forces["spectator"]
     game.permissions.get_group("spectator").add_player(player)
