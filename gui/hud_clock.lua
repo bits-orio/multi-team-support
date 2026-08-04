@@ -29,7 +29,7 @@ local M = {}
 local FLOW_NAME = "mts_hud_clock"
 
 local NOT_STARTED_COLOR = {0.6, 0.6, 0.6}
-local CLOCK_COLOR       = {0.9, 0.9, 0.9}
+local CLOCK_COLOR       = {1, 1, 1}  -- pure white: the translucent panel eats contrast
 
 --- Caption + tooltip + colour for a team's clock label. Shared with the
 --- Teams GUI per-card clocks (gui/team_card.lua) so both read identically.
@@ -74,28 +74,30 @@ function M.update_player(player)
         return
     end
 
-    -- Defensive rebuild across layout versions: saves from before the framed
-    -- one-line chip carry the old vertical label stack under this name.
-    if root and not root.mts_hud_row then root.destroy(); root = nil end
+    -- Defensive rebuild across layout versions: the style-name check retires
+    -- both the pre-chip label stack and the earlier opaque padded chip.
+    if root and (not root.mts_hud_row or root.style.name ~= "mts_hud_chip_frame") then
+        root.destroy(); root = nil
+    end
 
     if not root then
-        root = top.add{type = "frame", name = FLOW_NAME, direction = "vertical"}
-        root.style.left_margin    = 8
-        root.style.top_margin     = 13  -- centers the chip on the 56px nav-button row
-        root.style.top_padding    = 3
-        root.style.bottom_padding = 4
-        root.style.left_padding   = 9
-        root.style.right_padding  = 9
+        root = top.add{type = "frame", name = FLOW_NAME,
+            style = "mts_hud_chip_frame", direction = "vertical"}
+        root.style.left_margin = 8
+        root.style.top_margin  = 15  -- centers the chip on the 56px nav-button row
         local row = root.add{type = "flow", name = "mts_hud_row", direction = "horizontal"}
         row.style.vertical_align     = "center"
-        row.style.horizontal_spacing = 8
+        row.style.horizontal_spacing = 6
         local name_lbl = row.add{type = "label", name = "mts_hud_team_name"}
-        name_lbl.style.font = "default-bold"
-        row.add{type = "line", direction = "vertical"}
+        name_lbl.style.font = "mts-hud-bold"
         local time_lbl = row.add{type = "label", name = "mts_hud_team_time"}
-        -- Digits tick every second; a fixed width keeps the frame from
-        -- breathing (no monospace UI font exists to do it per-glyph).
-        time_lbl.style.minimal_width = 96
+        time_lbl.style.font = "mts-hud-bold"
+    end
+
+    -- Font upgrade for chips built before the halo font existed (live saves).
+    if root.mts_hud_row.mts_hud_team_name.style.font ~= "mts-hud-bold" then
+        root.mts_hud_row.mts_hud_team_name.style.font = "mts-hud-bold"
+        root.mts_hud_row.mts_hud_team_time.style.font = "mts-hud-bold"
     end
 
     local row      = root.mts_hud_row

@@ -1,5 +1,6 @@
 -- Multi-Team Support - prototypes/styles.lua
--- GUI styles for the center-top chat mode switch (gui/chat_switch.lua).
+-- GUI styles for the center-top chat mode switch (gui/chat_switch.lua) and
+-- the translucent top-bar team chip (gui/hud_clock.lua).
 --
 -- Three segment-button styles: an active GLOBAL fill (green — the encouraged
 -- default), an active TEAM fill (blue), and a shared dark inactive state that
@@ -12,6 +13,21 @@
 -- runtime handler.
 
 local styles = data.raw["gui-style"].default
+
+-- HUD chip font: default-bold with a semi-transparent black border. Factorio
+-- has no blurred text shadows; a soft-alpha border renders as a faint dark
+-- halo — the closest available thing — keeping force-colored text readable
+-- over bright terrain and busy bases behind the translucent panel.
+data:extend({
+    {
+        type         = "font",
+        name         = "mts-hud-bold",
+        from         = "default-bold",
+        size         = 14,
+        border       = true,
+        border_color = {r = 0, g = 0, b = 0, a = 0.6},
+    },
+})
 
 -- Base positions of the vanilla button 9-slice on gui.png (core style.lua):
 -- default {0,17}, hovered {34,17}, clicked {51,17}.
@@ -39,6 +55,33 @@ active_segment("mts_chat_seg_global_active",
     {r = 0.40, g = 0.85, b = 0.40}, {r = 0.05, g = 0.14, b = 0.05})
 active_segment("mts_chat_seg_team_active",
     {r = 0.45, g = 0.72, b = 1.00}, {r = 0.03, g = 0.10, b = 0.16})
+
+-- Shared translucent panel background: the vanilla frame base at partial
+-- alpha, no drop shadow. Factorio tints are PREMULTIPLIED-alpha: rgb must be
+-- scaled by a, or the panel renders washed-out/milky instead of dark glass.
+local TRANSLUCENT_PANEL = {
+    base = { position = {0, 0}, corner_size = 8,
+             tint = {r = 0.45, g = 0.45, b = 0.45, a = 0.45} },
+}
+
+-- Minimal translucent panel for the top-bar team chip (gui/hud_clock.lua).
+styles["mts_hud_chip_frame"] = {
+    type   = "frame_style",
+    parent = "frame",
+    top_padding    = 1,
+    bottom_padding = 2,
+    left_padding   = 6,
+    right_padding  = 6,
+    graphical_set  = TRANSLUCENT_PANEL,
+}
+
+-- Same translucent panel for the center-top chat switch container.
+styles["mts_chat_switch_frame"] = {
+    type   = "frame_style",
+    parent = "frame",
+    padding       = 2,
+    graphical_set = TRANSLUCENT_PANEL,
+}
 
 styles["mts_chat_seg_inactive"] = {
     type   = "button_style",

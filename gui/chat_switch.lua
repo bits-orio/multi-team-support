@@ -42,9 +42,14 @@ function M.update_player(player, force_name)
         return
     end
 
+    -- Retire frames built before the translucent container style existed.
+    if frame and frame.style.name ~= "mts_chat_switch_frame" then
+        frame.destroy(); frame = nil
+    end
+
     if not frame then
-        frame = screen.add{type = "frame", name = FRAME_NAME, direction = "horizontal"}
-        frame.style.padding = 2
+        frame = screen.add{type = "frame", name = FRAME_NAME,
+            style = "mts_chat_switch_frame", direction = "horizontal"}
         local row = frame.add{type = "flow", name = "mts_chat_row", direction = "horizontal"}
         row.style.horizontal_spacing = 2
         row.add{type = "button", name = M.SEG_GLOBAL, caption = "GLOBAL"}
