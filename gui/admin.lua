@@ -144,11 +144,17 @@ function admin_gui.build_admin_gui(player)
                         tags    = {sb_team_modifier = def.key, sb_target_force = force_name},
                         tooltip = def.label .. " for this team. " .. def.tooltip,
                     }
+                    -- Standardized team display: colored tag + leader in dim
+                    -- brackets (rich text renders in label captions), plus
+                    -- the permanent non-competitive badge once marked.
+                    local badge = team_modifiers.marked_badge(force_name)
                     local name_lbl = row.add{type = "label",
-                        caption = helpers.display_name(force_name)}
-                    local force = game.forces[force_name]
-                    if force then
-                        name_lbl.style.font_color = helpers.force_color(force)
+                        caption = helpers.team_tag_with_leader(force_name)
+                            .. (badge and (" " .. badge) or "")}
+                    if badge then
+                        name_lbl.tooltip = "This team has played with modifiers"
+                            .. " and is marked non-competitive. The mark clears"
+                            .. " only when the team disbands."
                     end
                 end
             end

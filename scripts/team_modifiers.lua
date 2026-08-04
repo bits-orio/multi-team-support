@@ -13,8 +13,16 @@
 -- is why they can differ per team at all. v1 ships peaceful biters only; the
 -- storage shape and MODIFIERS list are built for more keys later.
 --
+-- A team that EVER had a modifier enabled is permanently marked
+-- non-competitive (storage.team_noncompetitive) — removing the modifier
+-- doesn't clear the mark; only disbanding the team does. Leaving
+-- non-competitive mode is blocked while any marked team exists, so a
+-- bad-faith admin can't briefly handicap a team and flip the server back
+-- to competitive as if nothing happened.
+--
 -- Storage shape:
---   storage.team_modifiers[force_name] = { peaceful = true }   -- absent keys = standard
+--   storage.team_modifiers[force_name]      = { peaceful = true }  -- absent keys = standard
+--   storage.team_noncompetitive[force_name] = true                 -- cleared only on release
 --
 -- Cycle-safety: requires only leaf modules (helpers, admin_flags,
 -- surface_utils), so GUI modules, records, and milestones can all require it.
@@ -55,6 +63,11 @@ end
 function M.any(force_name)
     local e = entry(force_name)
     return e ~= nil and next(e) ~= nil
+end
+
+--- True once a team has ever had a modifier enabled. Cleared only on release.
+function M.is_marked(force_name)
+    return (storage.team_noncompetitive or {})[force_name] == true
 end
 
 -- ─── Surface application ───────────────────────────────────────────────
@@ -100,20 +113,58 @@ function M.set(force_name, key, enabled, admin_player)
     e[key] = (enabled == true) or nil
     storage.team_modifiers[force_name] = next(e) and e or nil
 
+    -- Enabling any modifier permanently marks the team non-competitive
+    -- (removing the modifier later does NOT clear the mark; disband does).
+    local newly_marked = enabled and not M.is_marked(force_name)
+    if enabled then
+        storage.team_noncompetitive = storage.team_noncompetitive or {}
+        storage.team_noncompetitive[force_name] = true
+    end
+
     apply_team(force_name)
 
     local who = admin_player
         and helpers.colored_name(admin_player.name, admin_player.chat_color)
         or "Admin"
-    helpers.broadcast("[Admin] " .. who
+    local msg = "[Admin] " .. who
         .. (enabled and " enabled " or " disabled ") .. def.label
-        .. " for " .. helpers.team_tag(force_name)
-        .. " (non-competitive mode). " .. guidance())
+        .. " for " .. helpers.team_tag_with_leader(force_name)
+        .. " (non-competitive mode)."
+    if newly_marked then
+        msg = msg .. " This team is now marked non-competitive until it disbands."
+    end
+    helpers.broadcast(msg .. " " .. guidance())
     return true
 end
 
+--- Blocks disabling non-competitive mode while any MARKED team exists:
+--- returns a reason string naming those teams, or nil when disabling is
+--- fine (the mode was enabled by accident and no team ever got a
+--- modifier). Marked teams block even with their modifiers since removed —
+--- the only way back to competitive is disbanding them.
+function M.disable_blocked_reason()
+    local marked = storage.team_noncompetitive
+    if not (marked and next(marked)) then return nil end
+    local names = {}
+    for force_name in pairs(marked) do
+        names[#names + 1] = force_name
+    end
+    table.sort(names)
+    local parts = {}
+    for _, force_name in ipairs(names) do
+        parts[#parts + 1] = helpers.team_tag_with_leader(force_name)
+    end
+    local plural = #parts > 1
+    return "Cannot return to competitive mode: " .. table.concat(parts, ", ")
+        .. (plural and " have" or " has")
+        .. " played with team modifiers and " .. (plural and "are" or "is")
+        .. " marked non-competitive. The mark clears only when the team disbands."
+end
+
 --- Remove every team's modifiers and restore standard settings. Called when
---- the admin turns non-competitive mode off.
+--- the admin turns non-competitive mode off — normally a no-op, since the
+--- disable is blocked while any modifier is active (disable_blocked_reason);
+--- kept as a belt-and-braces cleanup should the two ever disagree.
 function M.revert_all()
     if not storage.team_modifiers or not next(storage.team_modifiers) then
         storage.team_modifiers = nil
@@ -124,6 +175,7 @@ function M.revert_all()
         names[#names + 1] = force_name
     end
     storage.team_modifiers = nil
+    storage.team_noncompetitive = nil
     for _, force_name in ipairs(names) do
         apply_team(force_name)   -- entry gone -> reverts to standard
     end
@@ -131,9 +183,13 @@ function M.revert_all()
         "All team modifiers removed — every team is back on standard settings.")
 end
 
---- Drop a released slot's modifiers and reset its surfaces, so a future team
---- reusing the slot never inherits an old handicap.
+--- Drop a released slot's modifiers, non-competitive mark, and surface
+--- state, so a future team reusing the slot never inherits an old handicap.
+--- Disbanding is the ONE path that clears the mark.
 function M.on_release(force_name)
+    if storage.team_noncompetitive then
+        storage.team_noncompetitive[force_name] = nil
+    end
     if not entry(force_name) then return end
     storage.team_modifiers[force_name] = nil
     apply_team(force_name)
@@ -187,6 +243,13 @@ function M.card_line(force_name)
     end
     return table.concat(caps, "   "),
         table.concat(tips, "\n") .. "\n(non-competitive team modifier)"
+end
+
+--- Orange badge shown next to a marked team's name (admin GUI,
+--- /mts-modifiers), or nil for unmarked teams.
+function M.marked_badge(force_name)
+    if not M.is_marked(force_name) then return nil end
+    return "[color=1,0.65,0][non-competitive][/color]"
 end
 
 --- Prefix for record/milestone broadcasts: tagged while the mode is on, so

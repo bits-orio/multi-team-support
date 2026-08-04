@@ -65,7 +65,7 @@ M.FLAGS = {
     {
         key     = "non_competitive_enabled",
         label   = "Non-competitive Mode",
-        tooltip = "When enabled, admins can give individual teams easier settings via per-team modifiers (e.g. peaceful biters), so team times are no longer comparable and record announcements are tagged. Every modifier change is announced to all players. Disabling reverts every team to standard settings. Intended for private servers with mixed-skill groups.",
+        tooltip = "When enabled, admins can give individual teams easier settings via per-team modifiers (e.g. peaceful biters), so team times are no longer comparable and record announcements are tagged. Every modifier change is announced to all players. A team that ever receives a modifier is permanently marked non-competitive; returning to competitive mode requires disbanding all marked teams. Intended for private servers with mixed-skill groups.",
     },
 }
 

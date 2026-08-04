@@ -185,9 +185,11 @@ function M.register()
                 for i = 1, force_utils.max_teams() do
                     local force_name = "team-" .. i
                     if (storage.team_pool or {})[i] == "occupied" then
-                        local desc = team_modifiers.describe(force_name)
-                        lines[#lines + 1] = string.format("  %s — %s",
-                            helpers.team_tag(force_name),
+                        local desc  = team_modifiers.describe(force_name)
+                        local badge = team_modifiers.marked_badge(force_name)
+                        lines[#lines + 1] = string.format("  %s%s — %s",
+                            helpers.team_tag_with_leader(force_name),
+                            badge and (" " .. badge) or "",
                             desc and ("[color=1,0.65,0]" .. desc .. "[/color]")
                                  or "standard")
                     end

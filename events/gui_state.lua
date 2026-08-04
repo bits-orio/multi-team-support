@@ -110,12 +110,40 @@ function M.register()
                 if changed then
                     teams_gui.update_all()   -- card modifier lines
                     hud_clock.update_all()   -- "non-competitive · <modifier>" tags
+                    -- Rebuild every open admin panel so the [non-competitive]
+                    -- badge next to the team name appears immediately (for
+                    -- the clicking admin and any other admin watching).
+                    for _, p in pairs(game.players) do
+                        if p.connected and p.admin and p.gui.screen.sb_admin_frame then
+                            admin_gui.build_admin_gui(p)
+                        end
+                    end
                 else
                     -- Rejected (e.g. mode raced off) — snap the checkbox back.
                     admin_gui.build_admin_gui(admin_player)
                 end
             end
             return
+        end
+
+        -- Veto leaving non-competitive mode while any team is MARKED
+        -- non-competitive (it ever had a modifier — removing it doesn't
+        -- clear the mark; only disbanding the team does). An accidental
+        -- enable that never marked a team toggles off freely. Checked
+        -- BEFORE the generic flag handler so neither the flag flip nor its
+        -- "[Admin] ... disabled ..." broadcast happens.
+        if el and el.valid and el.tags
+           and el.tags.sb_admin_flag == "non_competitive_enabled"
+           and not el.state then
+            local reason = team_modifiers.disable_blocked_reason()
+            if reason then
+                local admin_player = game.get_player(event.player_index)
+                if admin_player then
+                    admin_player.print(reason)
+                    admin_gui.build_admin_gui(admin_player)  -- snap checkbox back on
+                end
+                return
+            end
         end
 
         local changed_flag = admin_gui.on_gui_checked_state_changed(event)
@@ -161,8 +189,11 @@ function M.register()
                 if admin_gui.flag("non_competitive_enabled") then
                     helpers.broadcast("[color=1,0.65,0]Per-team modifiers are now"
                         .. " allowed — team times are no longer directly comparable."
-                        .. " See the Teams panel or /mts-modifiers for every team's"
-                        .. " settings.[/color]")
+                        .. " Once a team receives a modifier it is marked"
+                        .. " non-competitive, and this mode cannot be turned off"
+                        .. " as long as any such team exists (only disbanding"
+                        .. " clears the mark). See the Teams panel or"
+                        .. " /mts-modifiers for every team's settings.[/color]")
                 else
                     team_modifiers.revert_all()
                 end
