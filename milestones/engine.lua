@@ -13,6 +13,7 @@ local helpers     = require("scripts.helpers")
 local force_utils = require("scripts.force_utils")
 local config      = require("milestones.config")
 local pop_text    = require("scripts.pop_text")
+local team_modifiers = require("scripts.team_modifiers")
 local remote_api  = require("scripts.remote_api")
 
 --- Strip Factorio rich-text tags (e.g. "[item=foo]" -> "foo") so milestone text
@@ -78,19 +79,21 @@ local function build_achievement_desc(tracker, item_name, threshold)
     return string.format("produce %d %s", threshold, helpers.item_rich_name(item_name))
 end
 
---- Announce a "first to X" milestone.
+--- Announce a "first to X" milestone. The prefix carries a non-competitive
+--- tag while that mode is on — records earned under uneven per-team settings
+--- stay visible but wear an asterisk.
 local function announce_first(team_tag, achievement)
     helpers.broadcast(string.format(
-        "[Records] %s was the first to %s!",
-        team_tag, achievement
+        "%s %s was the first to %s!",
+        team_modifiers.records_tag(), team_tag, achievement
     ))
 end
 
 --- Announce a new speed record for an existing milestone.
 local function announce_speed_record(team_tag, achievement, new_elapsed, prev_team_tag, prev_elapsed)
     helpers.broadcast(string.format(
-        "[Records] %s is fastest to %s in %s (previous record: %s in %s)",
-        team_tag, achievement,
+        "%s %s is fastest to %s in %s (previous record: %s in %s)",
+        team_modifiers.records_tag(), team_tag, achievement,
         helpers.format_elapsed(new_elapsed),
         prev_team_tag,
         helpers.format_elapsed(prev_elapsed)

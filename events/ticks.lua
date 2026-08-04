@@ -35,6 +35,7 @@ local lfm_hint       = require("gui.lfm_hint")
 local spectator      = require("scripts.spectator")
 local color_fix      = require("scripts.color_fix")
 local hud_clock      = require("gui.hud_clock")
+local team_modifiers = require("scripts.team_modifiers")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -98,6 +99,8 @@ function M.register()
         surface_utils.on_surface_created(surface)
         local owner = surface_utils.get_owner(surface)
         if owner then
+            -- Owner team's modifiers (e.g. peaceful) carry over to new surfaces.
+            team_modifiers.apply_to_surface(surface, owner)
             spawn_labels.draw(owner, surface)
             -- Skip the inline raise for a surface create_team_surface is still
             -- building; it re-raises after planet association + chunk pre-gen so

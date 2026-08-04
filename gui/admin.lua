@@ -4,6 +4,7 @@
 local helpers        = require("scripts.helpers")
 local nav            = require("gui.nav")
 local admin_flags    = require("scripts.admin_flags")
+local team_modifiers = require("scripts.team_modifiers")
 local pen_info_panel = require("gui.pen_info_panel")
 
 local admin_gui = {}
@@ -103,6 +104,59 @@ function admin_gui.build_admin_gui(player)
             selected_index = current_limit - BUDDY_TEAM_LIMIT_MIN + 1,
             tooltip        = "Maximum number of players allowed in a team via buddy join.",
         }
+    end
+
+    -- ── Team modifiers (visible only in non-competitive mode) ────────────
+    if flags.non_competitive_enabled then
+        flags_content.add{type = "line"}.style.top_margin = 4
+        local mod_hdr = flags_content.add{
+            type    = "label",
+            caption = "Team Modifiers (non-competitive)",
+        }
+        mod_hdr.style.font       = "default-bold"
+        mod_hdr.style.font_color = team_modifiers.MODE_COLOR
+        flags_content.add{type = "label",
+            caption = "Per-team settings. Every change is announced to all players.",
+        }.style.font_color = {0.6, 0.6, 0.6}
+
+        for _, def in ipairs(team_modifiers.MODIFIERS) do
+            local def_lbl = flags_content.add{
+                type    = "label",
+                caption = def.label,
+                tooltip = def.tooltip,
+            }
+            def_lbl.style.font       = "default-bold"
+            def_lbl.style.top_margin = 2
+
+            local any_team = false
+            -- force_utils.max_teams() is off-limits here (require cycle via
+            -- spectator -> gui.admin), so read the startup setting directly.
+            for i = 1, settings.startup["mts_max_teams"].value do
+                if (storage.team_pool or {})[i] == "occupied" then
+                    any_team = true
+                    local force_name = "team-" .. i
+                    local row = flags_content.add{type = "flow", direction = "horizontal"}
+                    row.style.vertical_align     = "center"
+                    row.style.horizontal_spacing = 8
+                    row.add{
+                        type    = "checkbox",
+                        state   = team_modifiers.has(force_name, def.key),
+                        tags    = {sb_team_modifier = def.key, sb_target_force = force_name},
+                        tooltip = def.label .. " for this team. " .. def.tooltip,
+                    }
+                    local name_lbl = row.add{type = "label",
+                        caption = helpers.display_name(force_name)}
+                    local force = game.forces[force_name]
+                    if force then
+                        name_lbl.style.font_color = helpers.force_color(force)
+                    end
+                end
+            end
+            if not any_team then
+                flags_content.add{type = "label", caption = "  (no teams yet)"}
+                    .style.font_color = {0.6, 0.6, 0.6}
+            end
+        end
     end
 
     -- ── Starter Items tab ────────────────────────────────────────────────

@@ -13,6 +13,7 @@ local remote_api        = require("scripts.remote_api")
 local team_clock        = require("scripts.team_clock")
 local start_playing_gui = require("gui.start_playing_gui")
 local color_fix         = require("scripts.color_fix")
+local team_modifiers    = require("scripts.team_modifiers")
 
 local M = {}
 
@@ -132,6 +133,10 @@ function M.register()
                     end
                 end
             end
+
+            -- Latecomers shouldn't have to discover non-competitive mode from
+            -- a card icon — tell them directly (their chat only).
+            team_modifiers.print_mode_notice(player)
 
             -- Team-aware connect announcement to the Open Discord Bridge (replaces the
             -- bridge's team-less baseline player_joined, which we disable on init).

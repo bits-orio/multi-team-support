@@ -10,6 +10,7 @@ local follow_cam    = require("gui.follow_cam")
 local friendship    = require("gui.friendship")
 local teams_data    = require("gui.teams_data")
 local team_card     = require("gui.team_card")
+local team_modifiers = require("scripts.team_modifiers")
 
 local teams_gui = {}
 
@@ -23,7 +24,8 @@ function teams_gui.build_gui(player)
     local frame = helpers.reuse_or_create_frame(
         player, "sb_platforms_frame", storage.gui_location, {x = 5, y = 400})
 
-    local title_bar = helpers.add_title_bar(frame, "Teams")
+    local title = team_modifiers.is_active() and "Teams — non-competitive" or "Teams"
+    local title_bar = helpers.add_title_bar(frame, title)
     title_bar.style.horizontal_spacing = 8
     title_bar.add{
         type    = "sprite-button",

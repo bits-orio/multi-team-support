@@ -8,6 +8,7 @@ local landing_pen  = require("gui.landing_pen")
 local spectator    = require("scripts.spectator")
 local confirm      = require("gui.confirm")
 local team_rename  = require("scripts.team_rename")
+local team_modifiers = require("scripts.team_modifiers")
 
 local M = {}
 
@@ -163,6 +164,32 @@ function M.register()
                             "  [color=0.55,0.55,0.55][%s][/color] %s — leader: %s, %d player%s",
                             force_name, helpers.team_tag(force_name), leader_str,
                             count, count == 1 and "" or "s")
+                    end
+                end
+            end
+            local msg = table.concat(lines, "\n")
+            if caller then caller.print(msg) else game.print(msg) end
+        end)
+
+    commands.add_command("mts-modifiers",
+        "Show each team's gameplay modifiers (non-competitive mode)",
+        function(cmd)
+            local caller = cmd.player_index and game.get_player(cmd.player_index)
+            local lines
+            if not team_modifiers.is_active() then
+                lines = {"[Modifiers] This server is in standard competitive mode"
+                    .. " — every team plays under identical settings."}
+            else
+                lines = {"[Modifiers] [color=1,0.65,0]NON-COMPETITIVE mode[/color]"
+                    .. " — teams may play under different settings:"}
+                for i = 1, force_utils.max_teams() do
+                    local force_name = "team-" .. i
+                    if (storage.team_pool or {})[i] == "occupied" then
+                        local desc = team_modifiers.describe(force_name)
+                        lines[#lines + 1] = string.format("  %s — %s",
+                            helpers.team_tag(force_name),
+                            desc and ("[color=1,0.65,0]" .. desc .. "[/color]")
+                                 or "standard")
                     end
                 end
             end

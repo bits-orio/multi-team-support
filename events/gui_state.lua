@@ -17,6 +17,8 @@ local friendship    = require("gui.friendship")
 local force_utils   = require("scripts.force_utils")
 local blueprint_lock = require("scripts.blueprint_lock")
 local follow_cam    = require("gui.follow_cam")
+local team_modifiers = require("scripts.team_modifiers")
+local hud_clock     = require("gui.hud_clock")
 
 local M = {}
 
@@ -98,6 +100,24 @@ function M.register()
             return
         end
 
+        -- Per-team modifier checkboxes (admin GUI, non-competitive mode).
+        if el and el.valid and el.tags and el.tags.sb_team_modifier then
+            local admin_player = game.get_player(event.player_index)
+            if admin_player and admin_player.admin then
+                local changed = team_modifiers.set(
+                    el.tags.sb_target_force, el.tags.sb_team_modifier,
+                    el.state, admin_player)
+                if changed then
+                    teams_gui.update_all()   -- card modifier lines
+                    hud_clock.update_all()   -- "non-competitive · <modifier>" tags
+                else
+                    -- Rejected (e.g. mode raced off) — snap the checkbox back.
+                    admin_gui.build_admin_gui(admin_player)
+                end
+            end
+            return
+        end
+
         local changed_flag = admin_gui.on_gui_checked_state_changed(event)
         if changed_flag then
             local admin_player = game.get_player(event.player_index)
@@ -136,6 +156,25 @@ function M.register()
             end
             if changed_flag == "allow_blueprint_imports" then
                 blueprint_lock.apply()
+            end
+            if changed_flag == "non_competitive_enabled" then
+                if admin_gui.flag("non_competitive_enabled") then
+                    helpers.broadcast("[color=1,0.65,0]Per-team modifiers are now"
+                        .. " allowed — team times are no longer directly comparable."
+                        .. " See the Teams panel or /mts-modifiers for every team's"
+                        .. " settings.[/color]")
+                else
+                    team_modifiers.revert_all()
+                end
+                -- Mode is surfaced in the HUD tag, Teams GUI title, and the
+                -- admin panel's modifier section — refresh all three.
+                hud_clock.update_all()
+                teams_gui.update_all()
+                for _, p in pairs(game.players) do
+                    if p.connected and p.admin and p.gui.screen.sb_admin_frame then
+                        admin_gui.build_admin_gui(p)
+                    end
+                end
             end
             return
         end

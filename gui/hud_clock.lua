@@ -14,9 +14,10 @@
 -- A member peeking at another team via spectator mode keeps their OWN team's
 -- clock: display follows the effective force, not player.force.
 
-local helpers    = require("scripts.helpers")
-local spectator  = require("scripts.spectator")
-local team_clock = require("scripts.team_clock")
+local helpers        = require("scripts.helpers")
+local spectator      = require("scripts.spectator")
+local team_clock     = require("scripts.team_clock")
+local team_modifiers = require("scripts.team_modifiers")
 
 local M = {}
 
@@ -84,6 +85,22 @@ function M.update_player(player)
     time_lbl.caption          = caption
     time_lbl.style.font_color = color
     time_lbl.tooltip          = tooltip
+
+    -- Non-competitive mode tag, with this team's own modifiers appended
+    -- ("non-competitive · peaceful") so an asymmetry is visible at a glance.
+    local tag, tag_tip = team_modifiers.hud_tag(force_name)
+    local tag_lbl = flow.mts_hud_mode_tag
+    if tag then
+        if not tag_lbl then
+            tag_lbl = flow.add{type = "label", name = "mts_hud_mode_tag"}
+            tag_lbl.style.font       = "default-small"
+            tag_lbl.style.font_color = team_modifiers.MODE_COLOR
+        end
+        tag_lbl.caption = tag
+        tag_lbl.tooltip = tag_tip
+    elseif tag_lbl then
+        tag_lbl.destroy()
+    end
 end
 
 --- One-second refresh for every connected player (60-tick handler).

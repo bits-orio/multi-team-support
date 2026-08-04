@@ -3,6 +3,7 @@
 
 local helpers       = require("scripts.helpers")
 local hud_clock     = require("gui.hud_clock")
+local team_modifiers = require("scripts.team_modifiers")
 local friendship    = require("gui.friendship")
 local admin_gui     = require("gui.admin")
 local landing_pen   = require("gui.landing_pen")
@@ -73,6 +74,18 @@ local function add_card_clock(card, force_name)
     lbl.caption          = caption
     lbl.tooltip          = tooltip
     lbl.style.font_color = color
+end
+
+-- Active team-modifier line (non-competitive mode). Static content; cards
+-- are rebuilt via teams_gui.update_all() whenever a modifier changes.
+local function add_card_modifiers(card, force_name)
+    local caption, tooltip = team_modifiers.card_line(force_name)
+    if not caption then return end
+    local lbl = card.add{type = "label", name = "sb_card_modifiers"}
+    lbl.style.font       = "default-small"
+    lbl.style.font_color = team_modifiers.MODE_COLOR
+    lbl.caption          = caption
+    lbl.tooltip          = tooltip
 end
 
 local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_force_name, target_force, target_force_name, is_own_team)
@@ -234,6 +247,7 @@ function M.build_team_card(parent, force, viewer_player, viewer_force_name, curr
 
     add_card_header(card, force, members, viewer_player, is_own)
     add_card_clock(card, force.name)
+    add_card_modifiers(card, force.name)
     card.add{type = "line"}.style.top_margin = 2
     add_members_section(card, force, members, viewer_player, viewer_force_name, force.name, is_own)
     add_surfaces_section(card, force, surfaces, is_own, force.name == current_target, viewer_player)
