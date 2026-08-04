@@ -14,6 +14,7 @@ local team_clock        = require("scripts.team_clock")
 local pre_start         = require("scripts.pre_start")
 local start_playing_gui = require("gui.start_playing_gui")
 local buddy_store       = require("scripts.buddy_store")
+local surface_utils     = require("scripts.surface_utils")
 
 local M = {}
 
@@ -220,13 +221,32 @@ function M.accept_buddy_request(member, requester_index)
     pen_ops.finish_spawn(requester)
     storage.pending_spawn_pop = storage.pending_spawn_pop or {}
     storage.pending_spawn_pop[requester.index] = force_name
-    -- Spawn next to the accepting member's CHARACTER (physical_*), not their
-    -- current view — a member may accept while remote-viewing another surface,
-    -- and we must not drop the requester onto that surface.
-    local surf      = member.physical_surface or member.surface
-    local pos       = member.physical_position or member.position
-    local spawn_pos = surf.find_non_colliding_position("character", pos, 10, 1) or pos
-    requester.teleport(spawn_pos, surf)
+    -- Spawn at the team's HOME-surface spawn point — where the leader
+    -- originally spawned (force.get_spawn_position, the same expression the
+    -- deferred spawn teleport uses) — never at the accepting member's current
+    -- location: any online member can accept, and they may be on Vulcanus, a
+    -- space platform, or deep in an outpost at the time.
+    local home   = surface_utils.get_home_surface(force, requester.index)
+    local placed = false
+    if home and home.valid then
+        local origin    = force.get_spawn_position(home)
+        -- Wide search: the spawn area is the oldest, most built-up part of a
+        -- base (and vanilla MTS places a water hole near the origin).
+        local spawn_pos = home.find_non_colliding_position("character", origin, 32, 1)
+        if spawn_pos then
+            requester.teleport(spawn_pos, home)
+            placed = true
+        end
+    end
+    if not placed then
+        -- No home surface / no free tile around the origin (shouldn't happen
+        -- for an occupied team): fall back to the accepting member's
+        -- CHARACTER (physical_*, never their remote view).
+        local surf = member.physical_surface or member.surface
+        local pos  = member.physical_position or member.position
+        requester.teleport(
+            surf.find_non_colliding_position("character", pos, 10, 1) or pos, surf)
+    end
     ultracube_compat.after_spawn(requester)
 
     storage.player_clock_start = storage.player_clock_start or {}
