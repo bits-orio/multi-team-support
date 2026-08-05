@@ -857,6 +857,15 @@ function remote_api.register()
         get_team_info      = get_team_info_impl,
         is_team_surface    = is_team_surface_impl,
         get_surface_owner  = get_surface_owner_impl,
+
+        -- The planet a surface represents: the engine planet when set, else
+        -- the base planet a team variant derives from, else nil. Lets
+        -- consumers group per-team surface copies of one planet without
+        -- parsing MTS's surface names themselves.
+        get_surface_planet = function(surface_name)
+            if type(surface_name) ~= "string" then return nil end
+            return surface_utils.represented_planet(game.surfaces[surface_name])
+        end,
         list_team_surfaces = list_team_surfaces_impl,
         get_starter_items  = get_starter_items_impl,
 

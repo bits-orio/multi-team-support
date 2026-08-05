@@ -32,6 +32,16 @@ local function seed_for_base(base)
     return nauvis and nauvis.map_gen_settings.seed or 0
 end
 
+--- The planet a surface REPRESENTS: its engine planet when set, else the
+--- base planet its team-variant name derives from ("mts-<planet>-<N>" /
+--- "team-<N>-<planet>"), else nil. Generic surface-identity query for
+--- consumers (exposed on mts-v1 as get_surface_planet).
+function surface_utils.represented_planet(surface)
+    if not surface or not surface.valid then return nil end
+    if surface.planet then return surface.planet.name end
+    return variant_base_planet(surface.name)
+end
+
 --- Given a surface, return the force name that owns it, or nil.
 function surface_utils.get_owner(surface)
     if not surface or not surface.valid then return nil end
