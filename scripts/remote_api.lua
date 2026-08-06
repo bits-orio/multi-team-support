@@ -32,6 +32,7 @@ local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
 local team_clock    = require("scripts.team_clock")
 local spawn_labels  = require("scripts.spawn_labels")
+local pop_text      = require("scripts.pop_text")
 -- pause/control has no require cycle (it pulls only pause/power|wires|state),
 -- so it is required directly here.
 local pause_control = require("scripts.pause.control")
@@ -865,6 +866,39 @@ function remote_api.register()
         get_surface_planet = function(surface_name)
             if type(surface_name) ~= "string" then return nil end
             return surface_utils.represented_planet(game.surfaces[surface_name])
+        end,
+
+        -- The team's coloured tag WITHOUT the leader suffix, for places a
+        -- consumer wants the name alone (chat lines, compact labels).
+        -- get_team_label is the same thing plus " [leader]".
+        get_team_tag = function(force_name)
+            if type(force_name) ~= "string" then return nil end
+            return helpers.team_tag(force_name)
+        end,
+
+        -- Animated pop-up text, MTS's own celebration presets, offered to
+        -- consumers so a companion mod's milestones look native rather
+        -- than reinventing the animation:
+        --   preset "milestone"        -> elastic pop above each member of
+        --                                `force_name` (a team achievement)
+        --   preset "global_milestone" -> rainbow pop above EVERY connected
+        --                                player (server-wide news)
+        -- Respects the host's popup_text_enabled admin flag. Returns true
+        -- when a popup was requested. Rich text is supported.
+        popup_text = function(args)
+            if type(args) ~= "table" or type(args.text) ~= "string" then return false end
+            local preset = args.preset or "milestone"
+            if preset == "global_milestone" then
+                pop_text.global_milestone(args.text)
+                return true
+            end
+            if preset == "milestone" then
+                local force = args.force_name and game.forces[args.force_name]
+                if not (force and force.valid) then return false end
+                pop_text.milestone(force, args.text)
+                return true
+            end
+            return false
         end,
         list_team_surfaces = list_team_surfaces_impl,
         get_starter_items  = get_starter_items_impl,
