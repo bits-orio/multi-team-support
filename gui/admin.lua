@@ -332,10 +332,16 @@ function admin_gui.on_gui_click(event)
             for _, item in pairs(storage.starter_items) do
                 local prev = old_counts[item.name] or 0
                 if item.count > prev then
-                    -- Carry the grid so already-spawned players get the armor
-                    -- loaded too (insert_starter_item strips it before the
-                    -- engine insert; the delivery-override raise strips it).
-                    diff[#diff + 1] = {name = item.name, count = item.count - prev, grid = item.grid}
+                    -- Carry the grid (and the quality it was captured at) so
+                    -- already-spawned players get the armor loaded too;
+                    -- insert_starter_item places it as its own stack, and the
+                    -- delivery-override raise strips both fields.
+                    diff[#diff + 1] = {
+                        name    = item.name,
+                        count   = item.count - prev,
+                        grid    = item.grid,
+                        quality = item.quality,
+                    }
                 end
             end
             if #diff > 0 then

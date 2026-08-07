@@ -130,47 +130,70 @@ end
 
 -- ─── Starter Item Helpers ──────────────────────────────────────────────
 
---- Fill the equipment grid of the armor `entry` was just inserted as. Finds
---- the first same-named stack with an empty grid (the fresh insert; a worn
---- armor the player already loaded keeps its equipment), then re-creates the
---- captured layout. Each put is pcall'd so one equipment name removed by a
---- mod change doesn't void the rest of the grid.
-local function restore_grid_equipment(player, entry)
-    for _, inv_type in pairs({
-        defines.inventory.character_armor,
-        defines.inventory.character_main,
-    }) do
-        local inv = player.get_inventory(inv_type)
-        if inv then
-            for i = 1, #inv do
-                local stack = inv[i]
-                if stack and stack.valid_for_read and stack.name == entry.name
-                   and stack.grid and #stack.grid.equipment == 0 then
-                    for _, eq in pairs(entry.grid) do
-                        pcall(function()
-                            local placed = stack.grid.put{
-                                name     = eq.name,
-                                position = eq.position,
-                                quality  = eq.quality,
-                            }
-                            if placed and eq.energy then placed.energy = eq.energy end
-                        end)
-                    end
-                    return
-                end
-            end
-        end
+--- Re-create a captured equipment layout inside one specific stack. Each put
+--- is pcall'd so one equipment name removed by a mod change doesn't void the
+--- rest of the grid.
+local function fill_grid(stack, grid)
+    if not stack.grid then return end
+    for _, eq in pairs(grid) do
+        pcall(function()
+            local placed = stack.grid.put{
+                name     = eq.name,
+                position = eq.position,
+                quality  = eq.quality,
+            }
+            if placed and eq.energy then placed.energy = eq.energy end
+        end)
     end
+end
+
+--- Create one grid-bearing item (in practice: armor) in a slot we pick, and
+--- return that exact stack.
+---
+--- Placement is by handle rather than a name search after the fact. The player
+--- can already be carrying a same-named armor -- worn, or granted by a starter
+--- mod such as FasterStart -- and a post-insert search lands on whichever stack
+--- it happens to reach first, loading the armor they already had and leaving
+--- the one we just granted empty.
+---
+--- The armor slot is tried first so the kit arrives worn; anything that will
+--- not go there (already occupied, or a grid item that is not armor) falls back
+--- to the first free main-inventory slot. Returns nil when there is no room.
+local function place_grid_item(player, name, quality)
+    local spec = {name = name, count = 1, quality = quality}
+    local armor_inv = player.get_inventory(defines.inventory.character_armor)
+    -- can_insert respects the slot filter, so a grid item that is not armor
+    -- (a spidertron, say) is rejected here rather than by set_stack.
+    if armor_inv and armor_inv.is_empty() and armor_inv.can_insert(spec)
+       and armor_inv[1].set_stack(spec) then
+        return armor_inv[1]
+    end
+    local main = player.get_inventory(defines.inventory.character_main)
+    local slot = main and main.find_empty_stack()
+    if slot and slot.set_stack(spec) then return slot end
+    return nil
 end
 
 --- Insert one starter-item entry into a player, restoring armor equipment
 --- when the entry carries a captured grid. The engine insert gets a clean
---- {name, count} table -- entry tables can carry extra fields (grid) that
---- ItemStackIdentification would reject.
+--- {name, count, quality} table -- entry tables can carry extra fields (grid)
+--- that ItemStackIdentification would reject.
 function M.insert_starter_item(player, item)
     pcall(function()
-        player.insert{name = item.name, count = item.count}
-        if item.grid then restore_grid_equipment(player, item) end
+        local count = item.count or 1
+        if item.grid then
+            -- Only one layout was captured, so only the first copy is loaded;
+            -- any further copies are inserted plain, as before.
+            local stack = place_grid_item(player, item.name, item.quality)
+            if stack then
+                fill_grid(stack, item.grid)
+                if count > 1 then
+                    player.insert{name = item.name, count = count - 1, quality = item.quality}
+                end
+                return
+            end
+        end
+        player.insert{name = item.name, count = count, quality = item.quality}
     end)
 end
 
@@ -216,7 +239,7 @@ end
 --- Serialize an armor stack's equipment grid into a storage-safe table, or
 --- nil when the stack has no grid / an empty one. Captures name, position,
 --- quality, and stored energy per equipment so a granted copy comes out
---- loaded the same way (e.g. faster-start's pre-filled power armor).
+--- loaded the same way (e.g. FasterStart's pre-filled modular armor).
 local function serialize_grid(stack)
     local grid = stack.grid
     if not grid then return nil end
@@ -233,9 +256,21 @@ local function serialize_grid(stack)
     return out
 end
 
+--- Record the equipment layout of `stack` on `entry`, along with the stack's own
+--- quality. Grid layouts are quality-specific -- a higher-quality armor has a
+--- bigger grid -- so a copy granted at normal quality would silently drop every
+--- equipment whose captured position falls outside it. Quality is carried only
+--- for grid-bearing entries; plain items keep the existing name-only merge.
+local function adopt_grid(entry, stack)
+    entry.grid = serialize_grid(stack)
+    if entry.grid then
+        entry.quality = stack.quality and stack.quality.name or nil
+    end
+end
+
 --- Collect all items from a player's character inventories. Entries are
---- {name, count} plus an optional `grid` (equipment layout) captured from
---- the first stack of that name that carries one.
+--- {name, count} plus an optional `grid` (equipment layout) and the `quality`
+--- it was captured at, taken from the first stack of that name that carries one.
 function M.collect_character_items(player)
     local items, seen = {}, {}
     if not player.character then return items end
@@ -250,17 +285,13 @@ function M.collect_character_items(player)
             for i = 1, #inv do
                 local stack = inv[i]
                 if stack and stack.valid_for_read then
-                    if seen[stack.name] then
-                        seen[stack.name].count = seen[stack.name].count + stack.count
-                        if not seen[stack.name].grid then
-                            seen[stack.name].grid = serialize_grid(stack)
-                        end
+                    local entry = seen[stack.name]
+                    if entry then
+                        entry.count = entry.count + stack.count
+                        if not entry.grid then adopt_grid(entry, stack) end
                     else
-                        local entry = {
-                            name  = stack.name,
-                            count = stack.count,
-                            grid  = serialize_grid(stack),
-                        }
+                        entry = {name = stack.name, count = stack.count}
+                        adopt_grid(entry, stack)
                         seen[stack.name] = entry
                         items[#items + 1] = entry
                     end

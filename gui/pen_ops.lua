@@ -33,8 +33,8 @@ function M.grant_starter_items(player)
     end
     player.character.clear_items_inside()
     for _, item in pairs(items) do
-        -- Clean-inserts {name, count} and restores any captured armor
-        -- equipment grid (e.g. faster-start's pre-filled power armor).
+        -- Clean-inserts {name, count, quality} and restores any captured armor
+        -- equipment grid (e.g. FasterStart's pre-filled modular armor).
         admin_gui.insert_starter_item(player, item)
     end
 end

@@ -1,4 +1,21 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.63
+Date: 2026-08-07
+  Features:
+    - mts-v1: new get_surface_planet remote call returns the planet a given surface represents,
+      so consumers can map any team surface back to its planet.
+    - mts-v1: new get_team_tag remote call, and the popup_text presets are now exposed to
+      consumers.
+  Bugfixes:
+    - Starter-kit armor sometimes arrived empty. The equipment grid was restored by searching the
+      player's inventory for a same-named armor with an empty grid, so it could load an armor the
+      player already had -- a worn one, or one handed out by a starter mod such as FasterStart --
+      and leave the freshly granted armor empty. MTS now places the armor into a slot it picks and
+      loads that exact stack, so the granted armor is always the one that gets the equipment.
+    - Starter-kit armor is granted at the quality it was captured at. A higher-quality armor has a
+      bigger equipment grid, so copying one as normal quality silently dropped every piece of
+      equipment whose position fell outside the smaller grid.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.62
 Date: 2026-08-04
   Features:
