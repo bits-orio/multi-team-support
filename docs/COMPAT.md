@@ -146,6 +146,21 @@ end)
 
 `surface.planet.name` identifies the planet itself, not the surface, so the rule fires on every surface that belongs to that planet — including scenario-created copies of nauvis. Skips space platforms automatically (their `planet` is nil). Note that a separate planet prototype derived from nauvis (e.g. a mod that adds a `nauvis-remix` planet) has its own name and won't match — if you want the rule to cover those too, list them explicitly or check against a set of planet names you maintain.
 
+> **Caveat — cloned team surfaces have no `.planet` at all.** The engine binds a planet prototype to exactly one surface, so a script-cloned copy of a planet (MTS's team surfaces on the non-Space-Age path, e.g. `team-1-nauvis`) is a plain surface whose `surface.planet` is **nil**. Any feature gated on `surface.planet` silently skips those surfaces — this cost one integrating mod several debugging rounds before the missing gate was found in its logs. When MTS may be present, resolve the planet a surface *represents* through the interface instead:
+>
+> ```lua
+> local function planet_name_of(surface)
+>     if surface.planet then return surface.planet.name end
+>     local mts = remote.interfaces["mts-v1"]
+>     if mts and mts["get_surface_planet"] then
+>         return remote.call("mts-v1", "get_surface_planet", surface.name)
+>     end
+>     return nil -- genuinely planet-less: platforms, lobbies, the landing pen
+> end
+> ```
+>
+> `get_surface_planet("team-1-nauvis")` returns `"nauvis"`; for surfaces that represent no planet (the landing pen, space platforms) it returns nil, which is usually exactly the skip you want.
+
 ### Example 2 — Per-surface tint storage
 
 **Pitfall:**
