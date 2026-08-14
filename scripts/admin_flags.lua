@@ -48,6 +48,11 @@ M.FLAGS = {
         tooltip = "When enabled, animated text popups appear on spawn, team join, milestones, and player death.",
     },
     {
+        key     = "individual_chat_enabled",
+        label   = "Individual Chat Mode",
+        tooltip = "When enabled, each player sets their own global/team chat mode instead of the whole team switching together. The [GLOBAL]/[TEAM] badge next to each name shows which mode that player is in. Flipping this never exposes a private conversation: switching to individual gives every member their team's current mode, and switching back makes a team team-only if any of its members was.",
+    },
+    {
         key     = "allow_blueprint_imports",
         label   = "Allow Blueprint Imports",
         tooltip = "When enabled, players can import external blueprints via chat strings, the blueprint library, and the import-string button. When disabled, those imports are blocked (in-game blueprint creation -- alt-shift-click, copy-paste of placed entities -- still works either way).",
@@ -75,6 +80,7 @@ local FLAG_DEFAULTS = {
     friendship_enabled              = true,
     spectate_notifications_enabled  = false,
     popup_text_enabled              = true,
+    individual_chat_enabled         = false,  -- team-synced chat is the default
     allow_blueprint_imports         = false,  -- imports blocked by default
     staged_start_enabled            = false,  -- opt-in; intended for speedrun servers
     color_fix_enabled               = true,   -- auto-keep player colours readable + distinct

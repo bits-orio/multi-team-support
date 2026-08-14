@@ -3,9 +3,10 @@
 -- License: GPL-3.0-or-later
 --
 -- Center-top two-segment chat mode switch: GLOBAL | TEAM. Both segments are
--- always visible; the lit one is the team's current channel and clicking the
--- dark one selects it (select, not cycle — clicking the active segment does
--- nothing). Pure view module: the click handlers live in gui/hud_clock.lua
+-- always visible; the lit one is the current channel — the team's, or the
+-- player's own when the individual_chat_enabled admin flag is on — and
+-- clicking the dark one selects it (select, not cycle — clicking the active
+-- segment does nothing). Pure view module: click handlers live in hud_clock
 -- (which requires this module; requiring it back would close a cycle), and
 -- update_player is called from the same one-second HUD refresh plus the
 -- display-change events, so anchor and styles self-heal.
@@ -59,7 +60,12 @@ function M.update_player(player, force_name)
     local row      = frame.mts_chat_row
     local seg_g    = row[M.SEG_GLOBAL]
     local seg_t    = row[M.SEG_TEAM]
-    local is_local = chat_channel.is_local(force_name)
+    local is_local = chat_channel.is_local_for(player)
+    -- Under individual scope a click moves only the clicker, so the tooltips
+    -- must not keep promising to move the whole team.
+    local moves    = chat_channel.is_individual() and "you" or "your whole team"
+    local whose    = chat_channel.is_individual() and "your messages"
+                                                  or "your team's messages"
     -- Force-swapped into full spectate: the toggle keeps working, but team
     -- messages are also visible to co-spectators — the asterisk carries that.
     local swapped  = player.force.name ~= force_name
@@ -68,11 +74,11 @@ function M.update_player(player, force_name)
     set_style(seg_t, is_local and "mts_chat_seg_team_active" or "mts_chat_seg_inactive")
     seg_t.caption = swapped and "TEAM*" or "TEAM"
 
-    seg_g.tooltip = "Chat is GLOBAL — everyone on the server sees your team's messages."
-        .. (is_local and "\nClick to switch your whole team to global chat." or "")
+    seg_g.tooltip = "Chat is GLOBAL — everyone on the server sees " .. whose .. "."
+        .. (is_local and ("\nClick to switch " .. moves .. " to global chat.") or "")
     seg_t.tooltip = "Chat is TEAM-ONLY — messages stay inside your team."
         .. " Start a message with ! to shout globally."
-        .. (is_local and "" or "\nClick to switch your whole team to team-only chat.")
+        .. (is_local and "" or ("\nClick to switch " .. moves .. " to team-only chat."))
         .. (swapped and ("\n* While spectating, other spectators can also"
             .. " see your team messages.") or "")
 

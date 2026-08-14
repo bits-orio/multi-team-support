@@ -173,7 +173,7 @@ function M.register()
         end)
 
     commands.add_command("mts-chat",
-        "Toggle your team's chat between team-only and global (same as the HUD chip)",
+        "Toggle your chat between team-only and global (same as the HUD switch)",
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             if not caller then

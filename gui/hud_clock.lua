@@ -15,6 +15,13 @@
 -- on join and force change so the clock appears without a one-second lag.
 -- A member peeking at another team via spectator mode keeps their OWN team's
 -- clock: display follows the effective force, not player.force.
+--
+-- The chat-channel badge (scripts/chat_tag.lua) rides this same refresh. It is
+-- not GUI, but it is driven by exactly the same input — the player's effective
+-- force — so hanging it here gives it every join, force-change and channel-
+-- switch call site for free, plus the one-second pass as a self-heal. A badge
+-- that lied about the channel would be worse than no badge, so it must never
+-- depend on a call site someone forgets to add.
 
 local helpers        = require("scripts.helpers")
 local nav            = require("gui.nav")
@@ -23,6 +30,7 @@ local team_clock     = require("scripts.team_clock")
 local team_modifiers = require("scripts.team_modifiers")
 local chat_channel   = require("scripts.chat_channel")
 local chat_switch    = require("gui.chat_switch")
+local chat_tag       = require("scripts.chat_tag")
 
 local M = {}
 
@@ -71,6 +79,7 @@ function M.update_player(player)
     if not caption then
         if root then root.destroy() end
         chat_switch.update_player(player, nil)
+        chat_tag.update_player(player, nil)
         return
     end
 
@@ -130,6 +139,7 @@ function M.update_player(player)
     end
 
     chat_switch.update_player(player, force_name)
+    chat_tag.update_player(player, force_name)
 end
 
 --- One-second refresh for every connected player (60-tick handler).
@@ -139,20 +149,19 @@ function M.update_all()
     end
 end
 
---- Select a specific channel for the player's team (switch segment click);
---- no-op when already active. On change, every member's HUD and switch
---- refresh in the same action rather than on the next one-second tick.
+--- Select a specific channel (switch segment click); no-op when already
+--- active. chat_channel.peers is who the change moved — the whole team under
+--- team scope, only the clicker under individual scope — so the HUDs that
+--- refresh are exactly the HUDs whose state changed.
 local function select_channel(player, channel)
-    local force_name = spectator.get_effective_force(player)
-    if not helpers.is_team_force(force_name) then return end
-    if chat_channel.set(force_name, channel, player) then
-        for _, member in ipairs(chat_channel.connected_members(force_name)) do
+    if chat_channel.set_for(player, channel, player) then
+        for _, member in ipairs(chat_channel.peers(player)) do
             M.update_player(member)
         end
     end
 end
 
---- Flip the player's team chat channel (/mts-chat).
+--- Flip the player's chat channel (/mts-chat).
 function M.toggle_chat_channel(player)
     local force_name = spectator.get_effective_force(player)
     if not helpers.is_team_force(force_name) then
@@ -160,7 +169,7 @@ function M.toggle_chat_channel(player)
         return
     end
     select_channel(player,
-        chat_channel.is_local(force_name) and "global" or "local")
+        chat_channel.is_local_for(player) and "global" or "local")
 end
 
 nav.on_click(chat_switch.SEG_GLOBAL, function(event)

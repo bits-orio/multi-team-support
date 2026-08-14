@@ -42,7 +42,7 @@ function M.register()
         -- "!" shouts one message globally from a team-only channel.
         local shout     = message:find("^!") ~= nil
         local go_global = shout or not is_team
-            or not chat_channel.is_local(effective)
+            or not chat_channel.is_local_for(author)
 
         if go_global then
             local prefix = spectator.get_chat_prefix(author)

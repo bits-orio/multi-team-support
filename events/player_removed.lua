@@ -43,6 +43,8 @@ local PLAYER_TABLES = {
     "spectator_real_force", "spectating_target", "spectator_saved_craft_mod",
     "spectator_saved_location", "spectator_prev_controller", "spectator_last_zoom",
     "spectator_last_remote_view",
+    -- chat (individual scope; the team-scoped channel is force-keyed)
+    "chat_channel_player",
 }
 
 local function cleanup_player_storage(idx)

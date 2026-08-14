@@ -1,4 +1,20 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.64
+Date: 2026-08-13
+  Features:
+    - Chat mode badge: every chat line now shows which channel it was sent under. A [GLOBAL] or
+      [TEAM] badge sits after your name in chat, on the map, and above multiplayer selection
+      rectangles, so you can tell at a glance whether a teammate's message reached the whole
+      server -- and read that back later in the chat log, which the GLOBAL | TEAM switch alone
+      could never tell you, since it only ever shows the current mode. A "!" shout still carries
+      the [TEAM] badge: it overrides the channel for one message without changing it, and the
+      leading ! on the same line is the marker for those.
+    - Individual Chat Mode (new admin flag, off by default): each player sets their own
+      global/team chat mode instead of the whole team switching together. Flipping the flag
+      never exposes a private conversation -- switching to individual gives every member their
+      team's current mode, and switching back makes a team team-only if any of its members was,
+      counting offline members in both directions.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.63
 Date: 2026-08-07
   Features:

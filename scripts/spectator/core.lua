@@ -17,10 +17,11 @@ function M.apply_spectator_state(player)
         -- Team-only chat keeps working while spectating (relayed to the real
         -- team by events/chat.lua), but the engine also delivers the native
         -- copy to the spectator force — disclose that once per spectate.
-        if chat_channel.is_local(player.force.name) then
-            player.print("[color=0.45,0.8,1]You're spectating: team chat still"
-                .. " reaches your team, but other spectators can see it too."
-                .. "[/color]")
+        if chat_channel.is_local_for(player) then
+            player.print(helpers.colored_name(
+                "You're spectating: team chat still reaches your team, but"
+                .. " other spectators can see it too.",
+                chat_channel.LOCAL_COLOR))
         end
     end
     player.force = game.forces["spectator"]

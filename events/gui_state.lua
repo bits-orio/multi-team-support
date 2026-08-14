@@ -19,6 +19,7 @@ local blueprint_lock = require("scripts.blueprint_lock")
 local follow_cam    = require("gui.follow_cam")
 local team_modifiers = require("scripts.team_modifiers")
 local hud_clock     = require("gui.hud_clock")
+local chat_channel  = require("scripts.chat_channel")
 
 local M = {}
 
@@ -163,6 +164,14 @@ function M.register()
                         admin_gui.build_admin_gui(p)
                     end
                 end
+            end
+            if changed_flag == "individual_chat_enabled" then
+                -- Migrate first, then repaint: on_scope_change carries each
+                -- player's channel across the flip so nobody's private
+                -- conversation starts broadcasting, and update_all restamps
+                -- every switch and chat badge from the migrated state.
+                chat_channel.on_scope_change(admin_gui.flag("individual_chat_enabled"))
+                hud_clock.update_all()
             end
             if changed_flag == "friendship_enabled" then
                 if not admin_gui.flag("friendship_enabled") then friendship.break_all() end
