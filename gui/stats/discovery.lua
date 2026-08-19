@@ -20,6 +20,7 @@ local function is_visible_item(name)
     return proto ~= nil
         and not proto.hidden
         and not proto.hidden_in_factoriopedia
+        and not proto.parameter
 end
 
 -- Fluid mirror, with a third flag the item path never needed: parameter
@@ -80,7 +81,7 @@ local function compute_unlock_depths()
     local recipe_unlock_depth = {}
     for tech_name, tech in pairs(prototypes.technology) do
         local d = depth_of(tech_name, {})
-        for _, effect in pairs(tech.effects or {}) do
+        for _, effect in pairs(tech.effects) do
             if effect.type == "unlock-recipe" then
                 local cur = recipe_unlock_depth[effect.recipe]
                 if not cur or d < cur then
@@ -116,7 +117,7 @@ local function compute_unlock_depths()
         if rd == nil and recipe.enabled then rd = 0 end
         if rd ~= nil then
             local item_products, fluid_products = {}, {}
-            for _, product in pairs(recipe.products or {}) do
+            for _, product in pairs(recipe.products) do
                 if product.type == "item" then
                     item_products[#item_products + 1] = product.name
                 elseif product.type == "fluid" then
@@ -127,13 +128,23 @@ local function compute_unlock_depths()
                 local cur = fluid_depth[name]
                 if not cur or rd < cur then fluid_depth[name] = rd end
             end
+            -- main_product has a documented third state at the data stage:
+            -- the empty string (= explicitly no main product). Treat it as
+            -- nil so it can never accidentally match a product name.
             local main_name = recipe.main_product and recipe.main_product.name or nil
+            if main_name == "" then main_name = nil end
             for _, name in ipairs(item_products) do
                 local is_primary
                 if main_name then
                     is_primary = (name == main_name)
                 else
-                    is_primary = (#item_products == 1)
+                    -- Sole product of the WHOLE recipe, not sole item: a
+                    -- one-item + one-fluid recipe with no main_product
+                    -- (barrel emptying) is ambiguous, and counting only
+                    -- items let barrels inherit early unlock depths.
+                    -- Measured: exactly the 7 barrel-emptying recipes
+                    -- change, none of which feed the auto tabs.
+                    is_primary = (#item_products == 1 and #fluid_products == 0)
                 end
                 local target = is_primary and primary_depth or byproduct_depth
                 local cur = target[name]
@@ -168,7 +179,7 @@ function M.sort_by_unlock_depth(names)
     for _, name in ipairs(names) do
         if is_visible_item(name) then
             local proto = prototypes.item[name]
-            local g = (proto.group and proto.group.order) or ""
+            local g = proto.group.order
             list[#list + 1] = {
                 name  = name,
                 depth = depths[name] or 0,
@@ -211,8 +222,11 @@ function M.proto_lists()
 
     local plate_set = {}
     for _, recipe in pairs(prototypes.recipe) do
-        if recipe.category == "smelting" then
-            for _, product in pairs(recipe.products or {}) do
+        -- hidden_from_flow_stats recipes never reach production statistics,
+        -- so an item only THEY produce would read zero forever; a plate
+        -- earns its column from visible producers only.
+        if recipe.category == "smelting" and not recipe.hidden_from_flow_stats then
+            for _, product in pairs(recipe.products) do
                 if product.type == "item" and not ore_set[product.name] then
                     plate_set[product.name] = true
                 end
@@ -243,7 +257,7 @@ function M.sort_fluids(names)
     for _, name in ipairs(names) do
         if is_visible_fluid(name) then
             local proto = prototypes.fluid[name]
-            local g = (proto.group and proto.group.order) or ""
+            local g = proto.group.order
             list[#list + 1] = {
                 name  = name,
                 depth = depths[name] or 0,
