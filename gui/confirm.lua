@@ -3,12 +3,14 @@
 -- License: GPL-3.0-or-later
 --
 -- Reusable confirmation dialog with Confirm/Cancel buttons.
+-- title/message/confirm_text/cancel_text may be plain strings or
+-- LocalisedStrings (captions accept both; keys live in locale/en/).
 -- Usage:
 --   confirm.show(player, {
---       title        = "Leave Team?",
---       message      = "Are you sure you want to leave?\nYour items will be dropped as a corpse.",
---       confirm_text = "Leave Team",
---       cancel_text  = "Cancel",
+--       title        = {"mts-confirm.leave-team-title"},
+--       message      = {"mts-confirm.leave-team-message"},
+--       confirm_text = {"mts-confirm.leave-team-ok"},
+--       cancel_text  = {"mts-confirm.cancel"},
 --       action       = "leave",           -- routed to confirm handlers table
 --       data         = {some_key = ...},  -- optional, passed back as tags
 --   })
@@ -48,12 +50,12 @@ function confirm.show(player, opts)
     }
     frame.auto_center = true
 
-    helpers.add_title_bar(frame, opts.title or "Confirm")
+    helpers.add_title_bar(frame, opts.title or {"mts-confirm.title"})
 
     -- Message body (supports multi-line via "\n")
     local msg = frame.add{
         type    = "label",
-        caption = opts.message or "Are you sure?",
+        caption = opts.message or {"mts-confirm.message"},
     }
     msg.style.single_line     = false
     msg.style.maximal_width   = 420
@@ -73,7 +75,7 @@ function confirm.show(player, opts)
     local cancel_btn = btn_flow.add{
         type    = "button",
         name    = "sb_confirm_cancel",
-        caption = opts.cancel_text or "Cancel",
+        caption = opts.cancel_text or {"mts-confirm.cancel"},
         style   = "back_button",
     }
     cancel_btn.style.horizontally_stretchable = true
@@ -87,7 +89,7 @@ function confirm.show(player, opts)
     local confirm_btn = btn_flow.add{
         type    = "button",
         name    = "sb_confirm_ok",
-        caption = opts.confirm_text or "Confirm",
+        caption = opts.confirm_text or {"mts-confirm.ok"},
         style   = "confirm_button",
         tags    = tags,
     }

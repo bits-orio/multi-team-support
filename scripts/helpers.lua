@@ -314,9 +314,65 @@ function helpers.format_elapsed(ticks)
     end
 end
 
+-- ─── Localised Duration Formatting ─────────────────────────────────────
+-- LocalisedString twins of the plain-string formatters above, built on the
+-- engine's own root-scope core keys (time-symbol-hours-short=__1__h etc.),
+-- which ship translated in every base-game language. In English they render
+-- byte-identical to their plain twins. The plain formatters stay: Discord
+-- bridge payloads and log lines must remain plain strings (a
+-- LocalisedString cannot leave the game).
+
+--- LocalisedString twin of fmt_duration ("1h 02m 03s").
+function helpers.ls_duration(ticks)
+    local s = math.floor(ticks / 60)
+    local h = math.floor(s / 3600); s = s % 3600
+    local m = math.floor(s / 60);   s = s % 60
+    if h > 0 then
+        return {"", {"time-symbol-hours-short", h}, " ",
+                    {"time-symbol-minutes-short", string.format("%02d", m)}, " ",
+                    {"time-symbol-seconds-short", string.format("%02d", s)}}
+    end
+    if m > 0 then
+        return {"", {"time-symbol-minutes-short", m}, " ",
+                    {"time-symbol-seconds-short", string.format("%02d", s)}}
+    end
+    return {"time-symbol-seconds-short", s}
+end
+
+--- LocalisedString twin of fmt_duration_coarse ("1h 23m" / "23m").
+function helpers.ls_duration_coarse(ticks)
+    local m = math.floor(ticks / 3600 + 0.5)
+    local h = math.floor(m / 60); m = m % 60
+    if h > 0 then
+        return {"", {"time-symbol-hours-short", h}, " ",
+                    {"time-symbol-minutes-short", string.format("%02d", m)}}
+    end
+    return {"time-symbol-minutes-short", m}
+end
+
+--- LocalisedString twin of format_elapsed ("1h 5m" / "5m 3s" / "42s").
+function helpers.ls_elapsed(ticks)
+    if not ticks or ticks < 0 then return "?" end
+    local total_seconds = math.floor(ticks / 60)
+    local hours = math.floor(total_seconds / 3600)
+    local mins  = math.floor((total_seconds % 3600) / 60)
+    local secs  = total_seconds % 60
+    if hours > 0 then
+        return {"", {"time-symbol-hours-short", hours}, " ",
+                    {"time-symbol-minutes-short", mins}}
+    elseif mins > 0 then
+        return {"", {"time-symbol-minutes-short", mins}, " ",
+                    {"time-symbol-seconds-short", secs}}
+    else
+        return {"time-symbol-seconds-short", secs}
+    end
+end
+
 -- ─── Broadcast ─────────────────────────────────────────────────────────
 
---- Print a message to all connected players.
+--- Print a message to all connected players. `msg` may be a plain string
+--- or a LocalisedString table — p.print accepts both, and a LocalisedString
+--- resolves in each player's own language.
 function helpers.broadcast(msg)
     for _, p in pairs(game.players) do
         if p.connected then p.print(msg) end
@@ -388,7 +444,7 @@ function helpers.add_show_offline_checkbox(parent, player)
     flow.style.horizontal_align         = "right"
     flow.style.horizontally_stretchable = true
     flow.style.bottom_margin            = 2
-    local label = flow.add{type = "label", caption = "show offline"}
+    local label = flow.add{type = "label", caption = {"mts-gui.show-offline"}}
     label.style.font         = "default-small"
     label.style.font_color   = {0.6, 0.6, 0.6}
     label.style.right_margin = 4
@@ -396,7 +452,8 @@ function helpers.add_show_offline_checkbox(parent, player)
         type    = "checkbox",
         name    = "sb_show_offline_toggle",
         state   = show_offline,
-        tooltip = show_offline and "Hide offline teams" or "Show offline teams",
+        tooltip = show_offline and {"mts-gui.hide-offline-teams"}
+                               or {"mts-gui.show-offline-teams"},
     }
     return flow
 end

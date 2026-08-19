@@ -34,6 +34,11 @@ if ! grep -qE "^Version: ${VERSION//./\\.}\$" changelog.txt; then
     err "changelog.txt has no 'Version: ${VERSION}' entry — run the bump-version skill first"
 fi
 
+# Every mts-* locale key referenced in Lua must exist in locale/en (and no
+# duplicate definitions) — otherwise players see "Unknown key: '...'".
+command -v python3 >/dev/null || err "python3 required"
+python3 tools/check_locale.py || err "locale key check failed"
+
 # Tag must not already exist locally.
 if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
     err "tag ${TAG} already exists locally (delete with 'git tag -d ${TAG}' if intended)"
