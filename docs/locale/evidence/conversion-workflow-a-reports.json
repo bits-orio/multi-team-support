@@ -1,0 +1,380 @@
+{
+  "summary": "Convert scripts/events/commands/milestones to locale keys (workflow A of the MTS localization)",
+  "agentCount": 8,
+  "logs": [],
+  "result": {
+    "reports": [
+      {
+        "slice": "cmd-team",
+        "dispositions": {
+          "converted": 53,
+          "kept_english": 9,
+          "deferred": 2
+        },
+        "dual_api": [],
+        "deferred": [
+          {
+            "file": "scripts/commands/team.lua",
+            "what": "mts-modifiers per-team row format \"  %s%s — %s\" (inventory row ~L201)",
+            "why": "Interpolates team_modifiers.describe() and marked_badge(), another slice's plain-string producers; row stays on the string API (a plain string mixed into the LocalisedString listing) until they grow ls_ variants. Call site carries a comment marking it."
+          },
+          {
+            "file": "scripts/commands/team.lua",
+            "what": "\"standard\" fallback modifier description (inventory row ~L205)",
+            "why": "Fragment inside the same deferred describe()/marked_badge() row; converts together with it in the modifiers slice / final sweep."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "check_locale: 231 referenced, 231 defined, 0 errors, 0 warnings",
+        "observations": "team_rename.attempt was switched to returning LocalisedString err IN PLACE under the guide's grep-verified exception (so dual_api is empty). Evidence: the only consumers in the repo are scripts/commands/team.lua:161 (caller.print(err)) and gui/team_settings.lua:288-289 (player.print(err), receiving the function via control.lua:49 set_rename_fn injection); grep for \".attempt(\" and \"rename_fn\" found no others. Both sites only print, and print accepts LocalisedString, so the permitted out-of-slice edit to gui/team_settings.lua was NOT needed — zero out-of-slice edits were made. scripts/commands.lua contained no display strings (facade only, no inventory rows, unchanged). Kept-english rows (9): the 8 command-name tokens (t, mts-players, mts-leave, mts-rename, mts-teams, mts-chat, mts-modifiers, mts-kick — typed tokens) and the \"[color=0.7,0.7,0.7]?[/color]\" leader fallback (symbol-only, passed as a parameter into mts-cmd.teams-line). Facts verified against local docs per memory: add_command help is LocalisedString and the 20-params/20-depth caps (runtime-api.json LocalisedString concept); __plural_for_parameter__N__{...}__ syntax and leading-space preservation in cfg values (data/core/locale/en/core.cfg). New local helper join_lines() in scripts/commands/team.lua composes listing lines within those caps — final sweep may want to hoist it to helpers.lua for other listing commands (admin has similar listings). Wording bugs noticed, NOT fixed (byte-identical rule): kick confirm title uses uncolored target.name (violates house Rule 1); left-team / kick-not-teammate / kick-target-left-team mention \"team\" without a trailing force_tag (Rule 2); mts-cmd.rename-too-long has no plural branch (\"max 1 characters\" if MAX_TEAM_NAME_LEN were 1 — original behavior). Consolidation candidates for the final sweep: mts-cmd.team-chat-line now embeds the \"[Team] \" prefix in its value (chat_tag.lua's channel badge, another slice, may duplicate it); mts-cmd.kick-player-not-found could merge with any admin-slice player-not-found key. surface_info.name/gps/location (built in gui/teams.lua, another slice) flow through as plain-string parameters — safe now and safe after that slice converts. RCON callers of the listing commands still get no response (game.print path) — pre-existing, unchanged. Interim checker errors seen mid-run all belonged to other slices' in-flight files; final run is 0/0. Ops note: the session scratchpad is shared across parallel slice agents — a temp file I wrote there was clobbered by another agent; I switched to stdout."
+      },
+      {
+        "slice": "cmd-admin",
+        "dispositions": {
+          "converted": 52,
+          "kept_english": 25,
+          "deferred": 2
+        },
+        "dual_api": [],
+        "deferred": [
+          {
+            "file": "/home/shobhitg/src/multi-team-support/scripts/commands/admin.lua",
+            "what": "activity.ago_text used as the 'Last active:' parameter of the disband confirm dialog (mts-confirm.disband-message param __5__) stays on the plain-string API",
+            "why": "Producer is gui/teams_data.lua activity_info(), owned by the teams-data slice. Plain strings remain valid LocalisedString parameters, so this call site needs no edit when that slice converts the producer."
+          },
+          {
+            "file": "/home/shobhitg/src/multi-team-support/scripts/commands/debug_cmd.lua",
+            "what": "/mts-debug list row fields r.kind/r.label/r.detail rendered via string.format; marked with -- TODO(locale-stage5) at the render site",
+            "why": "English strings built in scripts/debug.lua and persisted in storage — storage-persisted display text is deferred to stage 5 per the guide; scripts/debug.lua is outside this slice."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\nwarning: unreferenced key: mts-chat.starter-items-added (modifiers.cfg:65)\nwarning: unreferenced key: mts-gui.flag-blueprint-imports (modifiers.cfg:13)\nwarning: unreferenced key: mts-gui.flag-buddy-join (modifiers.cfg:8)\nwarning: unreferenced key: mts-gui.flag-color-fix (modifiers.cfg:15)\nwarning: unreferenced key: mts-gui.flag-friendship (modifiers.cfg:9)\nwarning: unreferenced key: mts-gui.flag-individual-chat (modifiers.cfg:12)\nwarning: unreferenced key: mts-gui.flag-landing-pen (modifiers.cfg:7)\nwarning: unreferenced key: mts-gui.flag-non-competitive (modifiers.cfg:16)\nwarning: unreferenced key: mts-gui.flag-popup-text (modifiers.cfg:11)\nwarning: unreferenced key: mts-gui.flag-spectate-notifications (modifiers.cfg:10)\nwarning: unreferenced key: mts-gui.flag-staged-start (modifiers.cfg:14)\nwarning: unreferenced key: mts-tip.flag-blueprint-imports (modifiers.cfg:34)\nwarning: unreferenced key: mts-tip.flag-buddy-join (modifiers.cfg:29)\nwarning: unreferenced key: mts-tip.flag-color-fix (modifiers.cfg:36)\nwarning: unreferenced key: mts-tip.flag-friendship (modifiers.cfg:30)\nwarning: unreferenced key: mts-tip.flag-individual-chat (modifiers.cfg:33)\nwarning: unreferenced key: mts-tip.flag-landing-pen (modifiers.cfg:28)\nwarning: unreferenced key: mts-tip.flag-non-competitive (modifiers.cfg:37)\nwarning: unreferenced key: mts-tip.flag-popup-text (modifiers.cfg:32)\nwarning: unreferenced key: mts-tip.flag-spectate-notifications (modifiers.cfg:31)\nwarning: unreferenced key: mts-tip.flag-staged-start (modifiers.cfg:35)\ncheck_locale: 209 referenced, 231 defined, 0 errors, 22 warnings",
+        "observations": "IN-PLACE RETURN-TYPE SWITCH (guide exception, grep evidence): chunk_trim.start's error_msg return and the module-local notify() were moved to LocalisedString directly, no ls_ variant. Evidence: repo-wide grep for chunk_trim (excluding .claude/worktrees, a separate branch checkout the checker also ignores) shows only three consumers — scripts/commands/admin.lua:236-242 (error return -> caller.print, my file, converted), events/ticks.lua:222 (tick() only, message text never crosses), control.lua:132/173 (init_storage() only). notify()'s sinks are p.print/game.print, both LocalisedString-accepting (verified in ~/factorio/doc-html/runtime-api.json 2.0.77, as were add_command help=LocalisedString and the __plural_for_parameter__N__ syntax against data/core locale). API DOC COMMENTS in chunk_trim.lua updated to say LocalisedString. SANCTIONED ENGLISH CHANGES (plural rule): 'surface(s)' in trim-queued and trim-complete now renders '1 surface'/'N surfaces'; 'player'+(s) in the disband dialog now proper plural. Everything else byte-identical. WORDING BUGS NOTICED, NOT FIXED: (1) 'Your team __1__ has been disbanded by an admin.' (member print) and the '[Team] __1__...' broadcast carry no helpers.force_tag suffix, deviating from chat-message-style rule 2 (arguably moot since the force is being deleted); (2) mts-fixcolors messages spell 'colours' (British) vs the command name 'fixcolors'; (3) trim-surface-done always says 'chunks' even for 1 (kept byte-identical, no plural in original); (4) debug_cmd.lua:55 duplicates the shared player-only English as a plain string — deliberate per debug policy (all /mts-debug output including its gate messages stays English; comment added at DEBUG_HELP so the final sweep does not convert it). SHARED-KEY REUSE: {mts-cmd.player-only} at 5 admin.lua sites, {mts-cmd.team-not-exists} at 4 sites, and {mts-confirm.cancel} (shared.cfg 'Cancel') for the disband dialog cancel button — defining cancel again would duplicate-key-fail the checker. STAR FRAGMENT: leader line '\\xE2\\x98\\x85 ' .. colored_name stays composed in Lua (symbol+rich-text only, passed as parameter __4__); if a language ever needs the star moved, it will need a key then. CONCURRENCY NOTE: my first checker run showed 7 errors from gui/teams_data.lua (sibling slice mid-flight); final run is 0 errors — referenced count jumped 142->209 as siblings landed. The 22 remaining warnings are all modifiers.cfg keys owned by another slice (look like data-driven FLAGS/MODIFIERS lookups that may need '# checker:dynamic' markers); none are defined in commands-admin.cfg. FILES: locale/en/commands-admin.cfg created (sections [mts-cmd], [mts-chat], [mts-confirm]); dispositions count my 77 inventory rows as 52 converted + 25 kept-english (5 command-name tokens + star fragment in admin.lua; command name + 18 debug-policy outputs in debug_cmd.lua); the 2 deferred entries are additional cross-slice/storage items, not inventory rows of my files."
+      },
+      {
+        "slice": "lifecycle-chat",
+        "dispositions": {
+          "converted": 18,
+          "kept_english": 6,
+          "deferred": 0
+        },
+        "dual_api": [],
+        "deferred": [
+          {
+            "file": "/home/shobhitg/src/multi-team-support/events/gui_state.lua",
+            "what": "admin_player.print(reason) where reason = team_modifiers.disable_blocked_reason() (~line 141)",
+            "why": "Producer lives in scripts/team_modifiers.lua (another slice). Call left untouched per slice note; converts automatically once that producer returns a LocalisedString."
+          },
+          {
+            "file": "/home/shobhitg/src/multi-team-support/events/gui_state.lua",
+            "what": "admin_gui.get_flag_label(changed_flag) — flag label passed as __2__ of mts-chat.admin-flag-enabled/-disabled",
+            "why": "Label strings live in gui/admin.lua (another slice). Passed as a parameter, so it works today as a plain string and keeps working when that slice converts it to a LocalisedString."
+          },
+          {
+            "file": "/home/shobhitg/src/multi-team-support/events/chat.lua",
+            "what": "spectator.get_chat_prefix(author) — English prefix text ('[on X's base][spectator] ' / '[on X's base][friend] ') passed as __1__ of mts-chat.global-chat-line",
+            "why": "Producer lives in scripts/spectator/events.lua (another slice). The ': ' composition around it is now keyed; the prefix content itself awaits that slice."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\nwarning: unreferenced key: mts-chat.starter-items-added (modifiers.cfg:65)\nwarning: unreferenced key: mts-gui.flag-blueprint-imports (modifiers.cfg:13)\nwarning: unreferenced key: mts-gui.flag-buddy-join (modifiers.cfg:8)\nwarning: unreferenced key: mts-gui.flag-color-fix (modifiers.cfg:15)\nwarning: unreferenced key: mts-gui.flag-friendship (modifiers.cfg:9)\nwarning: unreferenced key: mts-gui.flag-individual-chat (modifiers.cfg:12)\nwarning: unreferenced key: mts-gui.flag-landing-pen (modifiers.cfg:7)\nwarning: unreferenced key: mts-gui.flag-non-competitive (modifiers.cfg:16)\nwarning: unreferenced key: mts-gui.flag-popup-text (modifiers.cfg:11)\nwarning: unreferenced key: mts-gui.flag-spectate-notifications (modifiers.cfg:10)\nwarning: unreferenced key: mts-gui.flag-staged-start (modifiers.cfg:14)\nwarning: unreferenced key: mts-tip.flag-blueprint-imports (modifiers.cfg:34)\nwarning: unreferenced key: mts-tip.flag-buddy-join (modifiers.cfg:29)\nwarning: unreferenced key: mts-tip.flag-color-fix (modifiers.cfg:36)\nwarning: unreferenced key: mts-tip.flag-friendship (modifiers.cfg:30)\nwarning: unreferenced key: mts-tip.flag-individual-chat (modifiers.cfg:33)\nwarning: unreferenced key: mts-tip.flag-landing-pen (modifiers.cfg:28)\nwarning: unreferenced key: mts-tip.flag-non-competitive (modifiers.cfg:37)\nwarning: unreferenced key: mts-tip.flag-popup-text (modifiers.cfg:32)\nwarning: unreferenced key: mts-tip.flag-spectate-notifications (modifiers.cfg:31)\nwarning: unreferenced key: mts-tip.flag-staged-start (modifiers.cfg:35)\ncheck_locale: 209 referenced, 231 defined, 0 errors, 22 warnings",
+        "observations": "All 24 inventory rows dispositioned: 18 converted, 6 kept-english (5 helpers.diag debug lines in events/player_surface.lua; 1 'Server' author string to remote_api.emit_chat, a Discord bridge payload). The 3 deferred entries are cross-slice producers, not inventory rows, hence dispositions.deferred=0. 17 keys created in locale/en/chat.cfg, all referenced (none in checker warnings; warnings above are another slice's modifiers.cfg keys, and errors from concurrent slices' mid-write states cleared once they landed — final run is 0 errors). DELIBERATE VISIBLE CHANGE per slice note + house style rule 1: the welcome/welcome-back broadcasts in player_lifecycle.lua previously used raw uncolored player.name; the parameter is now helpers.colored_name(player.name, player.chat_color) — English text unchanged, name now renders colored. Final sweep should confirm this was intended. Wording inconsistencies noticed, NOT fixed (byte-identical kept): admin-set-team-size and admin-flag-enabled/disabled broadcasts lack a trailing period unlike every other broadcast. Chat relay lines keep raw author.name uncolored — the whole line is tinted via print's {color=author.color}; colorizing the name would double-color. teams-recruiting joins team tags with Lua-side table.concat(lfm_tags, ', ') passed as one parameter — list glue, not sentence glue; translators cannot reorder list items. The duplicated 'Teams looking for more players' blocks were deduped into local announce_recruiting_teams() with call-site guards preserved exactly. pop_text.spawn_confirm/team_join safely carry LocalisedStrings: verified against local 2.0.77 runtime-api.json that rendering.draw_text's text param is LocalisedString, and only the render object id (not the text) is persisted to storage; their 'text_str' param name is now slightly stale. mts-chat.pop-welcome intentionally duplicates mts-chat.welcome's value (popup vs chat line may diverge in translation). discord-invite carries its leading space in the cfg value (base-game precedent verified in core.cfg, e.g. 'disabled= [Disabled]'), composed via {\"\", welcome, cond and invite or \"\"} per slice note. Bridge paths untouched: remote_api.emit_chat/emit_player_joined/emit_player_left still receive plain strings only."
+      },
+      {
+        "checker_output": "check_locale: 231 referenced, 231 defined, 0 errors, 0 warnings",
+        "deferred": [],
+        "dispositions": {
+          "converted": 42,
+          "kept_english": 2,
+          "deferred": 0
+        },
+        "dual_api": [
+          "team_modifiers.MODIFIERS defs: ls_label/ls_short/ls_tooltip fields added beside label/short/tooltip — admin GUI (gui/admin.lua:122) and plain display helpers still read the string fields; icon got no twin (language-neutral rich text)",
+          "admin_flags.FLAGS defs: ls_label/ls_tooltip fields added beside label/tooltip — gui/admin.lua:70 still renders the plain fields",
+          "guidance() -> ls_guidance() (local to team_modifiers.lua; plain version still feeds the plain hud_tag twin)",
+          "team_modifiers.describe -> ls_describe (plain consumer: scripts/commands/team.lua:199)",
+          "team_modifiers.hud_tag -> ls_hud_tag (plain consumer: gui/hud_clock.lua:127)",
+          "team_modifiers.card_line -> ls_card_line (plain consumer: gui/team_card.lua:82)",
+          "team_modifiers.marked_badge -> ls_marked_badge (plain consumers: gui/admin.lua:150, scripts/commands/team.lua:200)",
+          "team_modifiers.records_tag -> ls_records_tag (plain consumers: scripts/tech_records.lua:64,72; milestones/engine.lua:88,96 — not in the slice note's ls_ list, but the two [Records] inventory rows live in my file and the records slice will need the LS form; keys mts-chat.records-tag / records-tag-noncompetitive are ready)",
+          "team_modifiers.disable_blocked_reason -> ls_disable_blocked_reason (plain consumer: events/gui_state.lua:139 admin_player.print; hand-rolled have/has + are/is moved into the locale value as __plural_for_parameter__2__ branches keyed on team count)",
+          "admin_flags.get_flag_label -> ls_get_flag_label (plain consumer: events/gui_state.lua:155 via gui/admin.lua:17 re-export — added so the gui_state slice's flag-change broadcast conversion has the LS lookup; raw-key fallback for an unknown flag stays a plain string since no key exists for it)"
+        ],
+        "missed_strings": [],
+        "observations": "announce_starter_items_added checked per slice note: its output never feeds a bridge payload — helpers.broadcast only p.print()s to connected players, and the delivery/bridge path (distribute_items_to_spawned -> delivery.raise -> remote_api.raise_starter_items_added, raised with no_bridge=true) carries {name,count} DATA tables, not the announce text. So the broadcast converted fully with no split. Broadcasts/prints issued from within my files (M.set announcement, revert_all, print_mode_notice, announce_starter_items_added) converted in place; all cross-slice string producers kept plain twins. Unbounded starter-item lists are joined by a local ls_join in admin_flags.lua that nests a continuation table at 17 elements to respect the engine's 20-params-per-table cap — the final sweep may want to hoist it into helpers if another slice needs list joining. Plural syntax verified against the local install (core.cfg:6-13, and core.cfg:254 for the is/are-in-one-value precedent). Wording bugs noticed, NOT fixed (byte-identical preserved): (1) disable_blocked_reason's closing sentence 'The mark clears only when the team disbands.' stays singular even when the list names several teams; (2) the modifier-marked sentence 'This team is now marked non-competitive...' mentions 'team' with no helpers.force_tag suffix, against chat-message-style rule 2 (pre-existing); (3) get_flag_label/ls_get_flag_label return the raw internal flag key for an unknown key — defensive fallback, left as plain string. mts-chat.admin-actor ('Admin' console-actor fallback) is defined once in my modifiers.cfg and referenced from both of my files — if another slice needs the same fallback the final sweep should point them at this key, not redefine it. For the final sweep: plain fields/functions to fold once consumers migrate are label/short/tooltip fields on FLAGS+MODIFIERS, guidance, describe, hud_tag, card_line, marked_badge, records_tag, disable_blocked_reason, get_flag_label. Checker note: the 0-warnings run was against the tree with other slices' cfg files present, so no cross-slice key collisions exist as of this run. Files: /home/shobhitg/src/multi-team-support/scripts/team_modifiers.lua, /home/shobhitg/src/multi-team-support/scripts/admin_flags.lua, /home/shobhitg/src/multi-team-support/locale/en/modifiers.cfg.",
+        "slice": "modifiers-flags"
+      },
+      {
+        "slice": "milestones-research",
+        "dispositions": {
+          "converted": 18,
+          "kept_english": 10,
+          "deferred": 0
+        },
+        "dual_api": [],
+        "deferred": [],
+        "missed_strings": [],
+        "checker_output": "warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\nwarning: unreferenced key: mts-chat.mode-notice (modifiers.cfg:61)\nwarning: unreferenced key: mts-chat.records-tag (modifiers.cfg:58)\nwarning: unreferenced key: mts-chat.records-tag-noncompetitive (modifiers.cfg:59)\nwarning: unreferenced key: mts-chat.starter-items-added (modifiers.cfg:65)\nwarning: unreferenced key: mts-gui.flag-blueprint-imports (modifiers.cfg:13)\nwarning: unreferenced key: mts-gui.flag-buddy-join (modifiers.cfg:8)\nwarning: unreferenced key: mts-gui.flag-color-fix (modifiers.cfg:15)\nwarning: unreferenced key: mts-gui.flag-friendship (modifiers.cfg:9)\nwarning: unreferenced key: mts-gui.flag-individual-chat (modifiers.cfg:12)\nwarning: unreferenced key: mts-gui.flag-landing-pen (modifiers.cfg:7)\nwarning: unreferenced key: mts-gui.flag-non-competitive (modifiers.cfg:16)\nwarning: unreferenced key: mts-gui.flag-popup-text (modifiers.cfg:11)\nwarning: unreferenced key: mts-gui.flag-spectate-notifications (modifiers.cfg:10)\nwarning: unreferenced key: mts-gui.flag-staged-start (modifiers.cfg:14)\nwarning: unreferenced key: mts-gui.marked-badge (modifiers.cfg:25)\nwarning: unreferenced key: mts-tip.flag-blueprint-imports (modifiers.cfg:34)\nwarning: unreferenced key: mts-tip.flag-buddy-join (modifiers.cfg:29)\nwarning: unreferenced key: mts-tip.flag-color-fix (modifiers.cfg:36)\nwarning: unreferenced key: mts-tip.flag-friendship (modifiers.cfg:30)\nwarning: unreferenced key: mts-tip.flag-individual-chat (modifiers.cfg:33)\nwarning: unreferenced key: mts-tip.flag-landing-pen (modifiers.cfg:28)\nwarning: unreferenced key: mts-tip.flag-non-competitive (modifiers.cfg:37)\nwarning: unreferenced key: mts-tip.flag-popup-text (modifiers.cfg:32)\nwarning: unreferenced key: mts-tip.flag-spectate-notifications (modifiers.cfg:31)\nwarning: unreferenced key: mts-tip.flag-staged-start (modifiers.cfg:35)\nERROR: missing definition: mts-chat.friend-request-pending (referenced at gui/friendship.lua:115)\nERROR: missing definition: mts-chat.friend-request-withdrawn (referenced at gui/friendship.lua:125)\nERROR: missing definition: mts-chat.friends-no-longer (referenced at gui/friendship.lua:123)\nERROR: missing definition: mts-chat.friends-now (referenced at gui/friendship.lua:113)\nERROR: missing definition: mts-chat.friendships-dissolved (referenced at gui/friendship.lua:165)\nERROR: missing definition: mts-chat.spectator-chat-global (referenced at gui/hud_clock.lua:193)\nERROR: missing definition: mts-gui.activity-active (referenced at gui/teams_data.lua:331)\nERROR: missing definition: mts-gui.ago-days (referenced at gui/teams_data.lua:190)\nERROR: missing definition: mts-gui.ago-hours-minutes (referenced at gui/teams_data.lua:191)\nERROR: missing definition: mts-gui.ago-just-now (referenced at gui/teams_data.lua:185)\nERROR: missing definition: mts-gui.ago-minutes (referenced at gui/teams_data.lua:192)\nERROR: missing definition: mts-gui.clock-not-started (referenced at gui/hud_clock.lua:76)\nERROR: missing definition: mts-gui.clock-running (referenced at gui/hud_clock.lua:89)\nERROR: missing definition: mts-gui.friend-state-friends (referenced at gui/friendship.lua:38)\nERROR: missing definition: mts-gui.friend-state-pending (referenced at gui/friendship.lua:41)\nERROR: missing definition: mts-gui.friend-state-request (referenced at gui/friendship.lua:47)\nERROR: missing definition: mts-gui.in-transit (referenced at gui/teams_data.lua:44)\nERROR: missing definition: mts-gui.planet-base (referenced at gui/teams_data.lua:60)\nERROR: missing definition: mts-gui.playtime-under-minute (referenced at gui/teams_data.lua:216)\nERROR: missing definition: mts-tip.clock-not-started (referenced at gui/hud_clock.lua:77)\nERROR: missing definition: mts-tip.clock-official (referenced at gui/hud_clock.lua:83)\nERROR: missing definition: mts-tip.clock-online (referenced at gui/hud_clock.lua:87)\nERROR: missing definition: mts-tip.friend-accept (referenced at gui/friendship.lua:44)\nERROR: missing definition: mts-tip.friend-break (referenced at gui/friendship.lua:38)\nERROR: missing definition: mts-tip.friend-send (referenced at gui/friendship.lua:47)\nERROR: missing definition: mts-tip.friend-withdraw (referenced at gui/friendship.lua:41)\nERROR: missing definition: mts-tip.last-seen (referenced at gui/teams_data.lua:283)\nERROR: missing definition: mts-tip.member-activity (referenced at gui/teams_data.lua:285)\nERROR: missing definition: mts-tip.seen-never (referenced at gui/teams_data.lua:284)\nERROR: missing definition: mts-tip.seen-online-now (referenced at gui/teams_data.lua:282)\ncheck_locale: 205 referenced, 201 defined, 30 errors, 26 warnings",
+        "observations": "CHECKER STATUS: exit 1, but every error/warning belongs to OTHER concurrent slices mid-flight (gui/friendship.lua, gui/teams_data.lua, gui/hud_clock.lua references without cfg yet; modifiers.cfg keys not yet referenced). The error count changed between my runs (2 -> 30) as those agents worked. Zero errors or warnings mention my five files or any mts-milestone key; all 16 keys in locale/en/milestones.cfg are referenced and uniquely defined. I could not define the missing gui keys without violating own-your-files, so global zero errors is unattainable from this slice.\n\nDUAL-PATH SPLIT: build_achievement_desc and build_external_achievement are now bridge-only plain-English builders (commented as such); in-game broadcasts use whole-sentence keys (first/record x produce-item/produce-count/external-item/external-count, first/record-research). All emit_to_bridge text/achievement fields are byte-for-byte untouched, including events/research.lua backtick tech-id text and the rocket-mark text (throttling untouched). In-game record durations switched helpers.format_elapsed -> helpers.ls_elapsed (byte-identical twin incl. the \"?\" fallback); bridge keeps format_elapsed.\n\nPLURALS: __plural_for_parameter__ turned out to be needed nowhere — built-in sentences carry the noun inside [item=]/[fluid=] rich tags (no English plural word). External milestones: verb/noun are English data over the frozen mts-v1 interface, so the \"s\" plural stays in Lua (noun_many = spec.noun .. \"s\") and is passed pre-pluralised as a parameter to first-external-count / record-external-count and the popup detail. A consumer registering threshold 1 would read \"reach 1 cells\" — pre-existing, preserved. Rows 230/291 (\"reach\" default verb; also persisted in storage.milestone_external at registration) classed kept-english (data over frozen interface, not our stage-5-migratable display text) — no TODO(locale-stage5) added; flag if the sweep disagrees.\n\nrecords_tag(): still a plain English string from team_modifiers (not my file), passed as __1__ in every record sentence. modifiers.cfg already defines mts-chat.records-tag keys, so that slice may make records_tag() return a LocalisedString — safe as my parameter, but the final sweep must confirm records_tag never reaches a bridge payload (my bridge paths do not use it).\n\nEDGE BEHAVIOR CHANGE (improvement, noting per guide): global_milestones first-landing previously crashed on nil concat if team_tag_with_leader returned nil; it now renders a literal __1__ placeholder instead. The first-rocket path keeps its fallback via the new a-team key ({\"mts-milestone.a-team\"} passed as a nested-LS parameter). Pre-existing asymmetry: first-landing has no \"A team\" fallback — not fixed.\n\nWORDING BUGS NOTICED, NOT FIXED: \"is fastest to produce their first X\" reads awkwardly; bridge \"previous:\" vs in-game \"previous record:\" inconsistency is deliberate pre-existing divergence. milestones/config.lua contains no display strings (sentences live in engine.lua) — zero edits there. Tech popup now passes helpers.tech_rich_name output — byte-identical to the old inline \"[technology=\"..name..\"]\" concat. No Lua interpreter on this box: files verified by full-diff re-read and delimiter balance check only, not a parse; recommend the usual playtest before push (hold-push-until-playtest)."
+      },
+      {
+        "slice": "spectator-slots",
+        "dispositions": {
+          "converted": 18,
+          "kept_english": 34,
+          "deferred": 2
+        },
+        "dual_api": [
+          "spectator.get_chat_prefix (scripts/spectator/events.lua, re-exported by scripts/spectator.lua): added ls_get_chat_prefix twin returning a LocalisedString ({\"\", {\"mts-chat.chat-prefix-spectator\"|\"mts-chat.chat-prefix-friend\", display_name}, \" \"}) and exported it as spectator.ls_get_chat_prefix. The string version stays byte-identical because events/chat.lua (outside this slice, converting concurrently) concatenates its return: prefix .. author.name .. \": \" .. message. No consumers inside this slice."
+        ],
+        "deferred": [
+          {
+            "file": "/home/shobhitg/src/multi-team-support/scripts/team_slots.lua",
+            "what": "Default team display name string.format(\"Team %02d\", i) written into storage.team_names in create_team_pool (~line 166)",
+            "why": "Display text persisted in storage — stage 5 migrates it deliberately; -- TODO(locale-stage5) comment added at the site."
+          },
+          {
+            "file": "/home/shobhitg/src/multi-team-support/scripts/team_slots.lua",
+            "what": "Display-name reset string.format(\"Team %02d\", slot) written into storage.team_names in wipe_slot_state (~line 246)",
+            "why": "Same storage-persisted display name — stage 5; -- TODO(locale-stage5) comment added at the site."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\nwarning: unreferenced key: mts-chat.starter-items-added (modifiers.cfg:65)\nwarning: unreferenced key: mts-gui.flag-blueprint-imports (modifiers.cfg:13)\nwarning: unreferenced key: mts-gui.flag-buddy-join (modifiers.cfg:8)\nwarning: unreferenced key: mts-gui.flag-color-fix (modifiers.cfg:15)\nwarning: unreferenced key: mts-gui.flag-friendship (modifiers.cfg:9)\nwarning: unreferenced key: mts-gui.flag-individual-chat (modifiers.cfg:12)\nwarning: unreferenced key: mts-gui.flag-landing-pen (modifiers.cfg:7)\nwarning: unreferenced key: mts-gui.flag-non-competitive (modifiers.cfg:16)\nwarning: unreferenced key: mts-gui.flag-popup-text (modifiers.cfg:11)\nwarning: unreferenced key: mts-gui.flag-spectate-notifications (modifiers.cfg:10)\nwarning: unreferenced key: mts-gui.flag-staged-start (modifiers.cfg:14)\nwarning: unreferenced key: mts-tip.flag-blueprint-imports (modifiers.cfg:34)\nwarning: unreferenced key: mts-tip.flag-buddy-join (modifiers.cfg:29)\nwarning: unreferenced key: mts-tip.flag-color-fix (modifiers.cfg:36)\nwarning: unreferenced key: mts-tip.flag-friendship (modifiers.cfg:30)\nwarning: unreferenced key: mts-tip.flag-individual-chat (modifiers.cfg:33)\nwarning: unreferenced key: mts-tip.flag-landing-pen (modifiers.cfg:28)\nwarning: unreferenced key: mts-tip.flag-non-competitive (modifiers.cfg:37)\nwarning: unreferenced key: mts-tip.flag-popup-text (modifiers.cfg:32)\nwarning: unreferenced key: mts-tip.flag-spectate-notifications (modifiers.cfg:31)\nwarning: unreferenced key: mts-tip.flag-staged-start (modifiers.cfg:35)\ncheck_locale: 209 referenced, 231 defined, 0 errors, 22 warnings",
+        "observations": "Checker churn from concurrency: earlier runs showed transient ERRORs from gui/friendship.lua, gui/teams_data.lua and warnings from misc.cfg/commands-*.cfg — all other slices' files whose cfg landed mid-run; final run is 0 errors. The 22 surviving warnings are all modifiers.cfg keys (not mine, likely data-driven from admin_flags/team_modifiers tables); that slice should reference them literally or mark them '# checker:dynamic' or they will keep warning at the final sweep. Wording bugs noticed, NOT fixed: (1) mts-chat.no-team-slots ('All __1__ teams are occupied.') has no plural branch — kept byte-identical; harmless today since mts_max_teams minimum_value=2 makes n=1 unreachable, but add __plural_for_parameter__ if that ever changes. (2) Spectate announcements have no trailing period in the original English — preserved. (3) Surface names in spectate announcements come from helpers.display_surface_name, an English-side prettification of internal surface names ('Nauvis') passed as a plain-string parameter — non-English players still see it in English until helpers gets an ls_ twin (helpers.lua is shared stage-1 infrastructure, outside my slice); same for helpers.display_name/team_tag_with_leader parameters (storage-persisted names, stage 5 by design). Risks/handoff for the final sweep: announce_spectation now selects among 8 whole-sentence keys (entering x has-player x has-surface); keep them in sync on any wording change. The spectate disclosure in core.lua composes the local-chat rich-text color tag inline (colored_name cannot wrap a LocalisedString) using colored_name's exact %.2f format and color-resolution order — the sweep may want an ls-capable color helper in helpers.lua to deduplicate. ls_get_chat_prefix composes its trailing separator space in Lua ({\\\"\\\", key, \\\" \\\"}) instead of storing trailing whitespace in the cfg value; when events/chat.lua adopts it, compose {\\\"\\\", prefix, author.name, \\\": \\\", message} — the function returns \\\"\\\" when no prefix applies, safe inside a {\\\"\\\", ...} concat. ops.lua, spectator.lua, and team_disband.lua contained no display strings (all ops.lua rows are log/diag, kept English); spectator.lua only gained the ls_get_chat_prefix re-export. Edited files: /home/shobhitg/src/multi-team-support/scripts/spectator/core.lua, /home/shobhitg/src/multi-team-support/scripts/spectator/events.lua, /home/shobhitg/src/multi-team-support/scripts/spectator.lua, /home/shobhitg/src/multi-team-support/scripts/team_slots.lua; new locale file /home/shobhitg/src/multi-team-support/locale/en/spectator.cfg (all keys in [mts-chat])."
+      },
+      {
+        "slice": "world-misc",
+        "dispositions": {
+          "converted": 12,
+          "kept_english": 20,
+          "deferred": 1
+        },
+        "dual_api": [
+          "compat_utils.planet_display_name -> added compat_utils.ls_planet_display_name ({\"?\", {\"space-location-name.\" .. id}, capitalised-fallback}) plus matching ls_ re-exports on vanilla / voidblock / mts_dimension_warp. String version kept unchanged: the re-exports form the compat modules' public API surface. Note grep found ZERO in-repo call sites of the string version (only the three re-export assignments), so the final sweep can likely fold or retire it.",
+          "scripts/planet_map.lua carries a local twin ls_planet_name() instead of calling compat_utils.ls_planet_display_name: compat_utils requires planet_map at load time, so requiring it back would create a load cycle (the module header documents the same constraint for force_utils). Commented at the definition.",
+          "spawn_labels compute_text switched to returning a LocalisedString IN PLACE (no ls_ twin), per the guide's grep-evidence exception: it is a local function whose only consumers are rendering.draw_text (draw) and LuaRenderObject.text assignment (refresh_for_force); both verified LocalisedString-typed in ~/factorio-2.0/doc-html/runtime-api.json (LuaRendering.draw_text.text: LocalisedString; LuaRenderObject.text read/write: LocalisedString). No repo consumer needs the plain string."
+        ],
+        "deferred": [
+          {
+            "file": "scripts/debug.lua",
+            "what": "storage.debug.tasks[id].label = string.format(\"research %s × %d (delay %d)\", ...) — display text persisted in storage, later shown by /mts-debug list",
+            "why": "Guide's storage-persistence rule explicitly lists debug task labels: left as-is with -- TODO(locale-stage5) comment added at the storage write; stage 5 migrates persisted display text deliberately (and may keep it English since /mts-debug output is a debug surface)."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\nwarning: unreferenced key: mts-chat.starter-items-added (modifiers.cfg:65)\nwarning: unreferenced key: mts-gui.flag-blueprint-imports (modifiers.cfg:13)\nwarning: unreferenced key: mts-gui.flag-buddy-join (modifiers.cfg:8)\nwarning: unreferenced key: mts-gui.flag-color-fix (modifiers.cfg:15)\nwarning: unreferenced key: mts-gui.flag-friendship (modifiers.cfg:9)\nwarning: unreferenced key: mts-gui.flag-individual-chat (modifiers.cfg:12)\nwarning: unreferenced key: mts-gui.flag-landing-pen (modifiers.cfg:7)\nwarning: unreferenced key: mts-gui.flag-non-competitive (modifiers.cfg:16)\nwarning: unreferenced key: mts-gui.flag-popup-text (modifiers.cfg:11)\nwarning: unreferenced key: mts-gui.flag-spectate-notifications (modifiers.cfg:10)\nwarning: unreferenced key: mts-gui.flag-staged-start (modifiers.cfg:14)\nwarning: unreferenced key: mts-tip.flag-blueprint-imports (modifiers.cfg:34)\nwarning: unreferenced key: mts-tip.flag-buddy-join (modifiers.cfg:29)\nwarning: unreferenced key: mts-tip.flag-color-fix (modifiers.cfg:36)\nwarning: unreferenced key: mts-tip.flag-friendship (modifiers.cfg:30)\nwarning: unreferenced key: mts-tip.flag-individual-chat (modifiers.cfg:33)\nwarning: unreferenced key: mts-tip.flag-landing-pen (modifiers.cfg:28)\nwarning: unreferenced key: mts-tip.flag-non-competitive (modifiers.cfg:37)\nwarning: unreferenced key: mts-tip.flag-popup-text (modifiers.cfg:32)\nwarning: unreferenced key: mts-tip.flag-spectate-notifications (modifiers.cfg:31)\nwarning: unreferenced key: mts-tip.flag-staged-start (modifiers.cfg:35)\ncheck_locale: 209 referenced, 231 defined, 0 errors, 22 warnings",
+        "observations": "SANCTIONED BUGFIX APPLIED (report per slice notes): scripts/planet_map.lua on_logistic_slot_changed pop_text.notify previously showed RAW internal planet variant names (e.g. \\\"mts-vulcanus-2\\\"); now shows {\\\"?\\\", {\\\"space-location-name.<base>\\\"}, capitalised-base} via mts-chat.import-rewritten. CAVEAT for the final sweep: `current` and `own` in that message always share the same base planet (own = the team's variant of base(current)), so with display_surface_name semantics both sides of the arrow usually render the SAME word (\\\"Vulcanus -> Vulcanus\\\"), distinguished only by the orange/green colours. Using the variant prototypes' own localised_name (\\\"Vulcanus 2 -> Vulcanus 1\\\") would disambiguate but reveals slot numbers; a wording decision, not taken here. WORDING BUGS NOTICED, NOT FIXED: (1) pre_start \\\"[Team] __1__ has started playing!\\\" broadcast has no helpers.force_tag after the team mention, violating chat-message-style rule 2 — kept byte-identical. (2) prototypes/planets.lua localised_description = {\\\"space-location-description.<base>\\\"} shows \\\"Unknown key\\\" for a modded planet lacking that entry (inventory row 102, status localised — no change made; a {\\\"?\\\"}-fallback would be a behavior change). (3) spawn_labels location_name_for still returns the plain capitalised base id via helpers.display_surface_name (helpers.lua is outside this slice); passed through as a parameter, so a future ls_ variant of display_surface_name slots straight in. SANCTIONED NON-BYTE-IDENTICAL CHANGE: \\\"Adjusted %d player(s).\\\" became mts-cmd.fixcolors-adjusted with __plural_for_parameter__ (\\\"Adjusted 1 player.\\\" / \\\"Adjusted 3 players.\\\") — the guide's plural pattern explicitly kills \\\"(s)\\\". DATA-STAGE: [space-location-name] mts-team-planet and [space-connection-name] mts-team-connection live in locale/en/misc.cfg; engine-resolved, checker skips non-mts sections by design (no reference tracking); parameterised prototype localised_name verified against prototype-api.json (params + nesting allowed, 200-char key limit not approached) and modeled on mts-passivized-radar-prefix. RISK NOTE: no Lua interpreter (luac/lua/luajit) exists on this machine, so edits were verified by diff re-read only — every change is a literal string-to-table swap; recommend a game load before push per hold-push-until-playtest. CONCURRENCY: other slices were writing locale/en/*.cfg during this run; my first checker run showed their in-flight missing keys, final run is 0 errors and all 22 warnings belong to modifiers.cfg (not my file, none of my keys). My keys verified collision-free against all other cfg files before writing."
+      },
+      {
+        "slice": "remote-gui-producers",
+        "dispositions": {
+          "converted": 32,
+          "kept_english": 45,
+          "deferred": 0
+        },
+        "dual_api": [
+          "teams_data.collect_team_surfaces — added ls_name/ls_location LocalisedString fields alongside plain name/location on every entry; plain fields still concatenated by gui/team_card.lua:197,200 and /mts-players (scripts/commands/team.lua:97-98), so their type is frozen",
+          "teams_data.fmt_ago — added M.ls_fmt_ago beside it; plain version still consumed by gui/stats/grid.lua:175",
+          "teams_data fmt_playtime (file-local) — added local ls_fmt_playtime twin composing engine time-symbol-*-short keys (stage-1 ls_duration zero-pads minutes so it is not byte-identical); plain twin still feeds build_activity_tooltip",
+          "teams_data.build_activity_tooltip — added M.ls_build_activity_tooltip beside it; plain version still feeds activity_info",
+          "teams_data.activity_info — added M.ls_activity_info (same table shape, ago_text/tooltip as LocalisedStrings); plain version still consumed by gui/team_card.lua:49,268, gui/stats/counts.lua:252, scripts/commands/admin.lua:130",
+          "friendship.get_state — appended trailing ls_label/ls_tooltip return values (positionally backward-compatible, per slice note); gui/team_card.lua:144 still reads the plain first four",
+          "hud_clock.clock_caption — added M.ls_clock_caption beside it and switched hud_clock's own update_player to it; plain version still consumed by gui/team_card.lua:70,324"
+        ],
+        "deferred": [],
+        "missed_strings": [],
+        "checker_output": "check_locale: 231 referenced, 231 defined, 0 errors, 0 warnings",
+        "observations": "scripts/remote_api.lua is untouched: all 43 of its inventory rows are Discord-bridge/external (BRIDGE_LABELS emoji, register_source descriptions, bridge_text/connection_text/emit_chat formats, 'player N'/'A player' fallbacks) plus the frozen mts-v1 get_team_label rich-text contract — all kept_english by policy; the file contains no in-game print/caption/flying-text. teams_data's two kept_english rows are the [gps=...] format strings (symbol-only rich text). Deliberate internal-name bugfixes (guide rule 1 exception, ls_ fields only): platform ls_location now resolves {\\\"?\\\", {\\\"space-location-name.\\\" .. id}, id} where the plain field shows the raw internal id, and the two 'planet base' ls_name variants localise the planet where the plain field Lua-capitalises it — on the MTS testbed (no space-age) only nauvis has a prototype, so fallbacks keep output byte-identical there. Wording/style issues noticed, NOT fixed: hud_clock tooltips ('The clock starts when the team leader clicks Start Playing.', 'Time since the team started playing — …') and 'Spectator chat is always global.' mention team/chat with no force tag (house rule 2 gap, pre-existing); 'withdrew friend request to X' reads slightly off (from/to); member-activity has mid-sentence capital 'Played'. Risks for the final sweep: ls_join_lines in teams_data caps the ls activity tooltip at ~171 member lines (two nesting levels — deepen if that ever becomes reachable); friendship.get_state now returns 6 values, so a future caller using select('#') would see the extra pair; the /mts-players command builds one plain string via table.concat, which is why collect_team_surfaces' plain fields must survive until that command is converted to LocalisedString composition; teams_data's surface regex ^(team%-%d+)%-(%w+)$ still fails on hyphenated planet ids (pre-existing). teams_data.member_rich_name was factored out of build_activity_tooltip so both tooltip builders share the hex/colour fragment — output byte-identical. Lua syntax not machine-verified (no lua/luac on PATH); diff re-read against the guide's three classic mistakes: no concat on now-table values, no tables on Discord paths, all __N__ arities match call sites."
+      }
+    ],
+    "slices": [
+      "cmd-team",
+      "cmd-admin",
+      "lifecycle-chat",
+      "modifiers-flags",
+      "milestones-research",
+      "spectator-slots",
+      "world-misc",
+      "remote-gui-producers"
+    ]
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Convert"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "convert:cmd-team",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "aaef2c30f8cf10b31",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155656113,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "cmd-team",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156216272,
+      "tokens": 103660,
+      "toolCalls": 47,
+      "durationMs": 560159,
+      "resultPreview": "{\"slice\":\"cmd-team\",\"dispositions\":{\"converted\":53,\"kept_english\":9,\"deferred\":2},\"dual_api\":[],\"deferred\":[{\"file\":\"scripts/commands/team.lua\",\"what\":\"mts-modifiers per-team row format \\\"  %s%s — %s\\\" (inventory row ~L201)\",\"why\":\"Interpolates team_modifiers.describe() and marked_badge(), another slice's plain-string producers; row stays on the string API (a plain string mixed into the LocalisedS…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "convert:cmd-admin",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a461f3a6022733e46",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655589,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "cmd-admin",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156193090,
+      "tokens": 117257,
+      "toolCalls": 57,
+      "durationMs": 537501,
+      "resultPreview": "{\"slice\":\"cmd-admin\",\"dispositions\":{\"converted\":52,\"kept_english\":25,\"deferred\":2},\"dual_api\":[],\"deferred\":[{\"file\":\"/home/shobhitg/src/multi-team-support/scripts/commands/admin.lua\",\"what\":\"activity.ago_text used as the 'Last active:' parameter of the disband confirm dialog (mts-confirm.disband-message param __5__) stays on the plain-string API\",\"why\":\"Producer is gui/teams_data.lua activity_in…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "convert:lifecycle-chat",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "aac9058e9f68e0eda",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655724,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "lifecycle-chat",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156190107,
+      "tokens": 109146,
+      "toolCalls": 59,
+      "durationMs": 534383,
+      "resultPreview": "{\"slice\":\"lifecycle-chat\",\"dispositions\":{\"converted\":18,\"kept_english\":6,\"deferred\":0},\"dual_api\":[],\"deferred\":[{\"file\":\"/home/shobhitg/src/multi-team-support/events/gui_state.lua\",\"what\":\"admin_player.print(reason) where reason = team_modifiers.disable_blocked_reason() (~line 141)\",\"why\":\"Producer lives in scripts/team_modifiers.lua (another slice). Call left untouched per slice note; converts …"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "convert:modifiers-flags",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a88de3c11018cb1c3",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655767,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "check_locale: 231 referenced, 231 defined, 0 errors, 0 warn…",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156311737,
+      "tokens": 107627,
+      "toolCalls": 44,
+      "durationMs": 655970,
+      "resultPreview": "{\"checker_output\":\"check_locale: 231 referenced, 231 defined, 0 errors, 0 warnings\",\"deferred\":[],\"dispositions\":{\"converted\":42,\"kept_english\":2,\"deferred\":0},\"dual_api\":[\"team_modifiers.MODIFIERS defs: ls_label/ls_short/ls_tooltip fields added beside label/short/tooltip — admin GUI (gui/admin.lua:122) and plain display helpers still read the string fields; icon got no twin (language-neutral rich…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "convert:milestones-research",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "af1b8a1c725f7a5b0",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655850,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "milestones-research",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156185363,
+      "tokens": 97984,
+      "toolCalls": 43,
+      "durationMs": 529512,
+      "resultPreview": "{\"slice\":\"milestones-research\",\"dispositions\":{\"converted\":18,\"kept_english\":10,\"deferred\":0},\"dual_api\":[],\"deferred\":[],\"missed_strings\":[],\"checker_output\":\"warning: unreferenced key: mts-chat.item-count (modifiers.cfg:63)\\nwarning: unreferenced key: mts-chat.mode-notice (modifiers.cfg:61)\\nwarning: unreferenced key: mts-chat.records-tag (modifiers.cfg:58)\\nwarning: unreferenced key: mts-chat.r…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "convert:spectator-slots",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "ab566b675d6a651e5",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655625,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "spectator-slots",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156174325,
+      "tokens": 109870,
+      "toolCalls": 46,
+      "durationMs": 518700,
+      "resultPreview": "{\"slice\":\"spectator-slots\",\"dispositions\":{\"converted\":18,\"kept_english\":34,\"deferred\":2},\"dual_api\":[\"spectator.get_chat_prefix (scripts/spectator/events.lua, re-exported by scripts/spectator.lua): added ls_get_chat_prefix twin returning a LocalisedString ({\\\"\\\", {\\\"mts-chat.chat-prefix-spectator\\\"|\\\"mts-chat.chat-prefix-friend\\\", display_name}, \\\" \\\"}) and exported it as spectator.ls_get_chat_pr…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 7,
+      "label": "convert:world-misc",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "ab1b48e6487168a75",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655681,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "world-misc",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156239901,
+      "tokens": 175822,
+      "toolCalls": 75,
+      "durationMs": 584220,
+      "resultPreview": "{\"slice\":\"world-misc\",\"dispositions\":{\"converted\":12,\"kept_english\":20,\"deferred\":1},\"dual_api\":[\"compat_utils.planet_display_name -> added compat_utils.ls_planet_display_name ({\\\"?\\\", {\\\"space-location-name.\\\" .. id}, capitalised-fallback}) plus matching ls_ re-exports on vanilla / voidblock / mts_dimension_warp. String version kept unchanged: the re-exports form the compat modules' public API su…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 8,
+      "label": "convert:remote-gui-producers",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "accb8cd9cf3aad396",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787155655614,
+      "queuedAt": 1787155652782,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "remote-gui-producers",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. This is careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter…",
+      "lastProgressAt": 1787156219169,
+      "tokens": 130172,
+      "toolCalls": 44,
+      "durationMs": 563555,
+      "resultPreview": "{\"slice\":\"remote-gui-producers\",\"dispositions\":{\"converted\":32,\"kept_english\":45,\"deferred\":0},\"dual_api\":[\"teams_data.collect_team_surfaces — added ls_name/ls_location LocalisedString fields alongside plain name/location on every entry; plain fields still concatenated by gui/team_card.lua:197,200 and /mts-players (scripts/commands/team.lua:97-98), so their type is frozen\",\"teams_data.fmt_ago — ad…"
+    }
+  ],
+  "totalTokens": 951538,
+  "totalToolCalls": 415
+}

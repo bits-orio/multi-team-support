@@ -30,3 +30,15 @@ A 12-agent orchestrated workflow (run id `wf_554c16de-7c6`, 676,314 subagent tok
 - `[mod-setting-*]`/`[string-mod-setting]` sections were verified against the shipped changelog + the locally installed land-title-registry mod (no Wube-shipped mod defines settings).
 - One sweep-note error was caught and corrected in PLAN §1: a finder claimed `display_panel_text` is plain-string-only; the docs verify it accepts LocalisedString.
 - The critic agent never ran as an agent; its function was reproduced by the scripted audit above. The audit is narrower than the planned critic prompt (it did not adversarially re-read whole files), so residual risk concentrates in strings invisible to the audit's regex (e.g. a display string assigned via an unusual variable-only pattern). The 8 finder agents read every file in full, which bounds that risk.
+
+## Phase-1 execution evidence (added after the conversion, same day)
+
+The conversion itself (commits `2ed28e5`..`0dd14e3`) was also multi-agent; its artifacts:
+
+| File | What it is |
+|---|---|
+| `conversion-workflow-a-script.js` / `conversion-workflow-b-script.js` | The orchestration scripts for the two conversion fan-outs (8 script/command/milestone slices; 6 GUI slices) — agent prompts embed the slice briefs and the dual-API/Discord rules. |
+| `conversion-workflow-a-reports.json` / `conversion-workflow-b-reports.json` | Each slice agent's structured report: per-inventory-row dispositions, dual APIs created, deferred sites, missed strings found, checker output, and observations (wording bugs noticed but not fixed under the byte-identical rule). |
+| `adversarial-review.md` | Independent full-diff review (2ed28e5..HEAD): category-by-category verdicts over concat-on-table, table-to-string sinks, param mismatches (all 80 multi-param keys), English drift (~35 hunks), lost behavior, composition seams, and nil parameters (all 188 constructors traced). Found F1–F7; F1–F3+F5 fixed in `0dd14e3`, F4/F6 pre-existing cosmetic, F7 judged sanctioned. |
+
+Verification tooling used throughout: `tools/check_locale.py` (in repo, wired into release.sh) and a Lua-lexer bracket-balance checker (session scratchpad; correctly handles long strings/comments — the naive regex version false-positived twice and was discarded).

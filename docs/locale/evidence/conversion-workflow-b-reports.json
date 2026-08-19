@@ -1,0 +1,293 @@
+{
+  "summary": "Convert GUI modules to locale keys (workflow B of the MTS localization)",
+  "agentCount": 6,
+  "logs": [],
+  "result": {
+    "reports": [
+      {
+        "checker_output": "Final: \"check_locale: 461 referenced, 404 defined, 57 errors, 0 warnings\". Zero errors or warnings name gui/admin.lua or any gui-admin.cfg key. My slice initially produced one error — \"missing definition: mts-tip.save-description (referenced at gui/admin.lua)\" — a key I had referenced but left out of the [mts-tip] section; fixed by adding it to locale/en/gui-admin.cfg. All remaining errors are other slices' in-flight churn: missing definitions referenced from gui/team_card.lua, gui/team_settings.lua, gui/teams.lua (keys like mts-gui.teams-title, mts-gui.recruiting*, mts-tip.follow-in-camera, mts-tip.team-slot, mts-chat.lfm-*), whose cfg files had not landed yet. Earlier runs also showed unreferenced-key warnings from gui-stats.cfg (mts-gui.awards-*, mts-tip.awards-*, mts-gui.stats-*) that resolved on their own as that slice's Lua landed mid-session — the repo's referenced count grew 389 -> 408 -> 418 -> 461 across my four runs, confirming parallel agents were actively writing.",
+        "deferred": [],
+        "dispositions": {
+          "converted": 33,
+          "kept_english": 4,
+          "deferred": 0
+        },
+        "dual_api": [
+          "admin_gui.ls_get_flag_label — added facade re-export of the already-converted admin_flags.ls_get_flag_label beside the plain get_flag_label re-export, so the outside consumer events/gui_state.lua (which still passes the plain-English label into its keyed {\"mts-chat.admin-flag-enabled\"/\"-disabled\"} sentences) can migrate through the same require path; its return type and the existing plain twin are unchanged."
+        ],
+        "missed_strings": [
+          "gui/admin.lua ~line 95-100 (FLAGS rendering): checkbox tooltip = def.tooltip and label caption/tooltip = def.label/def.tooltip — data-driven display text rendered in my file but not present as inventory rows for gui/admin.lua; switched to the committed def.ls_label/def.ls_tooltip fields.",
+          "gui/admin.lua ~line 133-136 (MODIFIERS header label per modifier): caption = def.label, tooltip = def.tooltip — same data-driven gap (the inventory only listed the composed checkbox tooltip at ~145); switched to def.ls_label/def.ls_tooltip."
+        ],
+        "observations": "Files: /home/shobhitg/src/multi-team-support/gui/admin.lua (converted), /home/shobhitg/src/multi-team-support/locale/en/gui-admin.cfg (created, 27 keys). Kept-English rows: textfield default text \\\"1\\\" (engine plain-string .text surface, numeric), \\\"+\\\" button caption (symbol-only), and the two log() lines at ~466/~480 (log policy). Buddy-limit dropdown items stay tostring(i) — bare numbers, no keys. Sanctioned internal-name bugfixes applied: starter-item rows now show prototypes.item[name].localised_name (caption, \\\" [+grid]\\\" composed per the guide's exact pattern, \\\"Remove __1__\\\" tooltip) and equipment grids show prototypes.equipment[name].localised_name joined via \\\"Equipment: __1__\\\"; every prototype lookup is nil-guarded with the raw internal name as fallback (a stored starter item can outlive its prototype when a mod is removed), which also satisfies the no-vanilla-prototype-assumptions rule. Copied admin_flags.lua's private ls_join into gui/admin.lua (engine caps LocalisedStrings at 20 params per table; an armor grid can exceed that) — flagged for the final sweep to dedupe if admin_flags ever exports it. The marked-team line uses the keyed {\\\"mts-gui.team-line-marked\\\", tag, ls_marked_badge} form per slice note so translations control badge placement; unmarked teams keep the bare rich-text tag. The composed modifier-checkbox tooltip became {\\\"mts-tip.modifier-for-team\\\", def.ls_label, def.ls_tooltip} = \\\"__1__ for this team. __2__\\\". Verified against local 2.0 doc JSON: prototypes.item/equipment are LuaCustomTables of prototypes whose localised_name (LocalisedString) lives on LuaPrototypeBase. The admin nav button is added directly to player.gui.top and is NOT persisted through nav.add_top_button's storage.nav_button_order, so converting its \\\"Open Admin panel\\\" tooltip needed no stage-5 deferral. Byte-identical checks done, including the two leading-space indents (\\\"  (no teams yet)\\\", \\\"  (using default items)\\\") which the cfg format preserves (precedent: chat.cfg discord-invite).",
+        "slice": "gui-admin"
+      },
+      {
+        "slice": "gui-teams",
+        "dispositions": {
+          "converted": 72,
+          "kept_english": 5,
+          "deferred": 1
+        },
+        "dual_api": [
+          "none added by this slice — all cross-file producers already had ls_ twins from workflow A; this slice only migrated consumers onto them",
+          "hud_clock.clock_caption (plain twin): zero consumers remain repo-wide after team_card moved to ls_clock_caption — fold candidate for the final sweep (gui/hud_clock.lua not touched, outside my slice)",
+          "team_modifiers.card_line (plain twin): zero consumers remain after team_card moved to ls_card_line — fold candidate",
+          "friendship.get_state: plain 1st/3rd returns (label_text, tooltip) now have zero consumers; team_card uses the 5th/6th ls returns — signature can shrink in the final sweep",
+          "teams_data.activity_info (plain twin): still consumed by scripts/commands/admin.lua:131 (another slice) — must stay",
+          "collect_team_surfaces plain name/location fields: still consumed by scripts/commands/team.lua:125 (/mts-players) — must stay"
+        ],
+        "deferred": [
+          {
+            "file": "/home/shobhitg/src/multi-team-support/gui/teams.lua",
+            "what": "nav top-button tooltip \"Teams\" (line ~192, on_player_created)",
+            "why": "nav.add_top_button persists spec.tooltip into storage.nav_button_order (gui/nav.lua:40) — storage-persisted display text stays plain per the guide; added -- TODO(locale-stage5) at the call site for the stage-5 storage migration"
+          }
+        ],
+        "missed_strings": [
+          "gui/team_card.lua:271 (update_activity_labels_all) rebuilt the \" · <ago>\" caption + tooltip outside the row the inventory listed at line 54 — converted alongside it via ls_activity_info",
+          "gui/team_card.lua:324 (update_clock_labels_all) refreshes the per-card clock caption/tooltip — switched to ls_clock_caption (inventory only listed the build site at line 70 via producer notes)",
+          "gui/team_card.lua:143-157 friendship label/tooltip consumption had no inventory row (producer-owned text) — switched to get_state's 5th/6th ls returns",
+          "gui/team_settings.lua:289 player.print(err) — verified no change needed: team_rename.attempt already returns LocalisedString errors ({\"mts-cmd.rename-*\"}) since workflow A"
+        ],
+        "checker_output": "check_locale: 470 referenced, 470 defined, 0 errors, 0 warnings",
+        "observations": "Files edited: gui/team_card.lua, gui/teams.lua, gui/team_settings.lua, gui/lfm_hint.lua, gui/chat_switch.lua, gui/buddy_requests.lua; new locale/en/gui-teams.cfg. (1) CROSS-REFERENCE for phase 2: the \"Start recruiting\" button caption (mts-gui.start-recruiting) is quoted verbatim inside mts-gui.recruiting-callout and mts-gui.lfm-hint-message (both marked with cfg comments) AND inside welcome.lua's About text (gui-welcome slice) — the four must stay word-identical in every language. (2) In-flight collision handling: gui-admin.cfg landed mid-run defining mts-tip.close-panel (same text+context — I reuse it, my cfg carries a comment) and mts-gui.no-teams-yet with DIFFERENT text (\"  (no teams yet)\") — my \"No teams yet.\" became mts-gui.teams-empty; checker now passes 0/0 across all six in-flight slice cfgs. (3) Kept-english rows, all symbol/numeric-only policy: \"#\"..slot caption, leader star, online/offline dots (team_card), and the \"%d / %d\" name-length counter (team_settings:101/358). That counter plus the :sub truncation use Lua byte length and split multibyte UTF-8 — pre-existing bug, untouched, needs its own fix. (4) buddy_requests.lua:47 shows requester.name uncolored in the dialog label, deviating from house style rule 1 — kept byte-identical; a deliberate colorization fix should come separately. (5) Verified helpers.broadcast only loops player.print (no Discord bridge), so all seven converted broadcasts (two LFM in team_settings, five buddy) are in-game only. (6) chat_switch: 7 whole-tooltip variant keys (channel x scope, \"Click to switch...\" tails inside the values) + a composed spectator-note key carrying its own leading \\n; captions GLOBAL/TEAM/TEAM* are keys so the * stays paired with the note. (7) helpers.add_title_bar is a pure caption passthrough — LocalisedString titles (Teams/Team Settings/Buddy Request) work without a dual API. (8) Surface rows compose two-space indents and location parens as symbol-only around entry ls_name/ls_location; the \" · \" activity separator likewise. (9) mts-gui.accept/reject/save are generically named — future slices adding the same names will hit checker duplicates; rename theirs or move to shared.cfg in the sweep. No git commands were run; nothing committed."
+      },
+      {
+        "slice": "gui-welcome",
+        "dispositions": {
+          "converted": 42,
+          "kept_english": 5,
+          "deferred": 1
+        },
+        "dual_api": [],
+        "deferred": [
+          {
+            "file": "gui/welcome.lua",
+            "what": "nav button tooltip \"About Multi-Team Support / Discord\" (inventory row welcome.lua:309)",
+            "why": "nav.add_top_button persists spec.tooltip into storage.nav_button_order (gui/nav.lua:40-41) — storage-persisted display text is stage 5 by guide policy; added -- TODO(locale-stage5) comment at the call site"
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "ERROR: missing definition: mts-gui.admin-title (referenced at gui/admin.lua:65)\nERROR: missing definition: mts-gui.max-team-size (referenced at gui/admin.lua:111)\nERROR: missing definition: mts-gui.tab-feature-flags (referenced at gui/admin.lua:79)\nERROR: missing definition: mts-gui.team-modifiers-header (referenced at gui/admin.lua:134)\nERROR: missing definition: mts-gui.team-modifiers-hint (referenced at gui/admin.lua:139)\nERROR: missing definition: mts-tip.close-panel (referenced at gui/admin.lua:71)\nERROR: missing definition: mts-tip.max-team-size (referenced at gui/admin.lua:112)\nERROR: missing definition: mts-tip.max-team-size-dropdown (referenced at gui/admin.lua:125)\nERROR: missing definition: mts-tip.team-members-count (referenced at gui/team_card.lua:30)\nERROR: missing definition: mts-tip.team-slot (referenced at gui/team_card.lua:42)\ncheck_locale: 336 referenced, 326 defined, 10 errors, 0 warnings\n\nAll 10 errors are other slices' in-flight keys (gui/admin.lua and gui/team_card.lua reference keys whose cfg files those slices have not landed yet) — none name my files or my keys. 0 warnings, so every key I defined is referenced and none are typo'd. My slice contributes 0 errors.",
+        "observations": "Kept-english detail (5 rows): follow_cam_frame.lua \"−\"/\"+\" zoom captions and the two-space indent glued to the team name (\"  \" .. helpers.display_name(real_fn)) are symbol-only per policy (no English word/grammar); return_button.lua:75 helpers.diag(...) is the debug channel (log policy); welcome.lua's Discord text-box .text = settings.global[\"mts_discord_url\"].value is an engine plain-string surface carrying runtime data. On that last one: the slice note said \"the Discord URL comes from settings as a parameter\", but in the current code the URL appears only as text-box content, never inside a translated sentence, so no parameterised key was needed. Composition note: the slice note anticipated {\"\", {\"k1\"}, \"\\n\\n\", {\"k2\"}} paragraph composition for the About tab, but welcome.lua renders each section as its own pair of labels (title + body), so each paragraph/section became one key passed directly to a label caption — no 20-param concerns. Slice-note discrepancy: \"  (no teams yet)\" is not in follow_cam_frame.lua; it lives at gui/admin.lua:162, which belongs to the gui-admin slice (their inventory rows / cfg should cover it). Phase-2 candidates flagged in cfg comments: (1) \"(press M)\" inside mts-gui.start-playing-info hardcodes the default map keybind — a __CONTROL__ substitution needs a real custom-input prototype; (2) mts-gui.welcome-space-age-body keeps English planet names in prose (byte-identical rule; localised planet names would restructure the sentence); (3) mts-gui.welcome-nav-body textually duplicates every nav panel title — translators must keep it in sync with the actual panel titles as other slices convert them; likewise welcome-commands-body references the GLOBAL | TEAM switch labels; (4) the follow-cam Body/View mode button is fixed at 46px — long translations will clip. I defined mts-gui.welcome-title=Multi-Team Support rather than reusing {\"mod-name.multi-team-support\"}: check_locale.py only tracks mts-* references, so a cross-namespace reuse would be invisible to the checker (and mod proper names typically stay untranslated anyway). Tab captions \"  About  \" / \"  Discord  \" keep both leading and trailing two-space padding inside the cfg values (verified byte-exact with cat -A). No dual APIs: external consumers of my modules only call lifecycle functions (show/close/update/rebuild), none return display text."
+      },
+      {
+        "slice": "gui-pen",
+        "dispositions": {
+          "converted": 20,
+          "kept_english": 3,
+          "deferred": 1
+        },
+        "dual_api": [],
+        "deferred": [
+          {
+            "file": "/home/shobhitg/src/multi-team-support/gui/pen_info_panel.lua",
+            "what": "DEFAULT_TEXT (\"An admin can describe this run from the Admin panel (Run Info tab).\") written to display_panel_text; admin-authored storage.pen_info_text overrides it",
+            "why": "Admin-authored data round-tripped through the Admin GUI's plain-string textbox .text; keying the default is a stage-5 storage/round-trip decision per the guide (admin-authored pen description is explicitly stage-5). Marked with -- TODO(locale-stage5)."
+          }
+        ],
+        "missed_strings": [
+          "gui/platform_hub.lua:39 caption = def.caption — widget frame captions arrive from consumer mods via remote_api.register_platform_hub_widget; pure pass-through, kept_english (consumers own their own localisation). Inventory listed the file as zero-display-strings; noting it here since it does reach a caption."
+        ],
+        "checker_output": "python3 tools/check_locale.py → exit 1: \"check_locale: 312 referenced, 326 defined, 3 errors, 17 warnings\". All 3 errors are another slice's in-flight work: missing definitions mts-gui.admin-title, mts-gui.tab-feature-flags, mts-tip.close-panel, referenced from gui/admin.lua:65/79/71 (verified by reading admin.lua — its call sites are already converted but the gui-admin cfg has not landed; not my file to fix). All 17 warnings are unreferenced keys in gui-welcome.cfg and gui-research.cfg (follow-cam-*, research-*) — other slices' churn. Zero errors and zero warnings name gui-pen.cfg or any pen-* key; every key I defined is referenced and every reference I added is defined.",
+        "observations": "1) landing_pen_terrain: both rendering.draw_text ground texts now pass LocalisedStrings — verified against the local 2.0 doc JSON (LuaRendering.draw_text `text` param is typed LocalisedString). PLAYTEST QUESTION: whether each client resolves world-rendered text in its own language or the render is one language for all viewers (finder notes claim a single shared render; the draw call itself is per-save, not per-player). 2) pen_info_panel DEFAULT_TEXT flagged as requested: left plain with TODO(locale-stage5). Note for stage 5: local docs show LuaEntity.display_panel_text is read/write LocalisedString in 2.0 (the inventory finder note claiming plain-string-only is wrong), so a keyed default is technically possible — the real blocker is the Admin Run Info textbox reading the stored text back through plain-string .text. 3) The leader \\\"— offline\\\" suffix became two whole-sentence keys (pen-leader / pen-leader-offline) per slice notes; the grey-vs-chat-color styling stays in Lua via font_color, display-identical. 4) Defined my own mts-gui.pen-title=Landing Pen instead of reusing mts-gui.flag-landing-pen (same English, different context: admin flag label vs window title) per the guide's reuse rule. 5) The spawn-button 3-way and/or tooltip chain kept its shape — tables are truthy so the chain picks variants exactly as before. 6) No nav-button registrations exist in any of my six files (grep-verified), so the nav-spec storage deferral in the slice notes had nothing to apply to. 7) pen_ops.lua has zero display strings; landing_pen.lua's only strings are two helpers.diag teleport traces, kept English per log/debug policy (the 2 inventory log rows). 8) House-style rule 1 (colorized player names) is NOT applied to the leader-name parameter: the original showed the plain name with label-level font_color, and byte-identical conversion preserves that — flagging rather than fixing per guide rule 1. 9) helpers.add_title_bar forwards its caption argument straight to a label caption, so passing a table needed no signature change; other callers still pass plain strings unaffected."
+      },
+      {
+        "slice": "gui-research",
+        "dispositions": {
+          "converted": 34,
+          "kept_english": 3,
+          "deferred": 1
+        },
+        "dual_api": [
+          "research_diff.queue_tooltip — converted in place under the guide's grep-verified exception (no ls_ twin added): every consumer only assigns the result to a tooltip. Grep evidence: gui/research_diff.lua:89 (tooltip = research_diff.queue_tooltip(...)) and gui/team_card.lua:368 (btn.tooltip = research_diff.queue_tooltip(...)); no other live-tree references (only a stale copy under .claude/worktrees/mts-thumbnail-shadow/). Return type was already a LocalisedString table before and after, so the outside consumer is unaffected.",
+          "research_diff.tech_tooltip — also converted in place; consumers are in-slice only (gui/research_diff.lua:52 via add_tech_icons). Return type stayed LocalisedString."
+        ],
+        "deferred": [
+          {
+            "file": "gui/research.lua",
+            "what": "nav top-bar button tooltip \"Research Comparison\" (~line 175)",
+            "why": "nav.add_top_button persists the button spec (including the tooltip string) into storage.nav_button_order — storage-persisted display text is stage-5 scope. Left plain with -- TODO(locale-stage5) comment at the call site."
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "python3 tools/check_locale.py exited 1: \"check_locale: 335 referenced, 326 defined, 9 errors, 0 warnings\". All 9 errors are missing definitions referenced from OTHER slices' in-flight files, none in my slice: mts-gui.admin-title, mts-gui.max-team-size, mts-gui.tab-feature-flags, mts-gui.team-modifiers-header, mts-gui.team-modifiers-hint, mts-tip.close-panel, mts-tip.max-team-size, mts-tip.max-team-size-dropdown (all gui/admin.lua) and mts-tip.team-members-count (gui/team_card.lua:30). Zero warnings, so every key I defined in locale/en/gui-research.cfg is referenced and every reference in my three Lua files resolves. No error or warning names my files or my keys.",
+        "observations": "Files edited: /home/shobhitg/src/multi-team-support/gui/research.lua, gui/research_diff.lua, gui/research_overview.lua; new locale file /home/shobhitg/src/multi-team-support/locale/en/gui-research.cfg (26 [mts-gui] keys + 12 [mts-tip] keys, all research-/research-queue- prefixed to avoid cross-slice key collisions with generic names like close/back). Notable choices: (1) diff_section now receives the whole header LocalisedString with the count inside the key (research-both-have/-they-have/-you-have = \\\"...  (__N__)\\\"), preserving the double-space gap byte-identically; its parameter was renamed title->caption with a why-comment. (2) queue_tooltip composes label + \\\"\\\\n\\\" + status-key (+ \\\"\\\\n\\\" + progress-key) — per-sentence keys joined with structural newlines, byte-identical to the old concat including the pct>0 suppression. (3) fmt_play_time became two whole-variant keys (research-playing / research-playing-online) instead of a composed suffix, so translators control the parenthesis. (4) All displayed fmt_duration calls switched to helpers.ls_duration (byte-identical per producers.cfg contract); the research_diff.fmt_duration re-export now has zero live-tree callers but was left in place — removing it is cleanup beyond the conversion mandate and other in-flight slices could still reference it (fold-away candidate for the final sweep). (5) research-tech-count=\\\"  [__1__]\\\" and research-offline-suffix=\\\" (offline)\\\" carry leading spaces in the cfg values (existing precedent: chat.cfg discord-invite, commands-team.cfg players-none). (6) mts-tip.research-expand-all keeps fixed plural \\\"technologies\\\" — the tooltip only renders when #techs > 12, so no singular branch exists to route. (7) Pre-existing artifact, observation only per slice notes: the infinite-tech table sorts by internal prototype name (tostring(a.name)) while displaying localised labels, so rows are not alphabetical in the display language. (8) Kept-english rows are the three symbol-only glyphs (\\\"●\\\" bullet, \\\"▲▲\\\"/\\\"▼▼\\\" expand-collapse captions) — no English word or grammar. (9) mts-gui.research-team-not-found deliberately shows the raw internal force name (__1__ = e.g. team-1), matching the old string byte-for-byte; the similar mts-cmd.team-not-exists was NOT reused (different text and context)."
+      },
+      {
+        "slice": "gui-stats",
+        "dispositions": {
+          "converted": 56,
+          "kept_english": 10,
+          "deferred": 2
+        },
+        "dual_api": [
+          "columns.CAT_LABELS values converted to LocalisedStrings in place — grep evidence: only consumer is gui/stats/panel.lua captions (grep -rn CAT_LABELS, excluding my slice, returned nothing)",
+          "counts.TIME_PERIODS[].label converted in place to engine time-symbol keys / mts-gui.stats-period-all — grep evidence: only caption consumer is panel.lua; handlers.lua reads .key only",
+          "counts.player_forces(): the activity field now comes from teams_data.ls_activity_info instead of activity_info — grep evidence: entry.activity is consumed only in gui/stats/grid.lua (caption/tooltip); no consumers of counts.player_forces exist outside gui/stats",
+          "awards.lua milestone_prefix (file-local) now returns a LocalisedString; consumers are captions in the same file",
+          "No new ls_ twins were created; teams_data.lua:183's comment ('Plain fmt_ago stays for gui/stats/grid.lua') is now stale since grid migrated to ls_fmt_ago — teams_data.lua is outside this slice, left for the final sweep (fmt_ago/activity_info still have other plain consumers)"
+        ],
+        "deferred": [
+          {
+            "file": "gui/stats.lua",
+            "what": "nav top-bar button tooltip \"Production Stats\" (line ~38)",
+            "why": "nav.add_top_button persists the spec (tooltip included) into storage.nav_button_order — storage-persisted display text is stage-5 by the guide; TODO(locale-stage5) comment added at the call site"
+          },
+          {
+            "file": "gui/awards.lua",
+            "what": "nav top-bar button tooltip \"Team Awards\" (line ~595)",
+            "why": "same storage.nav_button_order persistence; TODO(locale-stage5) comment added at the call site"
+          }
+        ],
+        "missed_strings": [],
+        "checker_output": "python3 tools/check_locale.py → \"check_locale: 457 referenced, 404 defined, 53 errors, 0 warnings\" (exit 1). All 53 errors are missing definitions referenced from OTHER slices' in-flight working-tree files: gui/buddy_requests.lua, gui/team_settings.lua, gui/chat_switch.lua, gui/team_card.lua, gui/teams.lua, gui/lfm_hint.lua (mts-chat.buddy-wants-join, mts-gui.teams-title, mts-tip.team-slot, etc.) — churn from parallel slices whose cfg files are not yet written. Zero errors and zero warnings name any gui-stats file or any key defined in locale/en/gui-stats.cfg (0 warnings overall also confirms every key I defined is referenced — no dead/typo'd keys).",
+        "observations": "Files touched: gui/stats.lua, gui/stats/columns.lua, gui/stats/counts.lua, gui/stats/grid.lua, gui/stats/panel.lua, gui/awards.lua, plus new /home/shobhitg/src/multi-team-support/locale/en/gui-stats.cfg (40 keys). gui/stats/discovery.lua, gui/stats/handlers.lua, gui/stats/quality.lua contain no display strings (read fully; nothing to convert, inventory agrees). Key points: (1) Selected-tab marker is one shared key mts-gui.selected-tab=\"> __1__\" used at all 4 sites (3 in panel.lua incl. Merged, 1 in awards.lua); grep confirmed no other slice uses the '\"> \"' pattern, so the generic name cannot collide. (2) Time-period tabs compose the engine's core keys — verified byte-identical against the local install (/home/shobhitg/factorio/data/core/locale/en/core.cfg: time-symbol-minutes-short=__1__m, time-symbol-hours-short=__1__h); only \"All\" got an mts key. (3) Ordinals: one key mts-gui.awards-place with __plural_for_parameter__1__{ends in 11=th|...|rest=th}__ exactly per instructions; both the \"ends in\" spelling and multi-digit \"ends in 11\" patterns verified in shipped hr/ru core locales. (4) Sanctioned English deviation: \"%d / %d match\" became the plural-aware awards-match-count key, so n≠1 now correctly renders \"matches\" (was always \"match\"); same-policy plural applied nowhere else. (5) grid.lua offline label switched to ls_fmt_ago and its tooltip to the LS activity tooltip via ls_activity_info; the leading separator space is composed at the call site (spectator.cfg precedent) rather than hidden in the value. (6) awards leaderboard cells switched helpers.format_elapsed → helpers.ls_elapsed (byte-identical twin) inside whole-cell key awards-entry=\"__1__  __2__\" (two-space separator preserved). (7) Kept-english detail: counts.fmt \"%.1fk\"/\"%.1fM\"/\"0\"/tostring stay per the phase-2.5 numeric-formatting deferral — this also leaves grid's quality-breakdown tooltip lines (\"[item=..,quality=..] 1.2k\") and all count cells plain strings (rich-text + number only, no English words); \"—\" placeholders, \"▼/▲/·\" sort glyphs, and \"[img=quality/..]\" captions are symbol-only; panel.lua:162 (quality tooltip) and awards.lua:272 (row icon tooltip) already used prototype localised_name — untouched. (8) awards.lua:281 caption row.display/row.name kept as data: external-consumer-registered milestone noun (English data from the registering mod, mirrors milestones.cfg external policy) or raw-name fallback for a removed prototype. (9) Pre-existing limitation unchanged: the awards search matches internal prototype names, and its converted tooltip (mts-tip.awards-search) still says so — flagged for the localisation plan's hazard list, no behavior change made. (10) Close tooltips got slice-prefixed keys (stats-close/awards-close) instead of a shared generic key to avoid cross-cfg duplicate-key shadowing; duplicate English across key names is deliberate. No Lua interpreter was available for a syntax check (luac/luajit absent); the checker's Lua-source scan parsed all edited files and every reference resolved, and the full diff was re-read against the guide's classic mistakes (no concat on now-table values, no LocalisedString reaches a bridge/log path, all __N__ arities match their call sites)."
+      }
+    ],
+    "slices": [
+      "gui-admin",
+      "gui-teams",
+      "gui-welcome",
+      "gui-pen",
+      "gui-research",
+      "gui-stats"
+    ]
+  },
+  "workflowProgress": [
+    {
+      "type": "workflow_phase",
+      "index": 1,
+      "title": "Convert"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 1,
+      "label": "convert:gui-admin",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a7bbf15630f5524c2",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079398,
+      "queuedAt": 1787174077022,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "Final: \"check_locale: 461 referenced, 404 defined, 57 error…",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174729336,
+      "tokens": 106915,
+      "toolCalls": 67,
+      "durationMs": 649937,
+      "resultPreview": "{\"checker_output\":\"Final: \\\"check_locale: 461 referenced, 404 defined, 57 errors, 0 warnings\\\". Zero errors or warnings name gui/admin.lua or any gui-admin.cfg key. My slice initially produced one error — \\\"missing definition: mts-tip.save-description (referenced at gui/admin.lua)\\\" — a key I had referenced but left out of the [mts-tip] section; fixed by adding it to locale/en/gui-admin.cfg. All r…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 2,
+      "label": "convert:gui-teams",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "ab4ec6f487c7513ad",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079269,
+      "queuedAt": 1787174077023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "gui-teams",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174998413,
+      "tokens": 166467,
+      "toolCalls": 106,
+      "durationMs": 919144,
+      "resultPreview": "{\"slice\":\"gui-teams\",\"dispositions\":{\"converted\":72,\"kept_english\":5,\"deferred\":1},\"dual_api\":[\"none added by this slice — all cross-file producers already had ls_ twins from workflow A; this slice only migrated consumers onto them\",\"hud_clock.clock_caption (plain twin): zero consumers remain repo-wide after team_card moved to ls_clock_caption — fold candidate for the final sweep (gui/hud_clock.lu…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 3,
+      "label": "convert:gui-welcome",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a51b776e2ee2d7e59",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079192,
+      "queuedAt": 1787174077023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "gui-welcome",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174576180,
+      "tokens": 103876,
+      "toolCalls": 44,
+      "durationMs": 496987,
+      "resultPreview": "{\"slice\":\"gui-welcome\",\"dispositions\":{\"converted\":42,\"kept_english\":5,\"deferred\":1},\"dual_api\":[],\"deferred\":[{\"file\":\"gui/welcome.lua\",\"what\":\"nav button tooltip \\\"About Multi-Team Support / Discord\\\" (inventory row welcome.lua:309)\",\"why\":\"nav.add_top_button persists spec.tooltip into storage.nav_button_order (gui/nav.lua:40-41) — storage-persisted display text is stage 5 by guide policy; added…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 4,
+      "label": "convert:gui-pen",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a3080c72e29117d78",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079197,
+      "queuedAt": 1787174077023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "gui-pen",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174541978,
+      "tokens": 83418,
+      "toolCalls": 51,
+      "durationMs": 462781,
+      "resultPreview": "{\"slice\":\"gui-pen\",\"dispositions\":{\"converted\":20,\"kept_english\":3,\"deferred\":1},\"dual_api\":[],\"deferred\":[{\"file\":\"/home/shobhitg/src/multi-team-support/gui/pen_info_panel.lua\",\"what\":\"DEFAULT_TEXT (\\\"An admin can describe this run from the Admin panel (Run Info tab).\\\") written to display_panel_text; admin-authored storage.pen_info_text overrides it\",\"why\":\"Admin-authored data round-tripped thro…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 5,
+      "label": "convert:gui-research",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "a6646e1d7f7604fcd",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079200,
+      "queuedAt": 1787174077023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "gui-research",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174583835,
+      "tokens": 94599,
+      "toolCalls": 50,
+      "durationMs": 504635,
+      "resultPreview": "{\"slice\":\"gui-research\",\"dispositions\":{\"converted\":34,\"kept_english\":3,\"deferred\":1},\"dual_api\":[\"research_diff.queue_tooltip — converted in place under the guide's grep-verified exception (no ls_ twin added): every consumer only assigns the result to a tooltip. Grep evidence: gui/research_diff.lua:89 (tooltip = research_diff.queue_tooltip(...)) and gui/team_card.lua:368 (btn.tooltip = research_d…"
+    },
+    {
+      "type": "workflow_agent",
+      "index": 6,
+      "label": "convert:gui-stats",
+      "phaseIndex": 1,
+      "phaseTitle": "Convert",
+      "agentId": "af1b1ce792603dfa9",
+      "model": "claude-fable-5",
+      "state": "done",
+      "startedAt": 1787174079178,
+      "queuedAt": 1787174077023,
+      "attempt": 1,
+      "lastToolName": "StructuredOutput",
+      "lastToolSummary": "gui-stats",
+      "promptPreview": "You are converting hardcoded English display strings to Factorio locale keys in the mod at /home/shobhitg/src/multi-team-support. Careful, mechanical work with exact rules.\n\nFIRST read these, completely:\n1. /home/shobhitg/src/multi-team-support/docs/locale/CONVERSION-GUIDE.md — the contract you must follow exactly\n2. /home/shobhitg/src/multi-team-support/docs/locale/inventory.json — filter to your…",
+      "lastProgressAt": 1787174895351,
+      "tokens": 145972,
+      "toolCalls": 72,
+      "durationMs": 816173,
+      "resultPreview": "{\"slice\":\"gui-stats\",\"dispositions\":{\"converted\":56,\"kept_english\":10,\"deferred\":2},\"dual_api\":[\"columns.CAT_LABELS values converted to LocalisedStrings in place — grep evidence: only consumer is gui/stats/panel.lua captions (grep -rn CAT_LABELS, excluding my slice, returned nothing)\",\"counts.TIME_PERIODS[].label converted in place to engine time-symbol keys / mts-gui.stats-period-all — grep evide…"
+    }
+  ],
+  "totalTokens": 701247,
+  "totalToolCalls": 390
+}
