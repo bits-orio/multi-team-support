@@ -16,9 +16,9 @@ local friendship = {}
 
 --- Determine friendship checkbox state between viewer and target.
 --- Returns: label_text, label_color, tooltip, checked, ls_label, ls_tooltip
---- — the trailing pair are LocalisedString twins of label_text/tooltip; the
---- plain pair stays until the consumer (gui/team_card.lua) migrates
---- (dual API).
+--- — the trailing pair are LocalisedString twins of label_text/tooltip.
+--- gui/team_card.lua consumes the ls_ pair; the plain pair is currently
+--- unread and folds (shrinking the signature) in the post-playtest cleanup.
 -- Friendship checkbox states:
 -- State                     | Label            | Color  | Checked | Tooltip
 -- No intents                | "request friend" | blue   | no      | "Send friend request to X"

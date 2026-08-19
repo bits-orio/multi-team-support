@@ -26,9 +26,10 @@ local function ls_planet_name(id, capitalised)
 end
 
 -- Every entry carries ls_name/ls_location LocalisedString twins next to the
--- plain name/location fields: gui/team_card.lua and /mts-players still
--- concatenate the plain ones, so their type is frozen until those slices
--- migrate (dual API).
+-- plain name/location fields. All display consumers (gui/team_card.lua,
+-- /mts-players) use the ls_ twins; the plain fields stay for data/debug
+-- consumers and can fold after the post-playtest cleanup confirms none
+-- remain.
 function M.collect_team_surfaces(force)
     local list = {}
 

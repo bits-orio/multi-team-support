@@ -45,7 +45,9 @@ local function badge(color, word)
 end
 
 -- Both badges are constant, so build them once at parse time rather than
--- reformatting per player per second in the refresh below.
+-- reformatting per player per second in the refresh below. The badge words
+-- stay English deliberately: they render through player.tag, an engine
+-- plain-string surface that can never carry a LocalisedString (PLAN.md §1).
 local GLOBAL_BADGE = badge(chat_channel.GLOBAL_COLOR, "GLOBAL")
 local LOCAL_BADGE  = badge(chat_channel.LOCAL_COLOR,  "TEAM")
 

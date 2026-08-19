@@ -106,22 +106,17 @@ end
 
 local function announce(to_local, switcher, individual)
     local color = to_local and M.LOCAL_COLOR or M.GLOBAL_COLOR
-    local state = helpers.colored_name(
-        to_local and "TEAM-ONLY" or "GLOBAL", color)
-    local subject
-    if individual then
-        subject = "Your chat is now " .. state .. "."
-    else
-        subject = "Team chat is now " .. state .. " (switched by "
-            .. (switcher
-                and helpers.colored_name(switcher.name, switcher.chat_color)
-                or "an admin") .. ")."
-    end
-    if to_local then
-        return subject .. " Messages stay within your team; start a message"
-            .. " with ! to shout globally."
-    end
-    return subject .. " Everyone on the server sees your messages."
+    local state = helpers.ls_colored(
+        to_local and {"mts-chat.channel-team-only"}
+                  or {"mts-chat.channel-global"}, color)
+    local by = switcher
+        and helpers.colored_name(switcher.name, switcher.chat_color)
+        or {"mts-chat.chat-switched-by-admin"}
+    local subject = individual
+        and {"mts-chat.chat-now-yours", state}
+        or  {"mts-chat.chat-now-team", state, by}
+    return {"", subject, to_local and {"mts-chat.chat-tail-local"}
+                                   or {"mts-chat.chat-tail-global"}}
 end
 
 --- Set this player's channel outright ("local" | "global"). No-op (returns

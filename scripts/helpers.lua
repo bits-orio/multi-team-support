@@ -307,6 +307,15 @@ function helpers.colored_name(name, color)
         name)
 end
 
+--- colored_name for LocalisedStrings: string.format would render a table as
+--- "table: 0x...", so the color tags wrap the value as siblings instead.
+function helpers.ls_colored(ls, color)
+    return {"", string.format("[color=%.2f,%.2f,%.2f]",
+        color.r or color[1] or 1,
+        color.g or color[2] or 1,
+        color.b or color[3] or 1), ls, "[/color]"}
+end
+
 -- ─── Time Formatting ───────────────────────────────────────────────────
 
 --- Format an elapsed tick count into a human-readable string.

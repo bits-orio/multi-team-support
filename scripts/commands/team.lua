@@ -96,7 +96,8 @@ function M.register()
                     helpers.team_tag(info.force_name)}
                 for _, surface_info in ipairs(owners[owner]) do
                     lines[#lines + 1] = {"mts-cmd.players-surface-line",
-                        surface_info.name, surface_info.gps, surface_info.location}
+                        surface_info.ls_name, surface_info.gps,
+                        surface_info.ls_location}
                 end
             end
             if #order == 0 then lines[#lines + 1] = {"mts-cmd.players-none"} end

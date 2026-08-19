@@ -227,9 +227,9 @@ function M.get_chat_prefix(player)
     return ""
 end
 
---- LocalisedString twin of get_chat_prefix (dual API: events/chat.lua still
---- consumes the plain-string version; the final sweep folds the two once it
---- migrates). Returns "" when no prefix applies so callers can compose it
+--- LocalisedString twin of get_chat_prefix (events/chat.lua consumes this
+--- one; the plain twin stays until post-playtest cleanup confirms no
+--- consumer remains). Returns "" when no prefix applies so callers can compose it
 --- unconditionally. The trailing separator space is composed here rather than
 --- stored as invisible trailing whitespace in the locale value.
 function M.ls_get_chat_prefix(player)

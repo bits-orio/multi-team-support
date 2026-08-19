@@ -65,9 +65,9 @@ function M.clock_caption(force_name)
         tooltip, CLOCK_COLOR
 end
 
---- LocalisedString twin of clock_caption, used by the HUD chip below. The
---- plain version stays for gui/team_card.lua's per-card clocks until that
---- slice migrates (dual API).
+--- LocalisedString twin of clock_caption, used by the HUD chip below and by
+--- gui/team_card.lua's per-card clocks. The plain twin is currently
+--- caller-less; it folds in the post-playtest cleanup.
 function M.ls_clock_caption(force_name)
     if not helpers.is_team_force(force_name) then return nil end
 
