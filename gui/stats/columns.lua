@@ -67,11 +67,32 @@ local function default_item_names(cat)
     end
 end
 
---- Returns a positional table where nil means "empty slot". For curated
---- categories the array is capped at CURATED_COLS; for auto categories it
---- grows up to HARD_MAX_COLS so overhaul-mod prototypes all get a slot.
---- Respects per-player overrides in storage.stats_category_items.
-function M.get_category_item_names(player_index, cat)
+-- ─── Column records ────────────────────────────────────────────────────
+
+-- A column is a record {kind = "item"|"fluid", name = prototype-name}.
+-- Existing saves hold bare item-name strings; coerce on read so no storage
+-- migration is needed (PRODUCTION_STATS_PLAN.md, Data Model). Quality is
+-- deliberately NOT a column field -- it is a view-level concern.
+local function as_column(v)
+    if type(v) == "string" then return {kind = "item", name = v} end
+    return v
+end
+
+-- Kind-aware existence check: a stale name (mod removed mid-save) drops
+-- the column, matching the old prototypes.item[name] guard -- which would
+-- otherwise silently drop every fluid column.
+local function column_valid(col)
+    if type(col) ~= "table" or not col.name then return false end
+    if col.kind == "fluid" then return prototypes.fluid[col.name] ~= nil end
+    return prototypes.item[col.name] ~= nil
+end
+
+--- Returns a positional table of column records where nil means "empty
+--- slot". For curated categories the array is capped at CURATED_COLS; for
+--- auto categories it grows up to HARD_MAX_COLS so overhaul-mod prototypes
+--- all get a slot. Respects per-player overrides in
+--- storage.stats_category_items (records, or legacy name strings).
+function M.get_columns(player_index, cat)
     local cap = cap_for(cat)
     local override = storage.stats_category_items
         and storage.stats_category_items[player_index]
@@ -79,14 +100,25 @@ function M.get_category_item_names(player_index, cat)
     if override then
         local out = {}
         for i = 1, cap do
-            local name = override[i]
-            if name and prototypes.item[name] then out[i] = name end
+            local col = as_column(override[i])
+            if column_valid(col) then out[i] = col end
         end
         return out
     end
     local defaults = default_item_names(cat)
     local out = {}
-    for i = 1, math.min(#defaults, cap) do out[i] = defaults[i] end
+    for i = 1, math.min(#defaults, cap) do
+        out[i] = {kind = "item", name = defaults[i]}
+    end
+    return out
+end
+
+--- Name-string view of get_columns -- the original public API shape, kept
+--- for mod-compat callers via the gui/stats facade re-export.
+function M.get_category_item_names(player_index, cat)
+    local cols = M.get_columns(player_index, cat)
+    local out = {}
+    for i, col in pairs(cols) do out[i] = col.name end
     return out
 end
 
@@ -95,7 +127,7 @@ end
 --- one trailing empty slot for the user to add another item.
 function M.get_target_cols(player_index, cat)
     if not AUTO_CATEGORIES[cat] then return M.CURATED_COLS end
-    local items = M.get_category_item_names(player_index, cat)
+    local items = M.get_columns(player_index, cat)
     local max_filled = 0
     for i = 1, M.HARD_MAX_COLS do
         if items[i] then max_filled = i end

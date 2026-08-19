@@ -43,7 +43,7 @@ function M.build_stats_gui(player, leaving_index)
     end
 
     local state        = columns.get_state(player)
-    local item_names   = columns.get_category_item_names(player.index, state.category)
+    local col_recs     = columns.get_columns(player.index, state.category)
     local cols         = columns.get_target_cols(player.index, state.category)
     local btn_size, sort_h = slot_metrics(cols)
     local all_pf       = counts.player_forces(leaving_index)
@@ -131,7 +131,7 @@ function M.build_stats_gui(player, leaving_index)
     -- Header row: blank corner + per-column choose-elem-buttons.
     tbl.add{type = "label", caption = ""}
     for col_idx = 1, cols do
-        local item_name = item_names[col_idx]
+        local col = col_recs[col_idx]
         local btn = tbl.add{
             type      = "choose-elem-button",
             name      = "sb_stats_item_" .. col_idx,
@@ -139,15 +139,15 @@ function M.build_stats_gui(player, leaving_index)
             style     = "slot_button",
             tags      = {sb_stats_col = col_idx, sb_stats_cat = state.category},
         }
-        if item_name then
-            btn.elem_value = item_name
-            local proto = prototypes.item[item_name]
+        if col then
+            btn.elem_value = col.name
+            local proto = prototypes.item[col.name]
             -- Big icon + localised name (large-bold font scales both up so the
             -- icon stays readable when the slot button itself has been shrunk),
             -- then the click hint on a new line.
             btn.tooltip = {"",
-                "[font=default-large-bold][item=" .. item_name .. "]  ",
-                proto and proto.localised_name or item_name,
+                "[font=default-large-bold][item=" .. col.name .. "]  ",
+                proto and proto.localised_name or col.name,
                 "[/font]\nClick to change this column",
             }
         else
@@ -169,8 +169,7 @@ function M.build_stats_gui(player, leaving_index)
     sort_lbl.style.font       = "default-small"
     sort_lbl.style.font_color = {0.6, 0.6, 0.6}
     for col_idx = 1, cols do
-        local item_name = item_names[col_idx]
-        if item_name then
+        if col_recs[col_idx] then
             local active  = sort_col == col_idx
             local caption = active and (sort_dir == "desc" and "▼" or "▲") or "·"
             local btn = tbl.add{
@@ -193,7 +192,7 @@ function M.build_stats_gui(player, leaving_index)
 
     -- Pre-compute counts (one statistics object per force x surface,
     -- shared across all columns), then optionally sort rows
-    local row_counts = counts.collect(pf, item_names, cols, state.precision)
+    local row_counts = counts.collect(pf, col_recs, cols, state.precision)
 
     if sort_col then
         local pairs_list = {}

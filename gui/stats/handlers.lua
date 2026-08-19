@@ -77,9 +77,13 @@ function M.on_gui_elem_changed(event)
     end
     if not storage.stats_category_items[player.index][cat] then
         storage.stats_category_items[player.index][cat] =
-            columns.get_category_item_names(player.index, cat)
+            columns.get_columns(player.index, cat)
     end
-    storage.stats_category_items[player.index][cat][col_idx] = new_item
+    -- elem_type "item" yields a name string (or nil on clear); store the
+    -- column-record shape. Legacy string entries in older saves are
+    -- coerced on read by columns.as_column.
+    storage.stats_category_items[player.index][cat][col_idx] =
+        new_item and {kind = "item", name = new_item} or nil
     panel.build_stats_gui(player)
     return true
 end

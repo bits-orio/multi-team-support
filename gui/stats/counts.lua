@@ -49,10 +49,11 @@ end
 --- Batched replacement for the old per-cell get_count: one statistics
 --- object per (force, surface), shared across every column, and
 --- pcall(fn, arg) instead of a fresh closure per protected read.
---- entries: rows from player_forces. item_names: positional table with
---- nil holes. Returns row_counts[row_index][col_index] = number, with
---- nil exactly where item_names has a hole (matching the old shape).
-function M.collect(entries, item_names, cols, precision)
+--- entries: rows from player_forces. col_recs: positional table of
+--- column records {kind, name} with nil holes. Returns
+--- row_counts[row_index][col_index] = number, with nil exactly where
+--- col_recs has a hole (matching the old shape).
+function M.collect(entries, col_recs, cols, precision)
     local owned = surfaces_by_force(entries)
 
     -- One reusable request table: get_flow_count reads it synchronously,
@@ -64,19 +65,22 @@ function M.collect(entries, item_names, cols, precision)
         local force  = entry.force
         local totals = {}
         for col_idx = 1, cols do
-            if item_names[col_idx] then totals[col_idx] = 0 end
+            if col_recs[col_idx] then totals[col_idx] = 0 end
         end
         for _, surface in ipairs(owned[force.name]) do
             local ok, istats = pcall(force.get_item_production_statistics, surface)
             if ok and istats then
                 for col_idx = 1, cols do
-                    local item_name = item_names[col_idx]
-                    if item_name then
+                    local col = col_recs[col_idx]
+                    -- kind dispatch: the fluid statistics path lands with the
+                    -- Fluids tab (plan step 6); until then every real column
+                    -- is kind == "item".
+                    if col and col.kind == "item" then
                         local ok2, val
                         if precision == M.ALLTIME then
-                            ok2, val = pcall(istats.get_input_count, item_name)
+                            ok2, val = pcall(istats.get_input_count, col.name)
                         else
-                            req.name = item_name
+                            req.name = col.name
                             ok2, val = pcall(istats.get_flow_count, req)
                         end
                         if ok2 and val then
