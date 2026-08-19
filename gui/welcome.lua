@@ -63,64 +63,21 @@ local function draw_about(parent)
 
     -- Tagline
     local tagline = scroll.add{type = "label",
-        caption = "Same start. Different finish."}
+        caption = {"mts-gui.welcome-tagline"}}
     tagline.style.font       = "default-large-semibold"
     tagline.style.font_color = {r = 0.6, g = 0.8, b = 1}
     tagline.style.top_margin = 4
     tagline.style.bottom_margin = 6
 
-    section(
-        "What is Multi-Team Support?",
-        "Each team races on their own copy of the world. Research " ..
-        "independently, build separately, and compare progress as you go " ..
-        "— same start, different finish."
-    )
-    section(
-        "Teams & diplomacy",
-        "Your team's force starts in cease-fire with all others. Other " ..
-        "teams' surfaces are hidden until both sides toggle 'friend' in " ..
-        "the Teams panel — once mutual, you share chart visibility and " ..
-        "can spectate each other."
-    )
+    section({"mts-gui.welcome-what-title"},      {"mts-gui.welcome-what-body"})
+    section({"mts-gui.welcome-diplomacy-title"}, {"mts-gui.welcome-diplomacy-body"})
     if space_age.is_active() then
-        section(
-            "Space Age",
-            "Each team gets their own Nauvis, Vulcanus, Gleba, Fulgora, " ..
-            "and Aquilo. No collisions, no shared landings."
-        )
+        section({"mts-gui.welcome-space-age-title"}, {"mts-gui.welcome-space-age-body"})
     end
-    section(
-        "Navigation bar",
-        "[img=utility/gps_map_icon] Teams - members, surfaces, friend toggles, Follow Cam launchers, research queue per team\n" ..
-        "[img=item/lab] Research - tech grid with 1-on-1 diff view\n" ..
-        "[img=item/production-science-pack] Production Stats - per-team output comparison\n" ..
-        "[img=quality/legendary] Team Awards - leaderboards across research, science, and resources\n" ..
-        "[img=utility/custom_tag_icon] Team Settings - rename your team (leader only)\n" ..
-        "[img=utility/bookmark] Admin - feature flags, starter items, team size limit (admin only)\n" ..
-        "[img=virtual-signal/signal-info] About - this screen, reopen anytime"
-    )
-    section(
-        "Landing Pen",
-        "New players wait in the Landing Pen until they are ready to " ..
-        "spawn. Start a new team, or request to join an existing one — " ..
-        "the team leader accepts."
-    )
-    section(
-        "Records & announcements",
-        "First-ever and fastest research wins, plus production milestones " ..
-        "(science packs, landfill, platform tiles, and more), are broadcast " ..
-        "as teams hit them. Each team's clock starts at first spawn, so " ..
-        "speed comparisons stay fair regardless of when a team joined."
-    )
-    section(
-        "Commands",
-        "/mts-teams — list teams with members and color\n" ..
-        "/mts-players — list players and surfaces with GPS pings\n" ..
-        "/mts-rename <name> — rename your team (leader only)\n" ..
-        "/mts-leave — leave your team\n" ..
-        "/mts-chat — toggle team-only vs global chat (or use the GLOBAL | TEAM switch at the top of the screen)\n" ..
-        "/mts-kick <player> — remove a teammate (leader only)"
-    )
+    section({"mts-gui.welcome-nav-title"},      {"mts-gui.welcome-nav-body"})
+    section({"mts-gui.welcome-pen-title"},      {"mts-gui.welcome-pen-body"})
+    section({"mts-gui.welcome-records-title"},  {"mts-gui.welcome-records-body"})
+    section({"mts-gui.welcome-commands-title"}, {"mts-gui.welcome-commands-body"})
 end
 
 -- ---------------------------------------------------------------------------
@@ -154,7 +111,7 @@ local function draw_discord(parent)
 
     -- Subtitle
     local sub = scroll.add{type = "label",
-        caption = "Scan the QR code or copy the invite link below."}
+        caption = {"mts-gui.welcome-discord-subtitle"}}
     sub.style.font_color               = {r = 0.75, g = 0.75, b = 0.75}
     sub.style.horizontal_align         = "center"
     sub.style.horizontally_stretchable = true
@@ -202,7 +159,7 @@ local function draw_frame(player)
     local title_bar = frame.add{type = "flow", direction = "horizontal"}
     title_bar.style.vertical_align = "center"
     title_bar.drag_target = frame
-    title_bar.add{type = "label", caption = "Multi-Team Support", style = "frame_title"}
+    title_bar.add{type = "label", caption = {"mts-gui.welcome-title"}, style = "frame_title"}
     local spacer = title_bar.add{type = "empty-widget", style = "draggable_space_header"}
     spacer.style.horizontally_stretchable = true
     spacer.style.height = 24
@@ -212,7 +169,7 @@ local function draw_frame(player)
         name    = "sb_welcome_close",
         sprite  = "utility/close",
         style   = "close_button",
-        tooltip = "Close",
+        tooltip = {"mts-tip.welcome-close"},
     }
 
     -- Native tabbed pane (handles active/inactive tab styling automatically)
@@ -243,7 +200,7 @@ local function draw_frame(player)
     end
 
     -- About (Multi-Team Support itself)
-    local about_tab = tabs.add{type = "tab", caption = "  About  "}
+    local about_tab = tabs.add{type = "tab", caption = {"mts-gui.welcome-tab-about"}}
     local about_content = tabs.add{
         type      = "frame",
         direction = "vertical",
@@ -255,7 +212,7 @@ local function draw_frame(player)
     tabs.add_tab(about_tab, about_content)
 
     -- Discord (icon in caption via rich text)
-    local discord_tab = tabs.add{type = "tab", caption = "  Discord  "}
+    local discord_tab = tabs.add{type = "tab", caption = {"mts-gui.welcome-tab-discord"}}
     local discord_content = tabs.add{
         type      = "frame",
         direction = "vertical",
@@ -306,6 +263,8 @@ function welcome_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = NAV_BTN,
         sprite  = "virtual-signal/signal-info",
+        -- TODO(locale-stage5): nav.add_top_button persists this tooltip in
+        -- storage.nav_button_order; stays a plain string until stage 5.
         tooltip = "About Multi-Team Support / Discord",
     })
 

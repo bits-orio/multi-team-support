@@ -50,8 +50,9 @@ function M.update_spectate_label(label, target)
     if not (label and label.valid) then return end
     if target and target.valid and spectator.is_spectating(target) then
         local watched = spectator.get_target(target)
-        label.caption = "Spectating "
-            .. (watched and helpers.display_name(watched) or "another team")
+        label.caption = watched
+            and {"mts-gui.follow-cam-spectating", helpers.display_name(watched)}
+            or  {"mts-gui.follow-cam-spectating-other"}
         label.visible = true
     else
         label.visible = false
@@ -96,20 +97,21 @@ function M.rebuild_frame(viewer, state)
     local frame = helpers.reuse_or_create_frame(
         viewer, M.FRAME_NAME, storage.follow_cam_location, {x = 300, y = 120})
 
-    local title_bar = helpers.add_title_bar(frame, "Follow Cam")
+    local title_bar = helpers.add_title_bar(frame, {"mts-gui.follow-cam-title"})
     title_bar.add{
         type    = "sprite-button",
         name    = "sb_follow_cam_maximize",
         sprite  = state.maximized and "utility/collapse" or "utility/expand",
+        tooltip = state.maximized and {"mts-tip.follow-cam-restore"}
+                                  or  {"mts-tip.follow-cam-maximize"},
         style   = "frame_action_button",
-        tooltip = state.maximized and "Restore size" or "Maximize (Esc to restore)",
     }
     title_bar.add{
         type    = "sprite-button",
         name    = "sb_follow_cam_close",
         sprite  = "utility/close",
         style   = "close_button",
-        tooltip = "Close Follow Cam",
+        tooltip = {"mts-tip.follow-cam-close"},
     }
 
     local maximized = state.maximized == true
@@ -180,18 +182,18 @@ function M.rebuild_frame(viewer, state)
                     sprite  = "utility/search_icon",
                     style   = "mini_button",
                     tags    = {sb_follow_cam_spectate = true, target_idx = target.index},
-                    tooltip = "Expand to full spectator view (Esc to return here)",
+                    tooltip = {"mts-tip.follow-cam-expand"},
                 }
 
                 -- Track the target's live view (default) or their physical body.
                 local phys = state.physical and state.physical[target.index] or false
                 local mode_btn = name_row.add{
                     type    = "button",
-                    caption = phys and "Body" or "View",
+                    caption = phys and {"mts-gui.follow-cam-mode-body"}
+                                   or  {"mts-gui.follow-cam-mode-view"},
                     tags    = {sb_follow_cam_view_toggle = true, target_idx = target.index},
-                    tooltip = phys
-                        and "Tracking the player's physical body. Click to track their live view (where they're looking) instead."
-                        or  "Tracking the player's live view (where they're looking). Click to track their physical body instead.",
+                    tooltip = phys and {"mts-tip.follow-cam-mode-body"}
+                                   or  {"mts-tip.follow-cam-mode-view"},
                 }
                 mode_btn.style.width   = 46
                 mode_btn.style.height  = 22
@@ -202,7 +204,7 @@ function M.rebuild_frame(viewer, state)
                     type    = "button",
                     caption = "−",
                     tags    = {sb_follow_cam_zoom_out = true, target_idx = target.index},
-                    tooltip = "Zoom out",
+                    tooltip = {"mts-tip.follow-cam-zoom-out"},
                 }
                 zoom_out.style.width   = 22
                 zoom_out.style.height  = 22
@@ -213,7 +215,7 @@ function M.rebuild_frame(viewer, state)
                     type    = "button",
                     caption = "+",
                     tags    = {sb_follow_cam_zoom_in = true, target_idx = target.index},
-                    tooltip = "Zoom in",
+                    tooltip = {"mts-tip.follow-cam-zoom-in"},
                 }
                 zoom_in.style.width   = 22
                 zoom_in.style.height  = 22
@@ -225,7 +227,7 @@ function M.rebuild_frame(viewer, state)
                     sprite  = "utility/close",
                     style   = "mini_button",
                     tags    = {sb_follow_cam_remove = true, target_idx = target.index},
-                    tooltip = "Remove from Follow Cam",
+                    tooltip = {"mts-tip.follow-cam-remove"},
                 }
 
                 -- Flag when the target is actively spectating another team: their

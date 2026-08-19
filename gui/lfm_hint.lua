@@ -35,7 +35,7 @@ function M.show_for_leader(player)
 
     local title = title_row.add{
         type    = "label",
-        caption = "[img=utility/custom_tag_icon]  Team Settings — Recruiting",
+        caption = {"mts-gui.lfm-hint-title"},
         style   = "frame_title",
     }
     title.ignored_by_interaction = true
@@ -50,17 +50,14 @@ function M.show_for_leader(player)
         name    = "sb_lfm_hint_close",
         sprite  = "utility/close",
         style   = "frame_action_button",
-        tooltip = "Close",
+        tooltip = {"mts-tip.lfm-hint-close"},
     }
 
     frame.add{type = "line"}
 
     -- ── Message ─────────────────────────────────────────────────────
     local msg = frame.add{type = "label"}
-    msg.caption = "[img=utility/warning_icon]  Your team isn't recruiting yet!\n"
-        .. "New players in the landing pen can't see it.\n"
-        .. "Open [img=utility/custom_tag_icon] Team Settings → Recruiting\n"
-        .. "and click \"Start recruiting\" to appear in their list."
+    msg.caption = {"mts-gui.lfm-hint-message"}
     msg.style.single_line   = false
     msg.style.maximal_width = 380
     msg.style.top_margin    = 4

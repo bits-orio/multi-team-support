@@ -53,8 +53,8 @@ function M.update_player(player, force_name)
             style = "mts_chat_switch_frame", direction = "horizontal"}
         local row = frame.add{type = "flow", name = "mts_chat_row", direction = "horizontal"}
         row.style.horizontal_spacing = 2
-        row.add{type = "button", name = M.SEG_GLOBAL, caption = "GLOBAL"}
-        row.add{type = "button", name = M.SEG_TEAM,   caption = "TEAM"}
+        row.add{type = "button", name = M.SEG_GLOBAL, caption = {"mts-gui.chat-seg-global"}}
+        row.add{type = "button", name = M.SEG_TEAM,   caption = {"mts-gui.chat-seg-team"}}
     end
 
     local row      = frame.mts_chat_row
@@ -62,25 +62,39 @@ function M.update_player(player, force_name)
     local seg_t    = row[M.SEG_TEAM]
     local is_local = chat_channel.is_local_for(player)
     -- Under individual scope a click moves only the clicker, so the tooltips
-    -- must not keep promising to move the whole team.
-    local moves    = chat_channel.is_individual() and "you" or "your whole team"
-    local whose    = chat_channel.is_individual() and "your messages"
-                                                  or "your team's messages"
+    -- must not keep promising to move the whole team: each channel x scope
+    -- combination is a whole-tooltip key ("Click to switch ..." tail
+    -- included) so translators never assemble sentences from fragments.
+    local indiv    = chat_channel.is_individual()
     -- Force-swapped into full spectate: the toggle keeps working, but team
     -- messages are also visible to co-spectators — the asterisk carries that.
     local swapped  = player.force.name ~= force_name
 
     set_style(seg_g, is_local and "mts_chat_seg_inactive" or "mts_chat_seg_global_active")
     set_style(seg_t, is_local and "mts_chat_seg_team_active" or "mts_chat_seg_inactive")
-    seg_t.caption = swapped and "TEAM*" or "TEAM"
+    seg_t.caption = swapped and {"mts-gui.chat-seg-team-spectating"}
+                            or  {"mts-gui.chat-seg-team"}
 
-    seg_g.tooltip = "Chat is GLOBAL — everyone on the server sees " .. whose .. "."
-        .. (is_local and ("\nClick to switch " .. moves .. " to global chat.") or "")
-    seg_t.tooltip = "Chat is TEAM-ONLY — messages stay inside your team."
-        .. " Start a message with ! to shout globally."
-        .. (is_local and "" or ("\nClick to switch " .. moves .. " to team-only chat."))
-        .. (swapped and ("\n* While spectating, other spectators can also"
-            .. " see your team messages.") or "")
+    if is_local then
+        seg_g.tooltip = indiv and {"mts-tip.chat-global-switch-individual"}
+                              or  {"mts-tip.chat-global-switch-team"}
+    else
+        seg_g.tooltip = indiv and {"mts-tip.chat-global-active-individual"}
+                              or  {"mts-tip.chat-global-active-team"}
+    end
+
+    local t_tip
+    if is_local then
+        t_tip = {"mts-tip.chat-team-active"}
+    else
+        t_tip = indiv and {"mts-tip.chat-team-switch-individual"}
+                      or  {"mts-tip.chat-team-switch-team"}
+    end
+    if swapped then
+        -- The note key carries its own leading newline.
+        t_tip = {"", t_tip, {"mts-tip.chat-team-spectator-note"}}
+    end
+    seg_t.tooltip = t_tip
 
     -- Anchor: horizontally centered, just under the screen top. display_
     -- resolution can be transiently 0 for a just-connecting player; skipping

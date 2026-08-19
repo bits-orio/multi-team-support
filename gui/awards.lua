@@ -24,9 +24,9 @@ local FIRST_THRESHOLD = 0   -- matches milestones/engine.lua FIRST_THRESHOLD
 local CATEGORIES = {"research", "science", "resources"}
 
 local CAT_LABELS = {
-    research  = "Research",
-    science   = "Science",
-    resources = "Resources",
+    research  = {"mts-gui.awards-cat-research"},
+    science   = {"mts-gui.awards-cat-science"},
+    resources = {"mts-gui.awards-cat-resources"},
 }
 
 -- Milestone categories that belong in the Science tab. Everything else under
@@ -81,9 +81,9 @@ end
 --- Build a human-readable prefix for a milestone (quantity portion only).
 local function milestone_prefix(threshold)
     if threshold == FIRST_THRESHOLD then
-        return "First"
+        return {"mts-gui.awards-prefix-first"}
     end
-    return string.format("%d ×", threshold)
+    return {"mts-gui.awards-prefix-count", threshold}
 end
 
 --- Return an array of row tables for either Science or Resources.
@@ -162,7 +162,7 @@ end
 -- Rendering
 -- ---------------------------------------------------------------------------
 
-local PLACE_LABELS  = { "1st", "2nd", "3rd" }
+-- Place labels (1st/2nd/3rd) live in the locale: mts-gui.awards-place.
 local PLACE_COLOURS = {
     {1.00, 0.82, 0.20},  -- gold
     {0.80, 0.80, 0.85},  -- silver
@@ -220,16 +220,16 @@ local function render_rows(parent, rows, query, sort_field)
             row.style.horizontal_spacing = 6
             row.add{
                 type    = "label",
-                caption = "No achievements match \"" .. query .. "\".",
+                caption = {"mts-gui.awards-no-match", query},
             }
             row.add{
                 type    = "button",
                 name    = "sb_awards_clear_search_inline",
-                caption = "Clear search",
+                caption = {"mts-gui.awards-clear-search"},
                 style   = "button",
             }
         else
-            parent.add{type = "label", caption = "(no records yet)"}
+            parent.add{type = "label", caption = {"mts-gui.awards-no-records"}}
         end
         return
     end
@@ -243,11 +243,11 @@ local function render_rows(parent, rows, query, sort_field)
     tbl.style.vertical_spacing   = 2
 
     -- Header row
-    local hdr_ach = tbl.add{type = "label", caption = "Achievement"}
+    local hdr_ach = tbl.add{type = "label", caption = {"mts-gui.awards-header-achievement"}}
     hdr_ach.style.font = "default-bold"
     hdr_ach.style.minimal_width = 100
     for i = 1, 3 do
-        local h = tbl.add{type = "label", caption = PLACE_LABELS[i]}
+        local h = tbl.add{type = "label", caption = {"mts-gui.awards-place", i}}
         h.style.font = "default-bold"
         h.style.minimal_width = 200
     end
@@ -290,13 +290,12 @@ local function render_rows(parent, rows, query, sort_field)
             local e = top[i]
             local cell
             if e then
-                local value    = online and e.online_elapsed or e.elapsed
-                local time_str = value and helpers.format_elapsed(value) or "—"
+                local value   = online and e.online_elapsed or e.elapsed
+                local time_ls = value and helpers.ls_elapsed(value) or "—"
                 cell = tbl.add{
                     type    = "label",
-                    caption = helpers.team_tag_with_leader(e.team)
-                              .. "  "
-                              .. time_str,
+                    caption = {"mts-gui.awards-entry",
+                               helpers.team_tag_with_leader(e.team), time_ls},
                 }
                 cell.style.font_color = PLACE_COLOURS[i]
             else
@@ -345,8 +344,8 @@ local function refresh_content(player)
         local count_lbl = cat_row.sb_awards_match_count
         if count_lbl then
             if has_query then
-                count_lbl.caption = string.format("%d / %d match",
-                    #visible_rows, #all_rows)
+                count_lbl.caption = {"mts-gui.awards-match-count",
+                    #visible_rows, #all_rows}
                 count_lbl.visible = true
             else
                 count_lbl.visible = false
@@ -389,7 +388,7 @@ function awards_gui.build(player)
     tbar.style.vertical_align     = "center"
     tbar.style.horizontal_spacing = 8
 
-    local title = tbar.add{type = "label", caption = "Team Awards", style = "frame_title"}
+    local title = tbar.add{type = "label", caption = {"mts-gui.awards-title"}, style = "frame_title"}
     title.ignored_by_interaction = true
 
     local spacer = tbar.add{type = "empty-widget", style = "draggable_space_header"}
@@ -402,7 +401,7 @@ function awards_gui.build(player)
         name    = "sb_awards_close",
         sprite  = "utility/close",
         style   = "frame_action_button",
-        tooltip = "Close",
+        tooltip = {"mts-tip.awards-close"},
     }
 
     -- Category tab buttons + search field on the same row
@@ -421,24 +420,23 @@ function awards_gui.build(player)
         cat_row.add{
             type    = "button",
             name    = "sb_awards_cat_" .. cat,
-            caption = sel and ("> " .. CAT_LABELS[cat]) or CAT_LABELS[cat],
+            caption = sel and {"mts-gui.selected-tab", CAT_LABELS[cat]} or CAT_LABELS[cat],
             style   = sel and "green_button" or "button",
         }
     end
 
     -- Clock basis as a slider switch (visually distinct from the category buttons,
     -- which it used to blend into when both were "green_button").
-    local clock_label = cat_row.add{type = "label", caption = "Rank by:"}
-    clock_label.tooltip = "Which clock ranks the finishers. Server time is the official"
-        .. " awards basis; Online time is fairer across different play schedules."
+    local clock_label = cat_row.add{type = "label", caption = {"mts-gui.awards-rank-by"}}
+    clock_label.tooltip = {"mts-tip.awards-rank-by"}
     cat_row.add{
         type               = "switch",
         name               = "sb_awards_clock_switch",
         switch_state       = state.clock == "online" and "right" or "left",
-        left_label_caption  = "Server",
-        right_label_caption = "Online",
-        left_label_tooltip  = "Elapsed since each team started, the official awards basis.",
-        right_label_tooltip = "How long each team was actually online.",
+        left_label_caption  = {"mts-gui.awards-clock-server"},
+        right_label_caption = {"mts-gui.awards-clock-online"},
+        left_label_tooltip  = {"mts-tip.awards-clock-server"},
+        right_label_tooltip = {"mts-tip.awards-clock-online"},
     }
 
     local search_spacer = cat_row.add{type = "empty-widget"}
@@ -453,18 +451,18 @@ function awards_gui.build(player)
         type    = "label",
         name    = "sb_awards_match_count",
         caption = has_query
-            and string.format("%d / %d match", #visible_rows, #all_rows)
+            and {"mts-gui.awards-match-count", #visible_rows, #all_rows}
             or  "",
     }
     count_lbl.visible = has_query
     count_lbl.style.font_color = {0.85, 0.85, 0.5}
 
-    cat_row.add{type = "label", caption = "Search:"}
+    cat_row.add{type = "label", caption = {"mts-gui.awards-search"}}
     local search_field = cat_row.add{
         type    = "textfield",
         name    = "sb_awards_search",
         text    = query,
-        tooltip = "Filter rows whose internal name contains this text. Case-insensitive (e.g. \"miner\", \"science\").",
+        tooltip = {"mts-tip.awards-search"},
     }
     search_field.style.width = 180
 
@@ -473,7 +471,7 @@ function awards_gui.build(player)
         name    = "sb_awards_clear_search",
         sprite  = "utility/close",
         style   = "tool_button",
-        tooltip = "Clear search",
+        tooltip = {"mts-tip.awards-clear-search"},
     }
     clear_btn.visible = has_query
 
@@ -592,6 +590,8 @@ function awards_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = "sb_awards_btn",
         sprite  = "sb-legendary",
+        -- TODO(locale-stage5): nav button specs (tooltip included) are
+        -- persisted in storage.nav_button_order; stage 5 migrates them.
         tooltip = "Team Awards",
     })
 end

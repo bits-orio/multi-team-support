@@ -27,14 +27,15 @@ local function build_frame(player, diff_target)
     research_overview.set_diff_target(player.index, diff_target)
 
     local diff_display = diff_target and helpers.display_name(diff_target) or nil
-    local caption      = diff_display and ("Research: You vs " .. diff_display) or "Research"
+    local caption      = diff_display and {"mts-gui.research-vs-title", diff_display}
+        or {"mts-gui.research-title"}
     local title_bar    = helpers.add_title_bar(frame, caption)
     title_bar.add{
         type    = "sprite-button",
         name    = "sb_research_close",
         sprite  = "utility/close",
         style   = "close_button",
-        tooltip = "Close",
+        tooltip = {"mts-tip.research-close"},
     }
 
     helpers.add_show_offline_checkbox(frame, player)
@@ -169,6 +170,8 @@ function research_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = NAV_BTN,
         sprite  = "item/lab",
+        -- TODO(locale-stage5): nav.add_top_button persists this spec into
+        -- storage.nav_button_order, so the tooltip must stay a plain string.
         tooltip = "Research Comparison",
     })
 end

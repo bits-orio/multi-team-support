@@ -40,14 +40,14 @@ end
 -- records/awards), and — once a team has been offline at all — appends the
 -- team's online time so the competition reads fairly across schedules.
 local function fmt_play_time(clock_tick, online_ticks)
-    if not clock_tick then return "not yet spawned" end
+    if not clock_tick then return {"mts-gui.research-not-spawned"} end
     local elapsed = game.tick - clock_tick
     if elapsed < 0 then elapsed = 0 end
-    local caption = research_diff.fmt_duration(elapsed) .. " playing"
     if online_ticks and online_ticks < elapsed then
-        caption = caption .. " (" .. research_diff.fmt_duration(online_ticks) .. " online)"
+        return {"mts-gui.research-playing-online",
+            helpers.ls_duration(elapsed), helpers.ls_duration(online_ticks)}
     end
-    return caption
+    return {"mts-gui.research-playing", helpers.ls_duration(elapsed)}
 end
 
 --- Return sorted list of researched techs for a force.
@@ -113,7 +113,7 @@ end
 function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_player)
     local forces = get_player_forces()
     if #forces == 0 then
-        content_frame.add{type = "label", caption = "No players found."}
+        content_frame.add{type = "label", caption = {"mts-gui.research-no-players"}}
         return
     end
 
@@ -149,12 +149,12 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
         name_lbl.style.font       = "default-bold"
         name_lbl.style.font_color = info.online and info.color or {0.65, 0.65, 0.65}
         if not info.online then
-            local off = hdr.add{type = "label", caption = " (offline)"}
+            local off = hdr.add{type = "label", caption = {"mts-gui.research-offline-suffix"}}
             off.style.font       = "default-small"
             off.style.font_color = {0.45, 0.45, 0.45}
         end
 
-        local count_lbl = hdr.add{type = "label", caption = "  [" .. #techs .. "]"}
+        local count_lbl = hdr.add{type = "label", caption = {"mts-gui.research-tech-count", #techs}}
         count_lbl.style.font       = "default-small"
         count_lbl.style.font_color = {0.7, 0.7, 0.7}
 
@@ -164,8 +164,7 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
         local start_lbl = hdr.add{
             type    = "label",
             caption = fmt_play_time(info.clock_start, info.online_time),
-            tooltip = "Server time since this team started (records/awards use this)."
-                .. "\nIn parentheses: time at least one member was online — pauses while the whole team is offline.",
+            tooltip = {"mts-tip.research-playtime"},
         }
         start_lbl.style.font       = "default-small"
         start_lbl.style.font_color = {0.6, 0.8, 0.6}
@@ -175,7 +174,7 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
                 type    = "sprite-button",
                 sprite  = "utility/search_icon",
                 style   = "mini_button",
-                tooltip = "Compare: you vs " .. info.owner,
+                tooltip = {"mts-tip.research-compare", info.owner},
                 tags    = {sb_research_diff_target = info.force_name},
             }
             diff_btn.style.left_margin = 4
@@ -186,7 +185,8 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
                 type    = "button",
                 caption = expanded and "\xE2\x96\xB2\xE2\x96\xB2" or "\xE2\x96\xBC\xE2\x96\xBC",
                 style   = "tool_button",
-                tooltip = expanded and "Collapse" or "Expand all " .. #techs .. " technologies",
+                tooltip = expanded and {"mts-tip.research-collapse"}
+                    or {"mts-tip.research-expand-all", #techs},
                 tags    = {sb_research_expand_toggle = info.force_name},
             }
             toggle_btn.style.width       = 28
@@ -198,7 +198,7 @@ function M.draw_overview(content_frame, viewer_force, viewer_clock, viewer_playe
         section.add{type = "line"}.style.top_margin = 2
 
         if #techs == 0 then
-            local none = section.add{type = "label", caption = "(no research yet)"}
+            local none = section.add{type = "label", caption = {"mts-gui.research-none-yet"}}
             none.style.font_color = {0.5, 0.5, 0.5}
             none.style.top_margin = 2
         else

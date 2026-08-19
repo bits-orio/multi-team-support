@@ -7,7 +7,7 @@
 -- LocalisedStrings (captions accept both; keys live in locale/en/).
 -- Usage:
 --   confirm.show(player, {
---       title        = {"mts-confirm.leave-team-title"},
+--       title        = {"mts-confirm.leave-team-title", team_tag},
 --       message      = {"mts-confirm.leave-team-message"},
 --       confirm_text = {"mts-confirm.leave-team-ok"},
 --       cancel_text  = {"mts-confirm.cancel"},

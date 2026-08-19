@@ -84,11 +84,11 @@ function M.build(scroll, ctx)
             btn.tooltip = {"",
                 "[font=default-large-bold]" .. tag .. col.name .. "]  ",
                 proto and proto.localised_name or col.name,
-                "[/font]\nClick to change this column",
+                "[/font]\n", {"mts-tip.stats-change-column"},
             }
         else
-            btn.tooltip = tab_fluid and "Click to add a fluid to this column"
-                                     or "Click to add an item to this column"
+            btn.tooltip = tab_fluid and {"mts-tip.stats-add-fluid"}
+                                     or {"mts-tip.stats-add-item"}
         end
         btn.style.width   = btn_size
         btn.style.height  = btn_size
@@ -102,7 +102,7 @@ function M.build(scroll, ctx)
     sort_cell.style.horizontally_stretchable = true
     local sc_spacer = sort_cell.add{type = "empty-widget"}
     sc_spacer.style.horizontally_stretchable = true
-    local sort_lbl = sort_cell.add{type = "label", caption = "sort →"}
+    local sort_lbl = sort_cell.add{type = "label", caption = {"mts-gui.stats-sort-hint"}}
     sort_lbl.style.font       = "default-small"
     sort_lbl.style.font_color = {0.6, 0.6, 0.6}
     for col_idx = 1, cols do
@@ -115,9 +115,9 @@ function M.build(scroll, ctx)
                 style   = active and "green_button" or "button",
                 tags    = {sb_stats_sort = col_idx},
                 tooltip = active
-                    and (sort_dir == "desc" and "Sorted high→low (click for low→high)"
-                                            or "Sorted low→high (click to clear sort)")
-                    or  "Sort by this column (high→low)",
+                    and (sort_dir == "desc" and {"mts-tip.stats-sorted-desc"}
+                                            or {"mts-tip.stats-sorted-asc"})
+                    or  {"mts-tip.stats-sort-column"},
             }
             btn.style.width   = btn_size
             btn.style.height  = sort_h
@@ -155,8 +155,8 @@ function M.build(scroll, ctx)
         if entry.slot then
             local slot_lbl = name_cell.add{
                 type    = "label",
-                caption = "#" .. entry.slot,
-                tooltip = "Team slot " .. entry.slot .. " (" .. entry.force.name .. ")",
+                caption = {"mts-gui.stats-slot-number", entry.slot},
+                tooltip = {"mts-tip.stats-team-slot", entry.slot, entry.force.name},
             }
             slot_lbl.style.font         = "default-small"
             slot_lbl.style.font_color   = {0.55, 0.55, 0.55}
@@ -170,10 +170,13 @@ function M.build(scroll, ctx)
             -- and colour thresholds as the teams GUI activity label), so the
             -- disband decision doesn't need a second GUI.
             local act = entry.activity
+            -- The leading separator space is composed here, so translations
+            -- never depend on invisible leading whitespace in the value.
             local off_lbl = name_cell.add{
                 type    = "label",
-                caption = act and (" (offline · " .. teams_data.fmt_ago(act.ago_ticks) .. ")")
-                              or  " (offline)",
+                caption = act and {"", " ",
+                                   {"mts-gui.stats-offline-ago", teams_data.ls_fmt_ago(act.ago_ticks)}}
+                              or  {"", " ", {"mts-gui.stats-offline"}},
                 tooltip = act and act.tooltip or nil,
             }
             off_lbl.style.font       = "default-small"

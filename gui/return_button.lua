@@ -53,9 +53,9 @@ function return_button.update(player)
         frame.add{
             type    = "button",
             name    = BUTTON_NAME,
-            caption = "Exit remote view",
+            caption = {"mts-gui.exit-remote-view"},
             style   = "button",
-            tooltip = "Return remote view to your own base",
+            tooltip = {"mts-tip.exit-remote-view"},
         }
     end
 end

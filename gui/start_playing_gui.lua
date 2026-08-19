@@ -23,7 +23,7 @@ function M.show(player)
     frame.auto_center = true
     frame.style.minimal_width = 380
 
-    helpers.add_title_bar(frame, "Ready to Start?")
+    helpers.add_title_bar(frame, {"mts-gui.start-playing-title"})
 
     local body = frame.add{type = "flow", direction = "vertical"}
     body.style.left_padding    = 12
@@ -35,12 +35,7 @@ function M.show(player)
     local team_tag = helpers.team_tag(player.force.name)
 
     local info = body.add{type = "label"}
-    info.caption = team_tag .. "'s clock has not started yet.\n\n"
-        .. "Until you click \"Start Playing\" you can:\n"
-        .. "  [img=utility/map]  Browse the map (press M)\n"
-        .. "  [img=utility/search_icon]  Hover over terrain to inspect it\n"
-        .. "  [img=utility/chat_console_icon]  Chat with your team\n\n"
-        .. "You cannot move or interact with the world yet."
+    info.caption = {"mts-gui.start-playing-info", team_tag}
     info.style.single_line  = false
     info.style.maximal_width = 356
 
@@ -50,23 +45,23 @@ function M.show(player)
 
     if is_leader then
         local hint = body.add{type = "label",
-            caption = "[color=0.6,1,0.6]When your team is ready, click the button below.\nYour clock will start immediately.[/color]"}
+            caption = {"mts-gui.start-playing-leader-hint"}}
         hint.style.single_line  = false
         hint.style.maximal_width = 356
 
         local btn = body.add{
             type    = "button",
             name    = "sb_start_playing_btn",
-            caption = "▶  Start Playing",
+            caption = {"mts-gui.start-playing-button"},
             style   = "confirm_button",
-            tooltip = "Start your team's clock and begin playing. This cannot be undone.",
+            tooltip = {"mts-tip.start-playing-button"},
         }
         btn.style.horizontally_stretchable = true
         btn.style.font                     = "default-large-semibold"
         btn.style.top_margin               = 4
     else
         local hint = body.add{type = "label",
-            caption = "[color=1,0.85,0.2][img=utility/warning_icon]  Your clock is paused.\nWaiting for your team leader to start playing...[/color]"}
+            caption = {"mts-gui.start-playing-waiting"}}
         hint.style.single_line  = false
         hint.style.maximal_width = 356
     end

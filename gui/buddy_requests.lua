@@ -42,9 +42,9 @@ local function show_frame_for(member, requester)
     else
         frame.location = {x = 60 + existing * 28, y = 60 + existing * 28}
     end
-    helpers.add_title_bar(frame, "Buddy Request")
+    helpers.add_title_bar(frame, {"mts-gui.buddy-request-title"})
 
-    local msg = frame.add{type = "label", caption = requester.name .. " wants to join your team."}
+    local msg = frame.add{type = "label", caption = {"mts-gui.buddy-request-message", requester.name}}
     msg.style.top_margin    = 6
     msg.style.bottom_margin = 4
     msg.style.left_margin   = 4
@@ -54,12 +54,12 @@ local function show_frame_for(member, requester)
     btn_flow.style.top_margin    = 4
     btn_flow.style.bottom_margin = 2
     local accept_btn = btn_flow.add{
-        type = "button", name = "sb_buddy_accept", caption = "Accept",
+        type = "button", name = "sb_buddy_accept", caption = {"mts-gui.accept"},
         style = "confirm_button", tags = {sb_requester_index = requester.index},
     }
     accept_btn.style.horizontally_stretchable = true
     local reject_btn = btn_flow.add{
-        type = "button", name = "sb_buddy_reject", caption = "Reject",
+        type = "button", name = "sb_buddy_reject", caption = {"mts-gui.reject"},
         style = "red_button", tags = {sb_requester_index = requester.index},
     }
     reject_btn.style.horizontally_stretchable = true
@@ -105,7 +105,7 @@ function M.send_buddy_request(requester, force_name)
     local force = game.forces[force_name]
     if not (force and force.valid) then return end
     if not M.team_has_room(force) then
-        requester.print(helpers.team_tag(force_name) .. " is full.")
+        requester.print({"mts-chat.team-full", helpers.team_tag(force_name)})
         pen_gui.build_pen_gui(requester)
         return
     end
@@ -115,9 +115,8 @@ function M.send_buddy_request(requester, force_name)
 
     local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
     local team_tag      = helpers.team_tag_with_leader(force_name)
-    requester.print("You requested to join " .. team_tag
-        .. ". Waiting for a member to approve.")
-    helpers.broadcast("[Team] " .. requester_tag .. " wants to join " .. team_tag .. ".")
+    requester.print({"mts-chat.join-requested", team_tag})
+    helpers.broadcast({"mts-chat.buddy-wants-join", requester_tag, team_tag})
 end
 
 --- Accept a request. `member` is the clicking team member (any member, not just
@@ -155,10 +154,11 @@ function M.accept_buddy_request(member, requester_index)
     end
     if not M.team_has_room(force) then
         local ft = helpers.force_tag(force_name)
-        member.print("Your team is full — cannot accept "
-            .. helpers.colored_name(requester.name, requester.chat_color) .. "." .. ft)
+        member.print({"", {"mts-chat.team-full-cannot-accept",
+            helpers.colored_name(requester.name, requester.chat_color)}, ft})
         if requester.connected then
-            requester.print(helpers.team_tag(force_name) .. " is now full." .. ft)
+            requester.print({"", {"mts-chat.team-now-full",
+                helpers.team_tag(force_name)}, ft})
             pen_gui.build_pen_gui(requester)
         end
         buddy_store.clear(requester_index)
@@ -175,8 +175,8 @@ function M.accept_buddy_request(member, requester_index)
         and storage.left_teams[requester.index][force_name]
     if is_rejoin then
         if requester.character then requester.character.clear_items_inside() end
-        requester.print("Your inventory was cleared because you previously left this team."
-            .. helpers.force_tag(force_name))
+        requester.print({"", {"mts-chat.inventory-cleared-rejoin"},
+            helpers.force_tag(force_name)})
     else
         pen_ops.grant_starter_items(requester)
     end
@@ -185,8 +185,7 @@ function M.accept_buddy_request(member, requester_index)
     local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
     local team_tag      = helpers.team_tag_with_leader(force_name)
 
-    helpers.broadcast("[Team] " .. member_tag .. " accepted " .. requester_tag
-        .. " into " .. team_tag .. ".")
+    helpers.broadcast({"mts-chat.buddy-accepted", member_tag, requester_tag, team_tag})
 
     local prev_force_name = requester.force.name
     requester.force = force
@@ -207,8 +206,7 @@ function M.accept_buddy_request(member, requester_index)
         storage.team_looking_for_more = storage.team_looking_for_more or {}
         if storage.team_looking_for_more[force_name] then
             storage.team_looking_for_more[force_name] = nil
-            helpers.broadcast("[Team] " .. helpers.team_tag(force_name)
-                .. " is no longer recruiting (team is now full).")
+            helpers.broadcast({"mts-chat.lfm-stopped-full", helpers.team_tag(force_name)})
             lfm_cleared_force = force_name
         end
     end
@@ -254,13 +252,13 @@ function M.accept_buddy_request(member, requester_index)
         storage.player_clock_start[requester.index] = game.tick
     end
 
-    helpers.broadcast("[Team] " .. requester_tag .. " has joined " .. team_tag .. ".")
+    helpers.broadcast({"mts-chat.buddy-joined", requester_tag, team_tag})
 
     local ft = helpers.force_tag(force_name)
-    member.print(helpers.colored_name(requester.name, requester.chat_color)
-        .. " has joined your team." .. ft)
+    member.print({"", {"mts-chat.joined-your-team",
+        helpers.colored_name(requester.name, requester.chat_color)}, ft})
     if requester.connected then
-        requester.print("You joined " .. team_tag .. "." .. ft)
+        requester.print({"", {"mts-chat.you-joined", team_tag}, ft})
     end
     return lfm_cleared_force
 end
@@ -272,11 +270,10 @@ function M.cancel_buddy_request(requester)
 
     local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
     local team_tag      = helpers.team_tag_with_leader(force_name)
-    helpers.broadcast("[Team] " .. requester_tag
-        .. " cancelled their request to join " .. team_tag .. ".")
+    helpers.broadcast({"mts-chat.buddy-cancelled", requester_tag, team_tag})
 
     if requester.connected then
-        requester.print("You cancelled your join request.")
+        requester.print({"mts-chat.join-cancelled"})
         pen_gui.build_pen_gui(requester)
     end
 end
@@ -302,11 +299,10 @@ function M.reject_buddy_request(member, requester_index)
     local member_tag    = helpers.colored_name(member.name, member.chat_color)
     local requester_tag = helpers.colored_name(requester.name, requester.chat_color)
     local team_tag      = helpers.team_tag_with_leader(force_name)
-    helpers.broadcast("[Team] " .. member_tag .. " declined " .. requester_tag
-        .. "'s request to join " .. team_tag .. ".")
+    helpers.broadcast({"mts-chat.buddy-declined", member_tag, requester_tag, team_tag})
 
     if requester.connected then
-        requester.print(member_tag .. " declined your buddy request.")
+        requester.print({"mts-chat.buddy-declined-you", member_tag})
         pen_gui.build_pen_gui(requester)
     end
 end

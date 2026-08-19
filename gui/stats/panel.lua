@@ -94,14 +94,14 @@ function M.build_stats_gui(player, leaving_index)
     tbar.drag_target = frame
     tbar.style.vertical_align     = "center"
     tbar.style.horizontal_spacing = 8
-    local title = tbar.add{type = "label", caption = "Production Stats", style = "frame_title"}
+    local title = tbar.add{type = "label", caption = {"mts-gui.stats-title"}, style = "frame_title"}
     title.ignored_by_interaction = true
     local spacer = tbar.add{type = "empty-widget", style = "draggable_space_header"}
     spacer.style.horizontally_stretchable = true
     spacer.style.height = 24
     spacer.drag_target  = frame
     tbar.add{type = "sprite-button", name = "sb_stats_close",
-        sprite = "utility/close", style = "frame_action_button", tooltip = "Close"}
+        sprite = "utility/close", style = "frame_action_button", tooltip = {"mts-tip.stats-close"}}
 
     -- Category tabs
     local cat_row = frame.add{type = "flow", name = "sb_stats_cats", direction = "horizontal"}
@@ -112,7 +112,7 @@ function M.build_stats_gui(player, leaving_index)
         cat_row.add{
             type    = "button",
             name    = "sb_stats_cat_" .. cat,
-            caption = sel and ("> " .. CAT_LABELS[cat]) or CAT_LABELS[cat],
+            caption = sel and {"mts-gui.selected-tab", CAT_LABELS[cat]} or CAT_LABELS[cat],
             style   = sel and "green_button" or "button",
         }
     end
@@ -126,7 +126,7 @@ function M.build_stats_gui(player, leaving_index)
         time_row.add{
             type    = "button",
             name    = "sb_stats_time_" .. tp.key,
-            caption = sel and ("> " .. tp.label) or tp.label,
+            caption = sel and {"mts-gui.selected-tab", tp.label} or tp.label,
             style   = sel and "green_button" or "button",
         }
     end
@@ -145,9 +145,10 @@ function M.build_stats_gui(player, leaving_index)
         qrow.add{
             type    = "button",
             name    = "sb_stats_qual_merged",
-            caption = msel and "> Merged" or "Merged",
+            caption = msel and {"mts-gui.selected-tab", {"mts-gui.stats-quality-merged"}}
+                            or {"mts-gui.stats-quality-merged"},
             style   = msel and "green_button" or "button",
-            tooltip = "Sum across all qualities",
+            tooltip = {"mts-tip.stats-quality-merged"},
         }
         for _, qname in ipairs(quality.chain()) do
             if qname == "normal" or produced[qname] or qview == qname
@@ -185,7 +186,7 @@ function M.build_stats_gui(player, leaving_index)
     scroll.style.maximal_width = desired_w
 
     if #pf == 0 then
-        scroll.add{type = "label", caption = "(no players yet)"}
+        scroll.add{type = "label", caption = {"mts-gui.stats-no-players"}}
         return
     end
 

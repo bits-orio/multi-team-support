@@ -59,7 +59,7 @@ local function build_team_tab(content, force_name, leader, team_tag)
     -- Current team header (rich-text so the force's chat color shows).
     local header = content.add{
         type    = "label",
-        caption = "Team: " .. team_tag,
+        caption = {"mts-gui.team-header", team_tag},
     }
     header.style.font = "default-bold"
 
@@ -67,7 +67,7 @@ local function build_team_tab(content, force_name, leader, team_tag)
     if not leader then
         local note = content.add{
             type    = "label",
-            caption = "[color=1,0.65,0]Only your team leader can change these settings.[/color]",
+            caption = {"mts-gui.leader-only-note"},
         }
         note.style.single_line     = false
         note.style.maximal_width   = 320
@@ -80,7 +80,7 @@ local function build_team_tab(content, force_name, leader, team_tag)
     name_row.style.vertical_align     = "center"
     name_row.style.horizontal_spacing = 6
 
-    local name_lbl = name_row.add{type = "label", caption = "Team name"}
+    local name_lbl = name_row.add{type = "label", caption = {"mts-gui.team-name"}}
     name_lbl.style.minimal_width = 90
 
     local current_name = helpers.display_name(force_name)
@@ -89,7 +89,7 @@ local function build_team_tab(content, force_name, leader, team_tag)
         type    = "textfield",
         name    = "sb_team_settings_name",
         text    = current_name,
-        tooltip = "Team name (max " .. MAX_TEAM_NAME_LEN .. " characters)",
+        tooltip = {"mts-tip.team-name-field", MAX_TEAM_NAME_LEN},
     }
     name_field.style.width = 160
     name_field.enabled     = leader
@@ -109,16 +109,16 @@ local function build_team_tab(content, force_name, leader, team_tag)
     local save_btn = name_row.add{
         type    = "button",
         name    = "sb_team_settings_rename",
-        caption = "Save",
+        caption = {"mts-gui.save"},
         style   = "tool_button",
-        tooltip = "Rename the team (leader only, max " .. MAX_TEAM_NAME_LEN .. " chars)",
+        tooltip = {"mts-tip.rename-team", MAX_TEAM_NAME_LEN},
     }
     save_btn.enabled = leader
 
     -- ─── Recruiting row ──────────────────────────────────────────────────
     content.add{type = "line"}
 
-    local recruit_header = content.add{type = "label", caption = "Recruiting"}
+    local recruit_header = content.add{type = "label", caption = {"mts-gui.recruiting"}}
     recruit_header.style.font = "default-bold"
 
     local is_lfm      = (storage.team_looking_for_more or {})[force_name] == true
@@ -128,7 +128,7 @@ local function build_team_tab(content, force_name, leader, team_tag)
     -- at least once (any member can start recruiting, not just the leader).
     if not is_lfm and not ever_recruited then
         local hint = content.add{type = "label"}
-        hint.caption = "[img=utility/warning_icon]  [color=1,0.85,0.2]New players can't find your team yet!\nClick \"Start recruiting\" below to appear in the landing pen.[/color]"
+        hint.caption = {"mts-gui.recruiting-callout"}
         hint.style.single_line   = false
         hint.style.maximal_width = 300
         hint.style.top_margin    = 2
@@ -139,19 +139,19 @@ local function build_team_tab(content, force_name, leader, team_tag)
     lfm_status.style.single_line   = false
     lfm_status.style.maximal_width = 320
     if is_lfm then
-        lfm_status.caption = "[color=0,1,0]Your team is visible to new players in the landing pen.[/color]"
+        lfm_status.caption = {"mts-gui.recruiting-on"}
     else
-        lfm_status.caption = "[color=0.7,0.7,0.7]Your team is hidden from the landing pen join list.[/color]"
+        lfm_status.caption = {"mts-gui.recruiting-off"}
     end
 
     local lfm_btn = content.add{
         type    = "button",
         name    = "sb_team_settings_lfm_toggle",
-        caption = is_lfm and "Stop recruiting" or "Start recruiting",
+        caption = is_lfm and {"mts-gui.stop-recruiting"} or {"mts-gui.start-recruiting"},
         style   = is_lfm and "red_button" or "confirm_button",
         tooltip = is_lfm
-            and "Stop recruiting — your team will no longer appear in the landing pen."
-            or  "Start recruiting — your team will appear in the landing pen join list.",
+            and {"mts-tip.stop-recruiting"}
+            or  {"mts-tip.start-recruiting"},
     }
     lfm_btn.style.top_margin = 2
 end
@@ -171,13 +171,13 @@ function team_settings.build_gui(player)
     local frame = helpers.reuse_or_create_frame(
         player, FRAME_NAME, storage.team_settings_location, {x = 340, y = 240})
 
-    local title_bar = helpers.add_title_bar(frame, "Team Settings")
+    local title_bar = helpers.add_title_bar(frame, {"mts-gui.team-settings-title"})
     title_bar.add{
         type    = "sprite-button",
         name    = "sb_team_settings_close",
         sprite  = "utility/close",
         style   = "close_button",
-        tooltip = "Close panel",
+        tooltip = {"mts-tip.close-panel"},
     }
 
     frame.style.minimal_width = 340
@@ -185,7 +185,7 @@ function team_settings.build_gui(player)
     local pane = frame.add{type = "tabbed-pane", name = "sb_team_tabs"}
 
     -- Built-in Team tab.
-    local team_tab     = pane.add{type = "tab", caption = "Team"}
+    local team_tab     = pane.add{type = "tab", caption = {"mts-gui.team-tab"}}
     local team_content = pane.add{type = "flow", direction = "vertical"}
     pane.add_tab(team_tab, team_content)
     build_team_tab(team_content, force_name, leader, team_tag)
@@ -258,7 +258,7 @@ function team_settings.refresh_nav_button(player)
                 type    = "sprite-button",
                 name    = NAV_BTN_NAME,
                 sprite  = "utility/custom_tag_icon",
-                tooltip = "Open Team Settings",
+                tooltip = {"mts-tip.open-team-settings"},
                 style   = "tool_button",
             }
             if insert_index then add_args.index = insert_index end
@@ -323,11 +323,9 @@ function team_settings.on_gui_click(event)
             storage.lfm_ever_recruited = storage.lfm_ever_recruited or {}
             storage.lfm_ever_recruited[force_name] = true
             lfm_hint.close(player)
-            helpers.broadcast("[Team] " .. helpers.team_tag(force_name)
-                .. " is looking for more players!")
+            helpers.broadcast({"mts-chat.lfm-recruiting", helpers.team_tag(force_name)})
         else
-            helpers.broadcast("[Team] " .. helpers.team_tag(force_name)
-                .. " is no longer recruiting.")
+            helpers.broadcast({"mts-chat.lfm-stopped", helpers.team_tag(force_name)})
         end
         team_settings.update_all_for_force(force_name)
         pen_gui.update_pen_gui_all()

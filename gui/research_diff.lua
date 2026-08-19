@@ -25,18 +25,18 @@ function research_diff.force_ticks(force)
     return (storage.tech_research_ticks or {})[force.name] or {}
 end
 
---- Build a tooltip string for a tech icon.
+--- Build a tooltip LocalisedString for a tech icon.
 function research_diff.tech_tooltip(entry, clock_start)
     local name_line = entry.localised
     if not entry.tick then
-        return {"", name_line, "\nResearched: (before tracking began)"}
+        return {"mts-tip.research-tech-untracked", name_line}
     end
     if not clock_start then
-        return {"", name_line, "\nResearched: tick " .. entry.tick}
+        return {"mts-tip.research-tech-tick", name_line, entry.tick}
     end
     local elapsed = entry.tick - clock_start
     if elapsed < 0 then elapsed = 0 end
-    return {"", name_line, "\nResearched: " .. research_diff.fmt_duration(elapsed) .. " after spawn"}
+    return {"mts-tip.research-tech-after-spawn", name_line, helpers.ls_duration(elapsed)}
 end
 
 -- ---------------------------------------------------------------------------
@@ -59,8 +59,14 @@ end
 --- Build the tooltip for a queued tech icon.
 function research_diff.queue_tooltip(tech, position, progress)
     local pct = math.floor(progress * 100)
-    local status = position == 1 and "Currently researching" or ("Queued at position " .. position)
-    return {"", helpers.tech_label(tech), "\n" .. status .. (pct > 0 and ("\nProgress: " .. pct .. "%") or "")}
+    local status = position == 1 and {"mts-tip.research-queue-current"}
+        or {"mts-tip.research-queue-position", position}
+    local tip = {"", helpers.tech_label(tech), "\n", status}
+    if pct > 0 then
+        tip[#tip + 1] = "\n"
+        tip[#tip + 1] = {"mts-tip.research-queue-progress", pct}
+    end
+    return tip
 end
 
 --- Render the research queue for a force as a fixed row of max_slots icon buttons.
@@ -119,7 +125,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
     -- Resolve target force
     local target_force = game.forces[target_force_name]
     if not target_force then
-        content_frame.add{type = "label", caption = "Team '" .. target_force_name .. "' not found."}
+        content_frame.add{type = "label", caption = {"mts-gui.research-team-not-found", target_force_name}}
         return
     end
 
@@ -130,7 +136,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
     local back_btn = content_frame.add{
         type    = "button",
         name    = "sb_research_back",
-        caption = "< Back",
+        caption = {"mts-gui.research-back"},
         style   = "back_button",
     }
     back_btn.style.bottom_margin = 6
@@ -142,11 +148,11 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
         local diff_ticks = math.abs(viewer_clock - target_clock)
         local context
         if viewer_clock < target_clock then
-            context = "You started " .. research_diff.fmt_duration(diff_ticks) .. " earlier than " .. target_owner
+            context = {"mts-gui.research-you-started-earlier", helpers.ls_duration(diff_ticks), target_owner}
         elseif target_clock < viewer_clock then
-            context = target_owner .. " started " .. research_diff.fmt_duration(diff_ticks) .. " earlier than you"
+            context = {"mts-gui.research-they-started-earlier", target_owner, helpers.ls_duration(diff_ticks)}
         else
-            context = "You both started at the same time"
+            context = {"mts-gui.research-started-same-time"}
         end
         local ctx_lbl = content_frame.add{type = "label", caption = context}
         ctx_lbl.style.font         = "default-bold"
@@ -213,14 +219,16 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
 
     local cols = collapsed_cols
 
-    local function diff_section(title, list, clock_for_tooltip)
-        local hdr = content_frame.add{type = "label", caption = title .. "  (" .. #list .. ")"}
+    -- Headers arrive as whole LocalisedStrings (count included) so translators
+    -- control the full line.
+    local function diff_section(caption, list, clock_for_tooltip)
+        local hdr = content_frame.add{type = "label", caption = caption}
         hdr.style.font          = "default-bold"
         hdr.style.top_margin    = 6
         hdr.style.bottom_margin = 2
 
         if #list == 0 then
-            local none = content_frame.add{type = "label", caption = "(none)"}
+            local none = content_frame.add{type = "label", caption = {"mts-gui.research-none"}}
             none.style.font_color = {0.5, 0.5, 0.5}
         else
             local grid = content_frame.add{type = "table", column_count = cols}
@@ -231,9 +239,9 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
     end
 
     -- Use viewer's clock for shared techs tooltip (arbitrary choice; both valid)
-    diff_section("You both have researched", both_have, viewer_clock)
-    diff_section(target_owner .. " has, you don't", they_have, target_clock)
-    diff_section("You have, " .. target_owner .. " doesn't", you_have, viewer_clock)
+    diff_section({"mts-gui.research-both-have", #both_have}, both_have, viewer_clock)
+    diff_section({"mts-gui.research-they-have", target_owner, #they_have}, they_have, target_clock)
+    diff_section({"mts-gui.research-you-have", target_owner, #you_have}, you_have, viewer_clock)
 
     -- Infinite tech level differences
     local inf_diffs = {}
@@ -257,7 +265,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
         table.sort(inf_diffs, function(a, b)
             return tostring(a.name) < tostring(b.name)
         end)
-        local hdr2 = content_frame.add{type = "label", caption = "Infinite tech level differences"}
+        local hdr2 = content_frame.add{type = "label", caption = {"mts-gui.research-infinite-diffs"}}
         hdr2.style.font         = "default-bold"
         hdr2.style.top_margin   = 8
         hdr2.style.bottom_margin = 2
@@ -270,11 +278,11 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
             local l = inf_tbl.add{type = "label", caption = txt}
             l.style.font = "default-bold"
         end
-        hd("Technology"); hd("You"); hd(target_owner)
+        hd({"mts-gui.research-col-technology"}); hd({"mts-gui.research-col-you"}); hd(target_owner)
         for _, d in ipairs(inf_diffs) do
             inf_tbl.add{type = "label", caption = d.loc}
-            local vl = inf_tbl.add{type = "label", caption = "Lv " .. d.v_lvl}
-            local tl = inf_tbl.add{type = "label", caption = "Lv " .. d.t_lvl}
+            local vl = inf_tbl.add{type = "label", caption = {"mts-gui.research-level", d.v_lvl}}
+            local tl = inf_tbl.add{type = "label", caption = {"mts-gui.research-level", d.t_lvl}}
             if d.v_lvl > d.t_lvl then
                 vl.style.font_color = {0.4, 1, 0.4}
             else

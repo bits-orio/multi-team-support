@@ -24,7 +24,8 @@ function teams_gui.build_gui(player)
     local frame = helpers.reuse_or_create_frame(
         player, "sb_platforms_frame", storage.gui_location, {x = 5, y = 400})
 
-    local title = team_modifiers.is_active() and "Teams — non-competitive" or "Teams"
+    local title = team_modifiers.is_active() and {"mts-gui.teams-title-noncompetitive"}
+                                             or  {"mts-gui.teams-title"}
     local title_bar = helpers.add_title_bar(frame, title)
     title_bar.style.horizontal_spacing = 8
     title_bar.add{
@@ -32,7 +33,7 @@ function teams_gui.build_gui(player)
         name    = "sb_platforms_close",
         sprite  = "utility/close",
         style   = "close_button",
-        tooltip = "Close panel",
+        tooltip = {"mts-tip.close-panel"},
     }
 
     frame.style.maximal_height = 900
@@ -81,7 +82,7 @@ function teams_gui.build_gui(player)
     end
 
     if visible_count == 0 then
-        local none = scroll.add{type = "label", caption = "No teams yet."}
+        local none = scroll.add{type = "label", caption = {"mts-gui.teams-empty"}}
         none.style.font_color = {0.7, 0.7, 0.7}
     end
 end
@@ -186,6 +187,8 @@ function teams_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = "sb_platforms_btn",
         sprite  = "utility/gps_map_icon",
+        -- TODO(locale-stage5): nav.add_top_button persists this tooltip in
+        -- storage.nav_button_order; stays plain until storage migrates.
         tooltip = "Teams",
     })
 end

@@ -31,12 +31,12 @@ end
 M.CATEGORIES = {"ores", "plates", "intermediates", "science", "fluids", "custom"}
 
 M.CAT_LABELS = {
-    ores          = "Ores",
-    plates        = "Plates",
-    intermediates = "Intermediates",
-    science       = "Science",
-    fluids        = "Fluids",
-    custom        = "Custom",
+    ores          = {"mts-gui.stats-cat-ores"},
+    plates        = {"mts-gui.stats-cat-plates"},
+    intermediates = {"mts-gui.stats-cat-intermediates"},
+    science       = {"mts-gui.stats-cat-science"},
+    fluids        = {"mts-gui.stats-cat-fluids"},
+    custom        = {"mts-gui.stats-cat-custom"},
 }
 
 local DEFAULT_INTERMEDIATES = {

@@ -33,6 +33,8 @@ function stats_gui.on_player_created(player)
     nav.add_top_button(player, {
         name    = "sb_stats_btn",
         sprite  = "item/production-science-pack",
+        -- TODO(locale-stage5): nav button specs (tooltip included) are
+        -- persisted in storage.nav_button_order; stage 5 migrates them.
         tooltip = "Production Stats",
     })
 end

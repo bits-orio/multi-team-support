@@ -12,12 +12,14 @@ local M = {}
 -- Sentinel stored in state.precision to indicate "all time" mode.
 M.ALLTIME = "alltime"
 
+-- Tab labels compose the engine's translated time symbols ("1m", "10h");
+-- only the "All" tab needs a key of our own.
 M.TIME_PERIODS = {
-    {key = "1min",    label = "1m",  precision = defines.flow_precision_index.one_minute},
-    {key = "10min",   label = "10m", precision = defines.flow_precision_index.ten_minutes},
-    {key = "1hr",     label = "1h",  precision = defines.flow_precision_index.one_hour},
-    {key = "10hr",    label = "10h", precision = defines.flow_precision_index.ten_hours},
-    {key = "alltime", label = "All", precision = "alltime"},
+    {key = "1min",    label = {"time-symbol-minutes-short", 1},  precision = defines.flow_precision_index.one_minute},
+    {key = "10min",   label = {"time-symbol-minutes-short", 10}, precision = defines.flow_precision_index.ten_minutes},
+    {key = "1hr",     label = {"time-symbol-hours-short", 1},    precision = defines.flow_precision_index.one_hour},
+    {key = "10hr",    label = {"time-symbol-hours-short", 10},   precision = defines.flow_precision_index.ten_hours},
+    {key = "alltime", label = {"mts-gui.stats-period-all"},      precision = "alltime"},
 }
 
 function M.fmt(n)
@@ -249,7 +251,7 @@ function M.player_forces(leaving_index)
                 force       = force,
                 online      = online,
                 slot        = slot,
-                activity    = teams_data.activity_info(members.members),
+                activity    = teams_data.ls_activity_info(members.members),
             }
             ::next_force::
         end

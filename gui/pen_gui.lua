@@ -41,7 +41,7 @@ local function add_join_team_section(frame, player)
     or_flow.style.bottom_margin            = 2
     local or_label = or_flow.add{
         type    = "label",
-        caption = "─────  OR  join a team that's recruiting  ─────",
+        caption = {"mts-gui.pen-or-join-recruiting"},
     }
     or_label.style.font       = "heading-2"
     or_label.style.font_color = {1, 0.85, 0.3}
@@ -51,7 +51,7 @@ local function add_join_team_section(frame, player)
     limit_flow.style.horizontal_align         = "center"
     limit_flow.style.horizontally_stretchable = true
     limit_flow.style.bottom_margin            = 4
-    local limit_note = limit_flow.add{type = "label", caption = "(max " .. limit .. " per team)"}
+    local limit_note = limit_flow.add{type = "label", caption = {"mts-gui.pen-max-per-team", limit}}
     limit_note.style.font       = "default-small"
     limit_note.style.font_color = {0.7, 0.7, 0.7}
 
@@ -67,8 +67,11 @@ local function add_join_team_section(frame, player)
         local team_name_lbl = row.add{type = "label", caption = helpers.team_tag(row_info.force_name)}
         team_name_lbl.style.minimal_width = 140
 
-        local leader_text = "(leader: " .. row_info.leader.name
-            .. (row_info.leader.connected and "" or " — offline") .. ")"
+        -- Whole-sentence variants: translators reorder the name and the
+        -- offline marker freely; picking a suffix in Lua would freeze both.
+        local leader_text = row_info.leader.connected
+            and {"mts-gui.pen-leader", row_info.leader.name}
+            or  {"mts-gui.pen-leader-offline", row_info.leader.name}
         local leader_lbl = row.add{type = "label", caption = leader_text}
         leader_lbl.style.font       = "default-small"
         leader_lbl.style.font_color = row_info.leader.connected
@@ -84,47 +87,47 @@ local function add_join_team_section(frame, player)
         local online_member = buddy_store.online_member_count(row_info.force_name) > 0
 
         if my_request == row_info.force_name then
-            local pending = row.add{type = "label", caption = "Pending..."}
+            local pending = row.add{type = "label", caption = {"mts-gui.pen-pending"}}
             pending.style.font         = "default-small"
             pending.style.font_color   = {1, 1, 0.4}
             pending.style.right_margin = 4
             row.add{
                 type    = "button",
                 name    = "sb_buddy_cancel",
-                caption = "Cancel request",
+                caption = {"mts-gui.pen-cancel-request"},
                 style   = "red_button",
-                tooltip = "Withdraw your request to join "
-                    .. helpers.display_name(row_info.force_name),
+                tooltip = {"mts-tip.pen-withdraw-request",
+                    helpers.display_name(row_info.force_name)},
             }
         elseif not has_room then
             local full = row.add{type = "label",
-                caption = "Full (" .. member_count .. "/" .. limit .. ")"}
+                caption = {"mts-gui.pen-team-full", member_count, limit}}
             full.style.font       = "default-small"
             full.style.font_color = {1, 0.4, 0.4}
         elseif not online_member then
             -- Any member can accept, so the row is joinable whenever ANY member
             -- is online — not just the leader.
-            local off = row.add{type = "label", caption = "No members online"}
+            local off = row.add{type = "label", caption = {"mts-gui.pen-no-members-online"}}
             off.style.font       = "default-small"
             off.style.font_color = {0.55, 0.55, 0.55}
         elseif my_request then
             row.add{
                 type    = "button",
                 name    = "sb_buddy_request_disabled",
-                caption = "Request to join",
+                caption = {"mts-gui.pen-request-join"},
                 style   = "confirm_button",
-                tooltip = "Cancel your pending request first to join a different team.",
+                tooltip = {"mts-tip.pen-request-blocked-pending"},
                 enabled = false,
             }
         else
             row.add{
                 type    = "button",
                 name    = "sb_buddy_request",
-                caption = "Request to join",
+                caption = {"mts-gui.pen-request-join"},
                 style   = "confirm_button",
                 tags    = {sb_target_force = row_info.force_name},
-                tooltip = "Ask " .. helpers.display_name(row_info.force_name)
-                    .. " to let you join",
+                tooltip = {"mts-tip.pen-request-join",
+                    helpers.display_name(row_info.force_name)},
             }
         end
     end
@@ -156,7 +159,7 @@ function M.build_pen_gui(player)
     local frame = helpers.reuse_or_create_frame(
         player, "sb_pen_frame", storage.pen_gui_location, {x = 5, y = 80})
 
-    helpers.add_title_bar(frame, "Landing Pen")
+    helpers.add_title_bar(frame, {"mts-gui.pen-title"})
     frame.style.minimal_width = 360
     frame.style.maximal_width = 480
 
@@ -165,14 +168,14 @@ function M.build_pen_gui(player)
     local btn = frame.add{
         type    = "button",
         name    = "sb_spawn_btn",
-        caption = "Start a new team",
+        caption = {"mts-gui.pen-start-new-team"},
         style   = "confirm_button",
         enabled = not has_pending and slots_available,
         tooltip = has_pending
-                and "Cancel your pending join request first to start a new team."
+                and {"mts-tip.pen-spawn-blocked-pending"}
             or (not slots_available
-                and "All team slots are in use — request to join a recruiting team below.")
-            or  "Claim a new team slot and spawn into the game.",
+                and {"mts-tip.pen-spawn-blocked-full"})
+            or  {"mts-tip.pen-spawn-ready"},
     }
     btn.style.top_margin               = 4
     btn.style.bottom_margin            = 2
@@ -182,8 +185,7 @@ function M.build_pen_gui(player)
     -- Point the player at the recruiting list instead of leaving them stuck.
     if slots_available == false and not has_pending then
         local note = frame.add{type = "label"}
-        note.caption = "We've reached the maximum number of teams. Request to join a team "
-            .. "that's recruiting below, or wait for a slot to open up."
+        note.caption = {"mts-gui.pen-max-teams-note"}
         note.style.single_line   = false
         note.style.maximal_width = 440
         note.style.font          = "default-small"

@@ -27,7 +27,7 @@ local function add_card_header(card, force, members, viewer_player, is_own)
     local name_label = hdr.add{
         type    = "label",
         caption = display_name,
-        tooltip = force.name .. " — " .. count .. (count == 1 and " player" or " players"),
+        tooltip = {"mts-tip.team-members-count", force.name, count},
     }
     name_label.style.font       = "default-bold"
     name_label.style.font_color = force_color
@@ -39,19 +39,19 @@ local function add_card_header(card, force, members, viewer_player, is_own)
         local slot_label = hdr.add{
             type    = "label",
             caption = "#" .. slot,
-            tooltip = "Team slot " .. slot .. " (" .. force.name .. ")",
+            tooltip = {"mts-tip.team-slot", slot, force.name},
         }
         slot_label.style.font        = "default-small"
         slot_label.style.font_color  = {0.55, 0.55, 0.55}
         slot_label.style.left_margin = 4
     end
 
-    local activity = teams_data.activity_info(members.members)
+    local activity = teams_data.ls_activity_info(members.members)
     if activity then
         local ago_label = hdr.add{
             type    = "label",
             name    = "sb_card_activity",
-            caption = " · " .. activity.ago_text,
+            caption = {"", " · ", activity.ago_text},
             tooltip = activity.tooltip,
         }
         ago_label.style.font        = "default-small"
@@ -67,7 +67,7 @@ end
 -- Birth-clock line under the card header. Kept in sync by
 -- update_clock_labels_all (60-tick handler) while the frame is open.
 local function add_card_clock(card, force_name)
-    local caption, tooltip, color = hud_clock.clock_caption(force_name)
+    local caption, tooltip, color = hud_clock.ls_clock_caption(force_name)
     if not caption then return end
     local lbl = card.add{type = "label", name = "sb_card_clock"}
     lbl.style.font       = "default-small"
@@ -79,7 +79,7 @@ end
 -- Active team-modifier line (non-competitive mode). Static content; cards
 -- are rebuilt via teams_gui.update_all() whenever a modifier changes.
 local function add_card_modifiers(card, force_name)
-    local caption, tooltip = team_modifiers.card_line(force_name)
+    local caption, tooltip = team_modifiers.ls_card_line(force_name)
     if not caption then return end
     local lbl = card.add{type = "label", name = "sb_card_modifiers"}
     lbl.style.font       = "default-small"
@@ -111,9 +111,8 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
             sprite  = "item/radar",
             style   = "mini_button",
             tags    = {sb_follow_cam_toggle = true, target_idx = member.index},
-            tooltip = already and ("Stop following " .. member.name)
-                               or ("Follow " .. member.name
-                                   .. " in a mini-camera (does not move your character)"),
+            tooltip = already and {"mts-tip.stop-following", member.name}
+                               or {"mts-tip.follow-in-camera", member.name},
         }
         cam_btn.style.left_margin = 4
     end
@@ -126,7 +125,7 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
         local dot = row.add{type = "label", caption = "  \xE2\x97\x8B"}
         dot.style.font_color  = {0.55, 0.55, 0.55}
         dot.style.left_margin = 4
-        local off = row.add{type = "label", caption = " (offline)"}
+        local off = row.add{type = "label", caption = {"mts-gui.offline-suffix"}}
         off.style.font       = "default-small"
         off.style.font_color = {0.55, 0.55, 0.55}
     end
@@ -140,13 +139,13 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
        and not landing_pen.is_in_pen(viewer) then
         local viewer_force = game.forces[viewer_force_name]
         if viewer_force and target_force then
-            local lbl_text, lbl_color, tip, checked =
+            local _, lbl_color, _, checked, ls_label, ls_tip =
                 friendship.get_state(viewer_force_name, target_force_name,
                     viewer_force, target_force, helpers.display_name(target_force_name))
 
             row.add{type = "empty-widget"}.style.horizontally_stretchable = true
 
-            local friend_label = row.add{type = "label", caption = lbl_text}
+            local friend_label = row.add{type = "label", caption = ls_label}
             friend_label.style.font         = "default-small"
             friend_label.style.font_color   = lbl_color
             friend_label.style.right_margin = 4
@@ -154,20 +153,20 @@ local function add_member_row(parent, member, is_leader_of_team, viewer, viewer_
                 type    = "checkbox",
                 state   = checked,
                 tags    = {sb_friend_toggle = true, sb_target_force = target_force_name},
-                tooltip = tip,
+                tooltip = ls_tip,
             }
         end
     end
 end
 
 local function add_members_section(card, force, members, viewer, viewer_force_name, target_force_name, is_own_team)
-    local sub = card.add{type = "label", caption = "Players"}
+    local sub = card.add{type = "label", caption = {"mts-gui.players"}}
     sub.style.font       = "default-bold"
     sub.style.top_margin = 4
     sub.style.font_color = {0.85, 0.85, 0.85}
 
     if #members.members == 0 then
-        local none = card.add{type = "label", caption = "  (no players)"}
+        local none = card.add{type = "label", caption = {"mts-gui.no-players"}}
         none.style.font_color = {0.5, 0.5, 0.5}
         return
     end
@@ -179,13 +178,13 @@ local function add_members_section(card, force, members, viewer, viewer_force_na
 end
 
 local function add_surfaces_section(card, force, surfaces, is_own_team, is_current_target, viewer_player)
-    local sub = card.add{type = "label", caption = "Surfaces"}
+    local sub = card.add{type = "label", caption = {"mts-gui.surfaces"}}
     sub.style.font       = "default-bold"
     sub.style.top_margin = 6
     sub.style.font_color = {0.85, 0.85, 0.85}
 
     if #surfaces == 0 then
-        local none = card.add{type = "label", caption = "  (no surfaces yet)"}
+        local none = card.add{type = "label", caption = {"mts-gui.no-surfaces-yet"}}
         none.style.font_color = {0.5, 0.5, 0.5}
         return
     end
@@ -194,10 +193,12 @@ local function add_surfaces_section(card, force, surfaces, is_own_team, is_curre
         local row = card.add{type = "flow", direction = "horizontal"}
         row.style.vertical_align = "center"
 
-        local name_lbl = row.add{type = "label", caption = "  " .. info.name}
+        -- Two-space indent and parentheses are layout/punctuation-only, so
+        -- they stay composed around the LocalisedString entry fields.
+        local name_lbl = row.add{type = "label", caption = {"", "  ", info.ls_name}}
         name_lbl.style.font = "default-small"
 
-        local loc_lbl = row.add{type = "label", caption = "  (" .. info.location .. ")"}
+        local loc_lbl = row.add{type = "label", caption = {"", "  (", info.ls_location, ")"}}
         loc_lbl.style.font       = "default-small"
         loc_lbl.style.font_color = {0.6, 0.6, 0.6}
 
@@ -210,8 +211,8 @@ local function add_surfaces_section(card, force, surfaces, is_own_team, is_curre
         if info.surface_name and info.surface_name ~= viewer_phys_surface then
             row.add{type = "empty-widget"}.style.horizontally_stretchable = true
             local tip = is_own_team
-                and "View this surface in remote view"
-                or  "Spectate this surface (opens remote view; pauses your crafting while active)"
+                and {"mts-tip.view-own-surface"}
+                or  {"mts-tip.spectate-surface"}
             row.add{
                 type    = "sprite-button",
                 sprite  = "utility/map",
@@ -265,10 +266,10 @@ function M.update_activity_labels_all()
     for _, force in pairs(game.forces) do
         if not teams_data.SKIP_FORCES[force.name] then
             local members  = teams_data.collect_team_members(force)
-            local activity = teams_data.activity_info(members.members)
+            local activity = teams_data.ls_activity_info(members.members)
             if activity then
                 per_force[force.name] = {
-                    caption = " · " .. activity.ago_text,
+                    caption = {"", " · ", activity.ago_text},
                     color   = activity.color,
                     tooltip = activity.tooltip,
                 }
@@ -321,7 +322,7 @@ function M.update_clock_labels_all()
             if lbl and lbl.valid then
                 local c = memo[force_name]
                 if not c then
-                    local caption, tooltip, color = hud_clock.clock_caption(force_name)
+                    local caption, tooltip, color = hud_clock.ls_clock_caption(force_name)
                     c = {caption = caption, tooltip = tooltip, color = color}
                     memo[force_name] = c
                 end
