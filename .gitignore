@@ -1,2 +1,5 @@
 # Editor workspace files
 *.code-workspace
+
+# Claude Code session worktrees (machine-local; skills/ stays tracked)
+.claude/worktrees/
