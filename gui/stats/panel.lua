@@ -191,17 +191,9 @@ function M.build_stats_gui(player, leaving_index)
         end
     end
 
-    -- Pre-compute counts, then optionally sort rows
-    local row_counts = {}
-    for i, entry in ipairs(pf) do
-        row_counts[i] = {}
-        for col_idx = 1, cols do
-            local item_name = item_names[col_idx]
-            if item_name then
-                row_counts[i][col_idx] = counts.get_count(entry.force, item_name, state.precision)
-            end
-        end
-    end
+    -- Pre-compute counts (one statistics object per force x surface,
+    -- shared across all columns), then optionally sort rows
+    local row_counts = counts.collect(pf, item_names, cols, state.precision)
 
     if sort_col then
         local pairs_list = {}

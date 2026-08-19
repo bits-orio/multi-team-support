@@ -26,33 +26,69 @@ function M.fmt(n)
     return tostring(math.floor(n))
 end
 
-function M.get_count(force, item_name, precision)
-    local total = 0
-    -- A force has zero production on surfaces it doesn't own, so scanning only
-    -- its own surfaces yields the same total while skipping every other team's
-    -- (PF-1) -- the game.surfaces scan cost the item count nothing but time.
-    for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
-        local ok, stats = pcall(function()
-            return force.get_item_production_statistics(surface)
-        end)
-        if ok and stats then
-            if precision == M.ALLTIME then
-                local ok2, val = pcall(function() return stats.get_input_count(item_name) end)
-                if ok2 and val then total = total + val end
-            else
-                local ok2, val = pcall(function()
-                    return stats.get_flow_count{
-                        name            = item_name,
-                        category        = "input",
-                        precision_index = precision,
-                        count           = true,
-                    }
-                end)
-                if ok2 and val then total = total + val end
-            end
+--- Owned-surface lists for the given row entries, resolved with ONE pass
+--- over game.surfaces. The old per-cell get_count called
+--- owned_surfaces_by_force per invocation, and get_owner's platform
+--- fallback is O(forces x platforms) -- so the panel paid
+--- teams x cols x surfaces x that before reading a single statistic.
+--- A force still has zero production on surfaces it doesn't own (PF-1),
+--- so grouping by owner yields the same totals.
+local function surfaces_by_force(entries)
+    local owned = {}
+    for _, entry in ipairs(entries) do owned[entry.force.name] = {} end
+    for _, surface in pairs(game.surfaces) do
+        if surface.valid then
+            local owner = surface_utils.get_owner(surface)
+            local list = owner and owned[owner]
+            if list then list[#list + 1] = surface end
         end
     end
-    return total
+    return owned
+end
+
+--- Batched replacement for the old per-cell get_count: one statistics
+--- object per (force, surface), shared across every column, and
+--- pcall(fn, arg) instead of a fresh closure per protected read.
+--- entries: rows from player_forces. item_names: positional table with
+--- nil holes. Returns row_counts[row_index][col_index] = number, with
+--- nil exactly where item_names has a hole (matching the old shape).
+function M.collect(entries, item_names, cols, precision)
+    local owned = surfaces_by_force(entries)
+
+    -- One reusable request table: get_flow_count reads it synchronously,
+    -- so mutating .name per column is safe and skips a per-cell allocation.
+    local req = {name = nil, category = "input", precision_index = precision, count = true}
+
+    local row_counts = {}
+    for i, entry in ipairs(entries) do
+        local force  = entry.force
+        local totals = {}
+        for col_idx = 1, cols do
+            if item_names[col_idx] then totals[col_idx] = 0 end
+        end
+        for _, surface in ipairs(owned[force.name]) do
+            local ok, istats = pcall(force.get_item_production_statistics, surface)
+            if ok and istats then
+                for col_idx = 1, cols do
+                    local item_name = item_names[col_idx]
+                    if item_name then
+                        local ok2, val
+                        if precision == M.ALLTIME then
+                            ok2, val = pcall(istats.get_input_count, item_name)
+                        else
+                            req.name = item_name
+                            ok2, val = pcall(istats.get_flow_count, req)
+                        end
+                        if ok2 and val then
+                            totals[col_idx] = totals[col_idx] + val
+                        end
+                    end
+                end
+            end
+        end
+        row_counts[i] = totals
+    end
+    return row_counts
 end
 
 --- Returns team forces sorted by display name; includes online status.
