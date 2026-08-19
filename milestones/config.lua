@@ -27,8 +27,12 @@ local function total_produced(force, item_name)
     for _, surface in ipairs(surface_utils.owned_surfaces_by_force(force.name)) do
         local stats = force.get_item_production_statistics(surface)
         if stats then
-            -- get_input_count returns total produced (items flowing into the stats)
-            total = total + (stats.get_input_count(item_name) or 0)
+            -- input_counts merges across qualities; get_input_count with a
+            -- bare name is normal-quality only and under-counted quality
+            -- production (measured 108 vs the true 208 -- see
+            -- docs/PRODUCTION_STATS_PLAN.md). Fluids have no quality axis,
+            -- so total_produced_fluid below keeps its direct read.
+            total = total + (stats.input_counts[item_name] or 0)
         end
     end
     return total

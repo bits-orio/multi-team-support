@@ -5,6 +5,7 @@
 local helpers       = require("scripts.helpers")
 local surface_utils = require("scripts.surface_utils")
 local teams_data    = require("gui.teams_data")
+local quality       = require("gui.stats.quality")
 
 local M = {}
 
@@ -46,19 +47,34 @@ local function surfaces_by_force(entries)
     return owned
 end
 
+-- Attribute reads need a named accessor to be pcall-able without
+-- allocating a closure per call.
+local function read_input_counts(stats) return stats.input_counts end
+
 --- Batched replacement for the old per-cell get_count: one statistics
 --- object per (force, surface), shared across every column, and
 --- pcall(fn, arg) instead of a fresh closure per protected read.
+---
+--- Quality-correct totals (the old bare-name reads were normal-quality
+--- only -- measured 108 vs the true 208, see PRODUCTION_STATS_PROBES.md):
+---   * All-time: one input_counts dictionary read per (force, surface).
+---     The dict merges across qualities and covers every column at once.
+---   * Timed: there is no merged shortcut -- a bare name is normal-only
+---     -- so merged mode sums per-quality get_flow_count over the chain.
+---
 --- entries: rows from player_forces. col_recs: positional table of
 --- column records {kind, name} with nil holes. Returns
 --- row_counts[row_index][col_index] = number, with nil exactly where
 --- col_recs has a hole (matching the old shape).
 function M.collect(entries, col_recs, cols, precision)
     local owned = surfaces_by_force(entries)
+    local chain = quality.chain()
 
-    -- One reusable request table: get_flow_count reads it synchronously,
-    -- so mutating .name per column is safe and skips a per-cell allocation.
-    local req = {name = nil, category = "input", precision_index = precision, count = true}
+    -- Reusable request/id tables: the API reads them synchronously, so
+    -- mutating per read is safe and skips a per-cell allocation. Item IDs
+    -- take a {name, quality} pair; fluid IDs must stay bare strings.
+    local req  = {name = nil, category = "input", precision_index = precision, count = true}
+    local pair = {name = nil, quality = nil}
 
     local row_counts = {}
     for i, entry in ipairs(entries) do
@@ -70,21 +86,30 @@ function M.collect(entries, col_recs, cols, precision)
         for _, surface in ipairs(owned[force.name]) do
             local ok, istats = pcall(force.get_item_production_statistics, surface)
             if ok and istats then
-                for col_idx = 1, cols do
-                    local col = col_recs[col_idx]
-                    -- kind dispatch: the fluid statistics path lands with the
-                    -- Fluids tab (plan step 6); until then every real column
-                    -- is kind == "item".
-                    if col and col.kind == "item" then
-                        local ok2, val
-                        if precision == M.ALLTIME then
-                            ok2, val = pcall(istats.get_input_count, col.name)
-                        else
-                            req.name = col.name
-                            ok2, val = pcall(istats.get_flow_count, req)
+                if precision == M.ALLTIME then
+                    local okf, flat = pcall(read_input_counts, istats)
+                    if okf and flat then
+                        for col_idx = 1, cols do
+                            local col = col_recs[col_idx]
+                            -- kind dispatch: the fluid statistics path lands
+                            -- with the Fluids tab (plan step 6).
+                            if col and col.kind == "item" then
+                                totals[col_idx] = totals[col_idx] + (flat[col.name] or 0)
+                            end
                         end
-                        if ok2 and val then
-                            totals[col_idx] = totals[col_idx] + val
+                    end
+                else
+                    for col_idx = 1, cols do
+                        local col = col_recs[col_idx]
+                        if col and col.kind == "item" then
+                            local sum = 0
+                            for _, qname in ipairs(chain) do
+                                pair.name, pair.quality = col.name, qname
+                                req.name = pair
+                                local ok2, val = pcall(istats.get_flow_count, req)
+                                if ok2 and val then sum = sum + val end
+                            end
+                            totals[col_idx] = totals[col_idx] + sum
                         end
                     end
                 end
