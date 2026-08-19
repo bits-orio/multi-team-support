@@ -1,0 +1,15 @@
+AUDIT 1 — coverage: lua files on disk: 111 | scanned: 111 | missing from scan: []
+AUDIT 2 — files reported string-free but showing display-pattern+word-literal hits: NONE
+AUDIT 3 — sampled line verification (seed 7, 10 entries):
+  OK  scripts/admin_flags.lua:28 reported='When enabled, new players wait in the Landing Pen ' actual='tooltip = "When enabled, new players wait in the Landing Pen before spawning into the game.",'
+  OK  gui/pen_gui.lua:114 reported='Request to join' actual='caption = "Request to join",'
+  OK  scripts/commands/admin.lua:182 reported='This command can only be used by a player.' actual='if not caller then game.print("This command can only be used by a player."); return end'
+  OK  scripts/team_rename.lua:37 reported='Only the team leader can rename the team.' actual='return false, "Only the team leader can rename the team."'
+  ??  gui/awards.lua:272 reported='<prototype localised_name / helpers.tech_label(pro' actual='tooltip = loc_name,'
+  OK  gui/buddy_requests.lua:118 reported='You requested to join <team tag>. Waiting for a me' actual='requester.print("You requested to join " .. team_tag'
+  OK  scripts/pause/wires.lua:231 reported='RECONNECT begin force={name} recorded_pairs={n}' actual='diag("RECONNECT begin force=" .. force.name .. " recorded_pairs=" .. tostring(recorded and #recorded'
+  OK  gui/chat_switch.lua:78 reported='\\nClick to switch <moves> to global chat.' actual='.. (is_local and ("\\nClick to switch " .. moves .. " to global chat.") or "")'
+  OK  scripts/commands/admin.lua:49 reported='Team slot <slot> has been recycled by a different ' actual='admin_player.print("Team slot " .. slot .. " has been recycled by a different team since"'
+  OK  scripts/remote_api.lua:610 reported='%s %s — %s' actual='return string.format("%s %s — %s", player.name, verb, helpers.team_display(fn))'
+AUDIT 4 — category gaps: no add_chart_tag / shortcut / custom-input / tips-and-tricks prototypes exist in the repo (grep-verified).
+AUDIT 5 — settings: mts_discord_url has [mod-setting-name] but NO [mod-setting-description] entry (locale/en/locale.cfg).
