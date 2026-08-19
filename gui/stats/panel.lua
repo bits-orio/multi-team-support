@@ -183,7 +183,11 @@ function M.build_stats_gui(player, leaving_index)
                     style   = sel and "green_button" or "button",
                     tooltip = qproto and qproto.localised_name or qname,
                 }
-                btn.style.width = 36
+                -- The default button style's horizontal padding crops the
+                -- rich-text icon glyph; zero it and let the icon center in
+                -- the full content box.
+                btn.style.width   = 30
+                btn.style.padding = 0
             end
         end
     end
