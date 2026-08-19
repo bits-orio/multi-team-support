@@ -40,7 +40,8 @@ local function trimmable_owner(surface)
     return surface_utils.get_owner(surface)
 end
 
---- Send a message to the caller if connected, else broadcast.
+--- Send a message (LocalisedString or plain string) to the caller if
+--- connected, else broadcast.
 local function notify(caller_idx, msg)
     local p = caller_idx and game.get_player(caller_idx)
     if p and p.connected then p.print(msg) else game.print(msg) end
@@ -54,7 +55,7 @@ local function trim_surface(surface, entity_buffer, player_buffer, caller_idx)
     local label      = team_force and helpers.team_tag(team_force) or surface.name
     local force      = team_force and game.forces[team_force]
     if not (force and force.valid) then
-        notify(caller_idx, label .. " (" .. surface.name .. "): no team force; skipped")
+        notify(caller_idx, {"mts-cmd.trim-skipped-no-force", label, surface.name})
         return 0, 0
     end
 
@@ -120,8 +121,8 @@ local function trim_surface(surface, entity_buffer, player_buffer, caller_idx)
     end
     local deleted = #doomed
 
-    notify(caller_idx, string.format("%s (%s): deleted %d / %d chunks (kept %d)",
-        label, surface.name, deleted, total, total - deleted))
+    notify(caller_idx, {"mts-cmd.trim-surface-done",
+        label, surface.name, deleted, total, total - deleted})
     return deleted, total
 end
 
@@ -142,11 +143,11 @@ end
 ---   entity_buffer - chunk radius around team entities (default 12)
 ---   player_buffer - chunk radius around connected players (default 8)
 ---   caller_idx    - player index to print results to (optional)
---- Returns: ok (bool), surface_count (integer), error_msg (string | nil)
+--- Returns: ok (bool), surface_count (integer), error_msg (LocalisedString | nil)
 function chunk_trim.start(opts)
     opts = opts or {}
     if storage.chunk_trim_queue then
-        return false, 0, "Trim already in progress."
+        return false, 0, {"mts-cmd.trim-in-progress"}
     end
 
     local surfaces = {}
@@ -158,8 +159,8 @@ function chunk_trim.start(opts)
     end
     if #surfaces == 0 then
         return false, 0, opts.team_force
-            and ("No team surfaces found for " .. opts.team_force .. ".")
-            or "No team surfaces found."
+            and {"mts-cmd.trim-no-surfaces-for-team", opts.team_force}
+            or {"mts-cmd.trim-no-surfaces"}
     end
 
     storage.chunk_trim_queue = {
@@ -178,7 +179,7 @@ function chunk_trim.tick()
     if not q then return end
 
     if q.idx > #q.surfaces then
-        notify(q.caller_idx, ("Chunk trim complete across %d surface(s)."):format(#q.surfaces))
+        notify(q.caller_idx, {"mts-cmd.trim-complete", #q.surfaces})
         storage.chunk_trim_queue = nil
         return
     end

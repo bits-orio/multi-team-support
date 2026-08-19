@@ -264,7 +264,7 @@ function pop_text.rip(player, pos)
         if not (p.connected and p.surface.index == surface.index) then goto next_p end
         local c = p.chat_color
         local obj = rendering.draw_text{
-            text            = "RIP!",
+            text            = {"mts-chat.rip"},
             surface         = surface,
             target          = { x = x, y = y },
             color           = { r = c.r, g = c.g, b = c.b, a = 1 },

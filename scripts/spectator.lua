@@ -38,6 +38,7 @@ spectator.on_player_left           = events.on_player_left
 spectator.on_player_joined         = events.on_player_joined
 
 -- Chat
-spectator.get_chat_prefix = events.get_chat_prefix
+spectator.get_chat_prefix    = events.get_chat_prefix
+spectator.ls_get_chat_prefix = events.ls_get_chat_prefix
 
 return spectator

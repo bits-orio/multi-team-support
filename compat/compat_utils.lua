@@ -39,6 +39,15 @@ function compat_utils.planet_display_name(planet)
     return planet:sub(1, 1):upper() .. planet:sub(2)
 end
 
+--- LocalisedString twin of planet_display_name: the planet's own locale entry
+--- when one exists, else the capitalised id. The plain-string version stays
+--- for consumers that need a string (see the re-exports in vanilla /
+--- voidblock / mts_dimension_warp).
+function compat_utils.ls_planet_display_name(planet)
+    return {"?", {"space-location-name." .. planet},
+        compat_utils.planet_display_name(planet)}
+end
+
 --- True for a team's nauvis variant under either naming scheme:
 --- "team-N-nauvis" (base 2.0 clone) or "mts-nauvis-N" (Space Age variant).
 --- Shared by chunk-gen compat shims (dangOreus, ClaustOrephobic) that

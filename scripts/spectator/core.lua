@@ -18,10 +18,15 @@ function M.apply_spectator_state(player)
         -- team by events/chat.lua), but the engine also delivers the native
         -- copy to the spectator force — disclose that once per spectate.
         if chat_channel.is_local_for(player) then
-            player.print(helpers.colored_name(
-                "You're spectating: team chat still reaches your team, but"
-                .. " other spectators can see it too.",
-                chat_channel.LOCAL_COLOR))
+            -- colored_name only wraps plain strings, so compose the same
+            -- rich-text color tag around the localised sentence (same color
+            -- resolution order as colored_name).
+            local c = chat_channel.LOCAL_COLOR
+            player.print({"",
+                string.format("[color=%.2f,%.2f,%.2f]",
+                    c.r or c[1] or 1, c.g or c[2] or 1, c.b or c[3] or 1),
+                {"mts-chat.spectate-chat-disclosure"},
+                "[/color]"})
         end
     end
     player.force = game.forces["spectator"]
@@ -81,26 +86,46 @@ function M.announce_spectation(viewer, target_force, is_entering, target_player,
     if not admin_gui.flag("spectate_notifications_enabled") then return end
 
     local target_name  = helpers.display_name(target_force.name)
-    local action       = is_entering and "is now spectating" or "stopped spectating"
     local target_color = helpers.force_color(target_force)
     local team_tag     = helpers.colored_name(target_name, target_color)
+    local viewer_cn    = helpers.colored_name(viewer.name, viewer.chat_color)
 
-    local surface_suffix = ""
+    local surface_name
     if surface and surface.valid then
-        surface_suffix = " (" .. helpers.display_surface_name(surface.name) .. ")"
+        surface_name = helpers.display_surface_name(surface.name)
     end
 
-    local target_text
+    -- One whole-sentence key per shape: the parenthesised team/surface
+    -- structure differs per case, so translators get the full sentence each
+    -- time instead of glued fragments.
+    local msg
     if target_player and target_player.valid then
-        target_text = helpers.colored_name(target_player.name, target_player.chat_color)
-            .. " (" .. team_tag .. ")" .. surface_suffix
+        local player_cn = helpers.colored_name(target_player.name, target_player.chat_color)
+        if surface_name then
+            msg = is_entering
+                and {"mts-chat.spectate-started-player-surface",
+                     viewer_cn, player_cn, team_tag, surface_name}
+                or  {"mts-chat.spectate-stopped-player-surface",
+                     viewer_cn, player_cn, team_tag, surface_name}
+        else
+            msg = is_entering
+                and {"mts-chat.spectate-started-player", viewer_cn, player_cn, team_tag}
+                or  {"mts-chat.spectate-stopped-player", viewer_cn, player_cn, team_tag}
+        end
     else
-        target_text = team_tag .. surface_suffix
+        if surface_name then
+            msg = is_entering
+                and {"mts-chat.spectate-started-team-surface", viewer_cn, team_tag, surface_name}
+                or  {"mts-chat.spectate-stopped-team-surface", viewer_cn, team_tag, surface_name}
+        else
+            msg = is_entering
+                and {"mts-chat.spectate-started-team", viewer_cn, team_tag}
+                or  {"mts-chat.spectate-stopped-team", viewer_cn, team_tag}
+        end
     end
-
-    local msg = helpers.colored_name(viewer.name, viewer.chat_color)
-        .. " " .. action .. " " .. target_text
     helpers.broadcast(msg)
+
+    local action = is_entering and "is now spectating" or "stopped spectating"
     log("[multi-team-support:spectator] " .. viewer.name .. " " .. action
         .. " " .. (surface and surface.valid and (surface.name .. " / ") or "")
         .. (target_player and target_player.valid and (target_player.name .. " / ") or "")

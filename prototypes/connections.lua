@@ -132,10 +132,12 @@ for _, info in ipairs(base_connections) do
         -- Localisation: the deep-copied base connection had a localised_name
         -- pointing at e.g. "space-connection-name.nauvis-vulcanus" which still
         -- works. But if the base relied on auto-lookup by prototype name,
-        -- our variant would produce "Unknown key" warnings. Override to
-        -- reference the base connection's locale key explicitly.
+        -- our variant would produce "Unknown key" warnings. Override with our
+        -- parameterised key wrapping the base connection's own locale key, so
+        -- translators control the word order of the team suffix.
         variant.localised_name = {
-            "", {"space-connection-name." .. info.name}, " (Team " .. slot .. ")",
+            "space-connection-name.mts-team-connection",
+            {"space-connection-name." .. info.name}, slot,
         }
 
         data:extend{variant}

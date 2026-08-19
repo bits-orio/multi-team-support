@@ -65,6 +65,31 @@ function M.clock_caption(force_name)
         tooltip, CLOCK_COLOR
 end
 
+--- LocalisedString twin of clock_caption, used by the HUD chip below. The
+--- plain version stays for gui/team_card.lua's per-card clocks until that
+--- slice migrates (dual API).
+function M.ls_clock_caption(force_name)
+    if not helpers.is_team_force(force_name) then return nil end
+
+    local start = (storage.team_clock_start or {})[force_name]
+    if not start then
+        return {"mts-gui.clock-not-started"},
+            {"mts-tip.clock-not-started"},
+            NOT_STARTED_COLOR
+    end
+
+    local elapsed = game.tick - start
+    if elapsed < 0 then elapsed = 0 end
+    local tooltip = {"mts-tip.clock-official"}
+    local online = team_clock.online_ticks(force_name)
+    if online and online < elapsed then
+        tooltip = {"", tooltip, "\n",
+            {"mts-tip.clock-online", helpers.ls_duration(online)}}
+    end
+    return {"mts-gui.clock-running", helpers.ls_duration(elapsed)},
+        tooltip, CLOCK_COLOR
+end
+
 --- Create, update, or remove the top-bar team chip (name | clock, framed,
 --- one line, sitting right of the nav buttons) plus the center-top chat
 --- switch, based on the player's effective force. Idempotent; safe from any
@@ -75,7 +100,7 @@ function M.update_player(player)
     local root = top[FLOW_NAME]
 
     local force_name = spectator.get_effective_force(player)
-    local caption, tooltip, color = M.clock_caption(force_name)
+    local caption, tooltip, color = M.ls_clock_caption(force_name)
     if not caption then
         if root then root.destroy() end
         chat_switch.update_player(player, nil)
@@ -165,7 +190,7 @@ end
 function M.toggle_chat_channel(player)
     local force_name = spectator.get_effective_force(player)
     if not helpers.is_team_force(force_name) then
-        player.print("Spectator chat is always global.")
+        player.print({"mts-chat.spectator-chat-global"})
         return
     end
     select_channel(player,

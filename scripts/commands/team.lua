@@ -17,7 +17,7 @@ local M = {}
 
 local function perform_leave(player, _data)
     if landing_pen.is_in_pen(player) then
-        player.print("You are already in the Landing Pen.")
+        player.print({"mts-cmd.already-in-pen"})
         return
     end
     if spectator.is_spectating(player) then spectator.exit(player) end
@@ -26,7 +26,7 @@ local function perform_leave(player, _data)
     local was_solo = force_utils.force_member_count(player.force) <= 1
     if force_utils.remove_from_team(player) then
         landing_pen.return_to_pen(player)
-        player.print("You have left your team.")
+        player.print({"mts-cmd.left-team"})
         teams_gui.update_all()
         if was_solo then landing_pen.update_pen_gui_all() end
     end
@@ -35,26 +35,26 @@ end
 local function perform_kick(leader, data)
     local target = data and data.target_idx and game.get_player(data.target_idx)
     if not (target and target.valid) then
-        leader.print("Kick target is no longer available.")
+        leader.print({"mts-cmd.kick-target-gone"})
         return
     end
     if not force_utils.is_team_leader(leader) then
-        leader.print("You are no longer the team leader.")
+        leader.print({"mts-cmd.kick-no-longer-leader"})
         return
     end
     if target.force ~= leader.force then
-        leader.print(helpers.colored_name(target.name, target.chat_color)
-            .. " is no longer on your team.")
+        leader.print({"mts-cmd.kick-target-left-team",
+            helpers.colored_name(target.name, target.chat_color)})
         return
     end
     if spectator.is_spectating(target) then spectator.exit(target) end
     if force_utils.remove_from_team(target) then
         landing_pen.return_to_pen(target)
         local team_tag = helpers.team_tag_with_leader(leader.force.name)
-        target.print("You have been kicked from " .. team_tag .. " by "
-            .. helpers.colored_name(leader.name, leader.chat_color) .. ".")
-        leader.print("Kicked " .. helpers.colored_name(target.name, target.chat_color)
-            .. " from " .. team_tag .. ".")
+        target.print({"mts-cmd.kicked-you", team_tag,
+            helpers.colored_name(leader.name, leader.chat_color)})
+        leader.print({"mts-cmd.kicked-player",
+            helpers.colored_name(target.name, target.chat_color), team_tag})
         teams_gui.update_all()
     end
 end
@@ -62,98 +62,120 @@ end
 confirm.register("leave", perform_leave)
 confirm.register("kick",  perform_kick)
 
+-- ─── Listing composition ──────────────────────────────────────────────
+
+-- Join listing lines (strings or LocalisedStrings) with newlines into one
+-- LocalisedString. table.concat can't take tables, and the engine caps a
+-- localised string at 20 parameters and 20 nesting levels — so lines are
+-- grouped, then the groups grouped again: depth grows with the log of the
+-- line count, never linearly.
+local function join_lines(lines)
+    local items = {}
+    for i, line in ipairs(lines) do
+        items[i] = i == 1 and line or {"", "\n", line}
+    end
+    while #items > 1 do
+        local grouped = {}
+        for i = 1, #items, 20 do
+            local group = {""}
+            for j = i, math.min(i + 19, #items) do
+                group[#group + 1] = items[j]
+            end
+            grouped[#grouped + 1] = group
+        end
+        items = grouped
+    end
+    return items[1]
+end
+
 -- ─── Commands ─────────────────────────────────────────────────────────
 
 function M.register()
     commands.add_command("t",
-        "Send a message to your team only. Usage: /t <message>",
+        {"mts-cmd.t-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             if not caller then return end
             local msg = cmd.parameter
             if not msg or msg:match("^%s*$") then
-                caller.print("Usage: /t <message>  — sends to your team only.")
+                caller.print({"mts-cmd.t-usage"})
                 return
             end
-            local label = "[color=0.60,0.86,0.39][Team][/color] "
-            local name  = helpers.colored_name(caller.name, caller.chat_color)
+            local line = {"mts-cmd.team-chat-line",
+                helpers.colored_name(caller.name, caller.chat_color), msg}
             for _, p in pairs(game.players) do
                 if p.connected and p.force.name == caller.force.name then
-                    p.print(label .. name .. ": " .. msg)
+                    p.print(line)
                 end
             end
         end)
 
     commands.add_command("mts-players",
-        "List all players, their bases, and platform locations",
+        {"mts-cmd.players-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             local owners, order, owner_info = teams_gui.get_platforms_by_owner()
-            local lines = {"[All Players]"}
+            local lines = {{"mts-cmd.players-header"}}
             for _, owner in ipairs(order) do
                 local info = owner_info[owner]
-                lines[#lines + 1] = helpers.team_tag(info.force_name) .. ":"
+                lines[#lines + 1] = {"mts-cmd.players-team-line",
+                    helpers.team_tag(info.force_name)}
                 for _, surface_info in ipairs(owners[owner]) do
-                    lines[#lines + 1] = "  [color=0.7,0.7,0.7]" .. surface_info.name
-                        .. "[/color] " .. surface_info.gps .. "  @  " .. surface_info.location
+                    lines[#lines + 1] = {"mts-cmd.players-surface-line",
+                        surface_info.name, surface_info.gps, surface_info.location}
                 end
             end
-            if #order == 0 then lines[#lines + 1] = "  No players found." end
-            local msg = table.concat(lines, "\n")
+            if #order == 0 then lines[#lines + 1] = {"mts-cmd.players-none"} end
+            local msg = join_lines(lines)
             if caller then caller.print(msg) else game.print(msg) end
         end)
 
     commands.add_command("mts-leave",
-        "Leave your current team and return to the Landing Pen",
+        {"mts-cmd.leave-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
             if landing_pen.is_in_pen(caller) then
-                caller.print("You are already in the Landing Pen."); return
+                caller.print({"mts-cmd.already-in-pen"}); return
             end
             confirm.show(caller, {
-                title        = "Leave " .. helpers.team_tag(caller.force.name) .. "?",
-                message      = "Are you sure you want to leave your team?\n\n"
-                    .. "• You will return to the Landing Pen and lose your research.\n"
-                    .. "• Your character will die. All items in your inventory will drop\n"
-                    .. "  as a corpse on your team's surface (team members can recover them).\n"
-                    .. "• If you are the only member, your team's base will be deleted.\n"
-                    .. "• If you are the team leader, leadership will pass to another member.",
-                confirm_text = "Leave Team",
-                cancel_text  = "Cancel",
+                title        = {"mts-confirm.leave-team-title",
+                                helpers.team_tag(caller.force.name)},
+                message      = {"mts-confirm.leave-team-message"},
+                confirm_text = {"mts-confirm.leave-team-ok"},
+                cancel_text  = {"mts-confirm.cancel"},
                 action       = "leave",
             })
         end)
 
     commands.add_command("mts-rename",
-        "Rename your team (team leader only). Usage: /mts-rename <new name>",
+        {"mts-cmd.rename-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
             -- A missing argument is a command-usage error (distinct from an empty
             -- GUI field); everything else -- on-team/leader guard, length,
             -- uniqueness, no-op, apply, broadcast, on_team_renamed, refresh -- is
             -- the shared rule in scripts/team_rename.
             if not cmd.parameter or cmd.parameter:match("^%s*$") then
-                caller.print("Usage: /mts-rename <new name>"); return
+                caller.print({"mts-cmd.rename-usage"}); return
             end
             local ok, err = team_rename.attempt(caller, cmd.parameter)
             if not ok and err then caller.print(err) end
         end)
 
     commands.add_command("mts-teams",
-        "List all teams with their members and status",
+        {"mts-cmd.teams-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            local lines = {"[Teams]"}
+            local lines = {{"mts-cmd.teams-header"}}
             for i = 1, force_utils.max_teams() do
                 local force_name = "team-" .. i
                 local force = game.forces[force_name]
                 if force then
                     local slot = (storage.team_pool or {})[i]
                     if slot ~= "occupied" then
-                        lines[#lines + 1] = string.format(
-                            "  [color=0.55,0.55,0.55][%s] (unclaimed)[/color]", force_name)
+                        lines[#lines + 1] = {"mts-cmd.teams-unclaimed-line", force_name}
                     else
                         local leader_idx = (storage.team_leader or {})[force_name]
                         local leader = leader_idx and game.get_player(leader_idx)
@@ -161,41 +183,40 @@ function M.register()
                             and helpers.colored_name(leader.name, leader.chat_color)
                             or "[color=0.7,0.7,0.7]?[/color]"
                         local count = #force.players
-                        lines[#lines + 1] = string.format(
-                            "  [color=0.55,0.55,0.55][%s][/color] %s — leader: %s, %d player%s",
-                            force_name, helpers.team_tag(force_name), leader_str,
-                            count, count == 1 and "" or "s")
+                        lines[#lines + 1] = {"mts-cmd.teams-line",
+                            force_name, helpers.team_tag(force_name), leader_str, count}
                     end
                 end
             end
-            local msg = table.concat(lines, "\n")
+            local msg = join_lines(lines)
             if caller then caller.print(msg) else game.print(msg) end
         end)
 
     commands.add_command("mts-chat",
-        "Toggle your chat between team-only and global (same as the HUD switch)",
+        {"mts-cmd.chat-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             if not caller then
-                game.print("This command can only be used by a player."); return
+                game.print({"mts-cmd.player-only"}); return
             end
             hud_clock.toggle_chat_channel(caller)
         end)
 
     commands.add_command("mts-modifiers",
-        "Show each team's gameplay modifiers (non-competitive mode)",
+        {"mts-cmd.modifiers-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             local lines
             if not team_modifiers.is_active() then
-                lines = {"[Modifiers] This server is in standard competitive mode"
-                    .. " — every team plays under identical settings."}
+                lines = {{"mts-cmd.modifiers-competitive"}}
             else
-                lines = {"[Modifiers] [color=1,0.65,0]NON-COMPETITIVE mode[/color]"
-                    .. " — teams may play under different settings:"}
+                lines = {{"mts-cmd.modifiers-noncompetitive-header"}}
                 for i = 1, force_utils.max_teams() do
                     local force_name = "team-" .. i
                     if (storage.team_pool or {})[i] == "occupied" then
+                        -- describe()/marked_badge() are another slice's plain-string
+                        -- producers; this row stays English until they grow
+                        -- LocalisedString variants (locale stage: deferred).
                         local desc  = team_modifiers.describe(force_name)
                         local badge = team_modifiers.marked_badge(force_name)
                         lines[#lines + 1] = string.format("  %s%s — %s",
@@ -206,47 +227,44 @@ function M.register()
                     end
                 end
             end
-            local msg = table.concat(lines, "\n")
+            local msg = join_lines(lines)
             if caller then caller.print(msg) else game.print(msg) end
         end)
 
     commands.add_command("mts-kick",
-        "Kick a player from your team (team leader only). Usage: /mts-kick <player-name>",
+        {"mts-cmd.kick-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
             if not force_utils.is_team_leader(caller) then
-                caller.print("Only the team leader can kick players."); return
+                caller.print({"mts-cmd.kick-not-leader"}); return
             end
             if force_utils.force_member_count(caller.force) < 2 then
-                caller.print("You are the only player on your team."); return
+                caller.print({"mts-cmd.kick-solo"}); return
             end
             local target_name = cmd.parameter
             if not target_name or target_name == "" then
-                caller.print("Usage: /mts-kick <player-name>"); return
+                caller.print({"mts-cmd.kick-usage"}); return
             end
             target_name = target_name:match("^%s*(.-)%s*$")
             local target = game.get_player(target_name)
             if not target then
-                caller.print("Player '" .. target_name .. "' not found."); return
+                caller.print({"mts-cmd.kick-player-not-found", target_name}); return
             end
             if target.index == caller.index then
-                caller.print("You cannot kick yourself. Use /mts-leave instead."); return
+                caller.print({"mts-cmd.kick-self"}); return
             end
             if target.force ~= caller.force then
-                caller.print(helpers.colored_name(target.name, target.chat_color)
-                    .. " is not on your team."); return
+                caller.print({"mts-cmd.kick-not-teammate",
+                    helpers.colored_name(target.name, target.chat_color)}); return
             end
             confirm.show(caller, {
-                title        = "Kick " .. target.name .. "?",
-                message      = "Are you sure you want to kick "
-                    .. helpers.colored_name(target.name, target.chat_color)
-                    .. " from " .. helpers.team_tag(caller.force.name) .. "?\n\n"
-                    .. "• They will return to the Landing Pen and lose their research.\n"
-                    .. "• Their character will die. Items drop as a corpse on your base\n"
-                    .. "  (you can recover them).",
-                confirm_text = "Kick Player",
-                cancel_text  = "Cancel",
+                title        = {"mts-confirm.kick-title", target.name},
+                message      = {"mts-confirm.kick-message",
+                    helpers.colored_name(target.name, target.chat_color),
+                    helpers.team_tag(caller.force.name)},
+                confirm_text = {"mts-confirm.kick-ok"},
+                cancel_text  = {"mts-confirm.cancel"},
                 action       = "kick",
                 data         = {target_idx = target.index},
             })

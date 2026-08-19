@@ -90,13 +90,15 @@ for _, base_name in ipairs(space_age.list_base_planets_data()) do
             -- Factorio tries to look up
             -- `space-location-name.mts-<base>-<slot>` which doesn't
             -- exist, producing "Unknown key" warnings everywhere.
-            -- We concatenate the base planet's localised name with
-            -- the slot number: e.g. "Vulcanus 1", "Nauvis 2",
-            -- "Lignumis 3". This works for any planet that has a
+            -- Our parameterised key combines the base planet's
+            -- localised name with the slot number: e.g. "Vulcanus 1",
+            -- "Nauvis 2", "Lignumis 3" (word order per language). This
+            -- works for any planet that has a
             -- `space-location-name.<base>` locale entry — vanilla
             -- planets and well-behaved modded ones both qualify.
             variant.localised_name = {
-                "", {"space-location-name." .. base_name}, " " .. slot,
+                "space-location-name.mts-team-planet",
+                {"space-location-name." .. base_name}, slot,
             }
             variant.localised_description = {
                 "space-location-description." .. base_name,

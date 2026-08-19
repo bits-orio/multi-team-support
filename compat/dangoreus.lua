@@ -150,7 +150,7 @@ function dangoreus.on_built_entity(event)
         entity.die()
         force.create_ghost_on_entity_death = ttl
         if last_user then
-            last_user.print("Cannot build non-miners on resources!")
+            last_user.print({"mts-chat.cannot-build-on-resources"})
         end
     end
 end

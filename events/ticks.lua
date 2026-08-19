@@ -249,9 +249,7 @@ function M.register()
         if game.tick == 0 then return end
         local discord_url = settings.global["mts_discord_url"].value
         if discord_url ~= "" then
-            helpers.broadcast(
-                "Join our Discord for reset notifications and to vote on the next game: " .. discord_url
-            )
+            helpers.broadcast({"mts-chat.discord-reminder", discord_url})
         end
     end)
 end

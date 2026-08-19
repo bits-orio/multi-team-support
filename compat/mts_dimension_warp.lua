@@ -44,6 +44,7 @@ function mts_dimension_warp.is_active()
 end
 
 mts_dimension_warp.planet_display_name    = compat_utils.planet_display_name
+mts_dimension_warp.ls_planet_display_name = compat_utils.ls_planet_display_name
 -- Reuse the shared teleport path: MDW's pending teleports live in the same
 -- storage.pending_vanilla_tp queue, so process_pending_teleports == compat_utils'.
 mts_dimension_warp.process_pending_teleports = compat_utils.process_pending_teleports

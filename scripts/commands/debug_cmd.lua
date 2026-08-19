@@ -5,6 +5,8 @@ local debug_engine = require("scripts.debug")
 
 local M = {}
 
+-- /mts-debug output deliberately stays English (debug surface, locale policy);
+-- only the add_command help string carries a locale key.
 local DEBUG_HELP = table.concat({
     "/mts-debug research <tech> [--players a,b,c] [--delay N]",
     "    Run tech:research_recursive() on each player's force.",
@@ -49,7 +51,7 @@ end
 
 function M.register()
     commands.add_command("mts-debug",
-        "Schedule debug actions (admin only). Use /mts-debug help for usage.",
+        {"mts-cmd.debug-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
             if not caller then game.print("This command can only be used by a player."); return end
@@ -66,6 +68,8 @@ function M.register()
                 if #rows == 0 then caller.print("[mts-debug] No tasks queued."); return end
                 local lines = {"[mts-debug] Tasks:"}
                 for _, r in ipairs(rows) do
+                    -- TODO(locale-stage5): r.kind/r.label/r.detail are English
+                    -- strings built in scripts/debug.lua and persisted in storage.
                     lines[#lines + 1] = string.format("  #%d  %s  %s  (%s)",
                         r.id, r.kind, r.label, r.detail)
                 end

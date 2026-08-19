@@ -16,9 +16,9 @@ local function upgrade_to_friend_view(p, idx)
     core.update_spectator_surfaces()
     -- crafting_queue_size errors when no crafting queue exists; guard on character.
     if p.character and p.crafting_queue_size > 0 then
-        p.print("[multi-team-support] You are now viewing as a friend. Crafting resumed.")
+        p.print({"mts-chat.friend-view-upgraded-crafting"})
     else
-        p.print("[multi-team-support] You are now viewing as a friend.")
+        p.print({"mts-chat.friend-view-upgraded"})
     end
     log("[multi-team-support:spectator] upgraded " .. p.name .. " from spectator to friend-view")
 end
@@ -32,10 +32,9 @@ local function downgrade_to_spectator(p, player_force)
     local unfriender = helpers.display_name(player_force.name)
     -- Same crafting_queue_size guard as upgrade_to_friend_view.
     if p.character and p.crafting_queue_size > 0 then
-        p.print("[multi-team-support] " .. unfriender
-            .. " unfriended you. Now spectating (crafting paused).")
+        p.print({"mts-chat.unfriended-spectating-crafting", unfriender})
     else
-        p.print("[multi-team-support] " .. unfriender .. " unfriended you. Now spectating.")
+        p.print({"mts-chat.unfriended-spectating", unfriender})
     end
 end
 
@@ -223,6 +222,25 @@ function M.get_chat_prefix(player)
         local owner = surface_utils.get_owner(player.surface)
         if owner and owner ~= player.force.name then
             return "[on " .. helpers.display_name(owner) .. "'s base][friend] "
+        end
+    end
+    return ""
+end
+
+--- LocalisedString twin of get_chat_prefix (dual API: events/chat.lua still
+--- consumes the plain-string version; the final sweep folds the two once it
+--- migrates). Returns "" when no prefix applies so callers can compose it
+--- unconditionally. The trailing separator space is composed here rather than
+--- stored as invisible trailing whitespace in the locale value.
+function M.ls_get_chat_prefix(player)
+    local target_fn = core.get_target(player)
+    if target_fn then
+        return {"", {"mts-chat.chat-prefix-spectator", helpers.display_name(target_fn)}, " "}
+    end
+    if player.controller_type == defines.controllers.remote then
+        local owner = surface_utils.get_owner(player.surface)
+        if owner and owner ~= player.force.name then
+            return {"", {"mts-chat.chat-prefix-friend", helpers.display_name(owner)}, " "}
         end
     end
     return ""

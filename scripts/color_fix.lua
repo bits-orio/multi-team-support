@@ -171,7 +171,7 @@ function M.fix_player(player)
 end
 
 local function notify(player, nc)
-    player.print("Your colour was adjusted to stay readable and distinct from other players.", { color = nc })
+    player.print({"mts-chat.color-adjusted"}, { color = nc })
 end
 
 --- On-join: brighten/de-brown/de-clash immediately so a dark or duplicate name
@@ -214,9 +214,9 @@ function M.fix_all(caller)
         end
     end
     if #names > 0 then
-        helpers.broadcast("[colour] Adjusted unreadable / clashing colours for: " .. table.concat(names, ", "))
+        helpers.broadcast({"mts-chat.colors-adjusted-for", table.concat(names, ", ")})
     end
-    if caller then caller.print(("Adjusted %d player(s)."):format(#names)) end
+    if caller then caller.print({"mts-cmd.fixcolors-adjusted", #names}) end
     return #names
 end
 

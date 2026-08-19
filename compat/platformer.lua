@@ -61,7 +61,7 @@ function platformer.setup_player_platform(player)
     })
 
     if not platform then
-        player.print("[multi-team-support] Could not create personal space platform.")
+        player.print({"mts-chat.platform-create-failed"})
         return
     end
 

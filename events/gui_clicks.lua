@@ -49,8 +49,9 @@ function M.register()
                 storage.pending_spawn_pop = storage.pending_spawn_pop or {}
                 storage.pending_spawn_pop[player.index] = player.force.name
                 h.spawn_into_world(player)
-                helpers.broadcast(helpers.colored_name(player.name, player.chat_color)
-                    .. " has joined " .. helpers.team_tag(player.force.name) .. ".")
+                helpers.broadcast({"mts-chat.joined-team",
+                    helpers.colored_name(player.name, player.chat_color),
+                    helpers.team_tag(player.force.name)})
                 h.refresh_all_gameplay_guis()
                 lfm_hint.show_for_leader(player)
                 if is_staged then

@@ -42,14 +42,13 @@ function M.register()
         if pending and force_utils.is_team_force(player.force.name)
            and player.surface.name ~= "landing-pen" then
             storage.pending_spawn_pop[player.index] = nil
-            pop_text.spawn_confirm(player, player.position,
-                "Welcome " .. helpers.colored_name(player.name, player.chat_color) .. "!")
+            local cn = helpers.colored_name(player.name, player.chat_color)
+            pop_text.spawn_confirm(player, player.position, {"mts-chat.pop-welcome", cn})
             local force = player.force
             for _, mate in pairs(force.players) do
                 if mate.connected and mate.index ~= player.index
                    and mate.surface.index == player.surface.index then
-                    pop_text.team_join(mate, mate.position,
-                        helpers.colored_name(player.name, player.chat_color) .. " joined!")
+                    pop_text.team_join(mate, mate.position, {"mts-chat.pop-team-join", cn})
                 end
             end
         end

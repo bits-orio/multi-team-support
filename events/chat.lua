@@ -46,10 +46,10 @@ function M.register()
 
         if go_global then
             local prefix = spectator.get_chat_prefix(author)
+            local line = {"mts-chat.global-chat-line", prefix, author.name, message}
             for _, player in pairs(game.connected_players) do
                 if player.force ~= author.force then
-                    player.print(prefix .. author.name .. ": " .. message,
-                                 {color = author.color})
+                    player.print(line, {color = author.color})
                 end
             end
             remote_api.emit_chat(author.name, message,
@@ -64,13 +64,14 @@ function M.register()
         -- native copy went to the spectator force instead), and a spectating
         -- TEAMMATE still receives team chat sent from home.
         local author_swapped = author.force.name ~= effective
-        local tag = author_swapped and "[spectating] " or ""
+        local line = author_swapped
+            and {"mts-chat.team-chat-line-spectating", author.name, message}
+            or  {"mts-chat.team-chat-line", author.name, message}
         for _, player in pairs(game.connected_players) do
             if player.index ~= author.index
                and player.force ~= author.force
                and spectator.get_effective_force(player) == effective then
-                player.print(tag .. author.name .. ": " .. message,
-                             {color = author.color})
+                player.print(line, {color = author.color})
             end
         end
         -- Soft cue: the author's native copy was visible to co-spectators.

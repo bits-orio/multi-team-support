@@ -34,8 +34,8 @@ function M.register()
             local p = game.get_player(event.player_index)
             local new_limit = admin_gui.buddy_team_limit()
             if p then
-                helpers.broadcast("[Admin] " .. helpers.colored_name(p.name, p.chat_color)
-                    .. " set max team size to " .. new_limit)
+                helpers.broadcast({"mts-chat.admin-set-team-size",
+                    helpers.colored_name(p.name, p.chat_color), new_limit})
             end
             -- Auto-clear LFM for any team whose current size meets or exceeds the new limit.
             storage.team_looking_for_more = storage.team_looking_for_more or {}
@@ -46,8 +46,7 @@ function M.register()
                     local force = game.forces[fn]
                     if force and #force.players >= new_limit then
                         storage.team_looking_for_more[fn] = nil
-                        helpers.broadcast("[Team] " .. helpers.team_tag(fn)
-                            .. " is no longer recruiting (team size limit reached).")
+                        helpers.broadcast({"mts-chat.team-no-longer-recruiting", helpers.team_tag(fn)})
                         team_settings.update_all_for_force(fn)
                     end
                 end
@@ -151,11 +150,11 @@ function M.register()
         if changed_flag then
             local admin_player = game.get_player(event.player_index)
             if admin_player then
-                local state_str = admin_gui.flag(changed_flag) and "enabled" or "disabled"
+                local cn    = helpers.colored_name(admin_player.name, admin_player.chat_color)
                 local label = admin_gui.get_flag_label(changed_flag)
-                helpers.broadcast("[Admin] "
-                    .. helpers.colored_name(admin_player.name, admin_player.chat_color)
-                    .. " " .. state_str .. " " .. label)
+                helpers.broadcast(admin_gui.flag(changed_flag)
+                    and {"mts-chat.admin-flag-enabled", cn, label}
+                    or  {"mts-chat.admin-flag-disabled", cn, label})
             end
             if changed_flag == "buddy_join_enabled" then
                 landing_pen.update_pen_gui_all()
@@ -196,13 +195,7 @@ function M.register()
             end
             if changed_flag == "non_competitive_enabled" then
                 if admin_gui.flag("non_competitive_enabled") then
-                    helpers.broadcast("[color=1,0.65,0]Per-team modifiers are now"
-                        .. " allowed — team times are no longer directly comparable."
-                        .. " Once a team receives a modifier it is marked"
-                        .. " non-competitive, and this mode cannot be turned off"
-                        .. " as long as any such team exists (only disbanding"
-                        .. " clears the mark). See the Teams panel or"
-                        .. " /mts-modifiers for every team's settings.[/color]")
+                    helpers.broadcast({"mts-chat.noncompetitive-mode-on"})
                 else
                     team_modifiers.revert_all()
                 end

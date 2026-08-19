@@ -15,7 +15,10 @@ local friendship = {}
 -- ─── State Query ──────────────────────────────────────────────────────
 
 --- Determine friendship checkbox state between viewer and target.
---- Returns: label_text, label_color, tooltip, checked
+--- Returns: label_text, label_color, tooltip, checked, ls_label, ls_tooltip
+--- — the trailing pair are LocalisedString twins of label_text/tooltip; the
+--- plain pair stays until the consumer (gui/team_card.lua) migrates
+--- (dual API).
 -- Friendship checkbox states:
 -- State                     | Label            | Color  | Checked | Tooltip
 -- No intents                | "request friend" | blue   | no      | "Send friend request to X"
@@ -31,13 +34,17 @@ function friendship.get_state(viewer_force_name, target_force_name, viewer_force
     local is_mutual    = viewer_force.get_friend(target_force)
 
     if is_mutual then
-        return "friends", {0, 1, 0}, "Break friendship with " .. owner, true
+        return "friends", {0, 1, 0}, "Break friendship with " .. owner, true,
+            {"mts-gui.friend-state-friends"}, {"mts-tip.friend-break", owner}
     elseif my_intent then
-        return "request pending", {1, 0.8, 0}, "Withdraw friend request to " .. owner, true
+        return "request pending", {1, 0.8, 0}, "Withdraw friend request to " .. owner, true,
+            {"mts-gui.friend-state-pending"}, {"mts-tip.friend-withdraw", owner}
     elseif their_intent then
-        return "request pending", {1, 0.8, 0}, "Accept friend request from " .. owner, false
+        return "request pending", {1, 0.8, 0}, "Accept friend request from " .. owner, false,
+            {"mts-gui.friend-state-pending"}, {"mts-tip.friend-accept", owner}
     else
-        return "request friend", {0.4, 0.7, 1}, "Send friend request to " .. owner, false
+        return "request friend", {0.4, 0.7, 1}, "Send friend request to " .. owner, false,
+            {"mts-gui.friend-state-request"}, {"mts-tip.friend-send", owner}
     end
 end
 
@@ -103,11 +110,9 @@ function friendship.on_toggle(event)
 
         if reverse then
             activate(viewer_force, target_force)
-            msg = viewer_tag .. " and " .. target_tag
-                .. " are now [color=0,1,0]friends[/color]"
+            msg = {"mts-chat.friends-now", viewer_tag, target_tag}
         else
-            msg = viewer_tag .. " wants to friend " .. target_tag
-                .. " [color=1,0.8,0](pending)[/color]"
+            msg = {"mts-chat.friend-request-pending", viewer_tag, target_tag}
         end
     else
         -- Remove this side's intent
@@ -115,9 +120,9 @@ function friendship.on_toggle(event)
 
         if viewer_force.get_friend(target_force) then
             break_mutual(viewer_force_name, target_force_name, viewer_force, target_force)
-            msg = viewer_tag .. " and " .. target_tag .. " are no longer friends"
+            msg = {"mts-chat.friends-no-longer", viewer_tag, target_tag}
         else
-            msg = viewer_tag .. " withdrew friend request to " .. target_tag
+            msg = {"mts-chat.friend-request-withdrawn", viewer_tag, target_tag}
         end
     end
 
@@ -157,7 +162,7 @@ function friendship.break_all()
     end
     storage.friend_intents = {}
     if any_broken then
-        helpers.broadcast("[Admin] All friendships have been dissolved.")
+        helpers.broadcast({"mts-chat.friendships-dissolved"})
     end
 end
 

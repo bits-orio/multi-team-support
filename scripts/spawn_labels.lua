@@ -55,15 +55,18 @@ local function location_name_for(surface, force)
     return helpers.display_surface_name(surface.name)
 end
 
+-- Returns a LocalisedString: both consumers hand it to a render object
+-- (rendering.draw_text / obj.text), which accepts LocalisedStrings.
 local function compute_text(force_name, location_name)
-    local text = helpers.team_tag_with_leader(force_name) .. "'s\n" .. location_name
+    local text = {"mts-gui.spawn-label",
+        helpers.team_tag_with_leader(force_name), location_name}
     -- Birth-clock line, nearest-minute resolution: labels refresh every 10s
     -- (the 600-tick handler in events/ticks.lua), so a seconds digit would
     -- sit visibly stale. Omitted until the team's clock starts.
     local start = (storage.team_clock_start or {})[force_name]
     if start then
-        text = text .. "\n[img=utility/clock] "
-            .. helpers.fmt_duration_coarse(game.tick - start)
+        return {"", text, "\n",
+            {"mts-gui.spawn-label-clock", helpers.ls_duration_coarse(game.tick - start)}}
     end
     return text
 end

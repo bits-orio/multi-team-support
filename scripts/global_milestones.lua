@@ -59,9 +59,11 @@ local function play_global_sound()
     end
 end
 
-local function announce(text_str)
-    helpers.broadcast(text_str)
-    pop_text.global_milestone(text_str)
+-- msg may be a plain string or a LocalisedString — broadcast and the
+-- rendering-based screen pop both accept either.
+local function announce(msg)
+    helpers.broadcast(msg)
+    pop_text.global_milestone(msg)
     play_global_sound()
 end
 
@@ -152,8 +154,8 @@ function M.on_rocket_launched(event)
     if storage.global_records.first_rocket then return end
     storage.global_records.first_rocket = true
 
-    local team_tag = helpers.team_tag_with_leader(force.name) or "A team"
-    announce(team_tag .. " launched the first rocket into space!")
+    local team_tag = helpers.team_tag_with_leader(force.name) or {"mts-milestone.a-team"}
+    announce({"mts-milestone.first-rocket", team_tag})
 end
 
 -- ─── First landing on each planet ─────────────────────────────────────
@@ -203,7 +205,7 @@ function M.check_planet_landing(player, was_spawning)
     local team_tag   = helpers.team_tag_with_leader(player.force.name)
     local planet_tag = "[planet=" .. pname .. "]"
 
-    announce(team_tag .. " was first to set foot on " .. planet_tag .. "!")
+    announce({"mts-milestone.first-landing", team_tag, planet_tag})
 end
 
 -- ─── Event registration ───────────────────────────────────────────────

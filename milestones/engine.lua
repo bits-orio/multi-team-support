@@ -43,16 +43,18 @@ function engine.init_storage()
     storage.milestone_external = storage.milestone_external or {}
 end
 
---- Build a short two-line popup string for the milestone overlay.
+--- Build the two-line popup LocalisedString for the milestone overlay.
 ---   is_first + first-threshold  → "First!\n[item=X]"
 ---   is_first + count-threshold  → "First!\n100x [item=X]"
 ---   fastest  + any threshold    → "New record!\n[same]"
-local function build_popup(label, item_name, threshold)
+local function build_popup(is_first, item_name, threshold)
     local item_tag = helpers.item_rich_name(item_name)
     if threshold == FIRST_THRESHOLD then
-        return label .. "\n" .. item_tag
+        return is_first and {"mts-milestone.popup-first", item_tag}
+            or {"mts-milestone.popup-record", item_tag}
     end
-    return label .. "\n" .. threshold .. "x " .. item_tag
+    return is_first and {"mts-milestone.popup-first-count", threshold, item_tag}
+        or {"mts-milestone.popup-record-count", threshold, item_tag}
 end
 
 --- Run each tracker's discover_items function to build the item set.
@@ -68,8 +70,15 @@ function engine.discover_items()
 end
 
 -- ─── Announcement Helpers ─────────────────────────────────────────────
+-- The in-game broadcasts use whole-sentence locale keys (locale/en/
+-- milestones.cfg); the Discord bridge keeps plain English built by the
+-- build_*_achievement functions below — a LocalisedString cannot leave the
+-- game, so the two paths never share a value. In every broadcast the leading
+-- records_tag() parameter carries a non-competitive tag while that mode is
+-- on — records earned under uneven per-team settings stay visible but wear
+-- an asterisk.
 
---- Build the description of what was achieved.
+--- Build the plain-English description of what was achieved. BRIDGE PATH ONLY.
 ---   first threshold + science → "produce their first [item=automation-science-pack]"
 ---   100 threshold + landfill  → "produce 100 [item=landfill]"
 local function build_achievement_desc(tracker, item_name, threshold)
@@ -77,27 +86,6 @@ local function build_achievement_desc(tracker, item_name, threshold)
         return "produce their first " .. helpers.item_rich_name(item_name)
     end
     return string.format("produce %d %s", threshold, helpers.item_rich_name(item_name))
-end
-
---- Announce a "first to X" milestone. The prefix carries a non-competitive
---- tag while that mode is on — records earned under uneven per-team settings
---- stay visible but wear an asterisk.
-local function announce_first(team_tag, achievement)
-    helpers.broadcast(string.format(
-        "%s %s was the first to %s!",
-        team_modifiers.records_tag(), team_tag, achievement
-    ))
-end
-
---- Announce a new speed record for an existing milestone.
-local function announce_speed_record(team_tag, achievement, new_elapsed, prev_team_tag, prev_elapsed)
-    helpers.broadcast(string.format(
-        "%s %s is fastest to %s in %s (previous record: %s in %s)",
-        team_modifiers.records_tag(), team_tag, achievement,
-        helpers.format_elapsed(new_elapsed),
-        prev_team_tag,
-        helpers.format_elapsed(prev_elapsed)
-    ))
 end
 
 -- ─── Milestone Check Logic ────────────────────────────────────────────
@@ -125,10 +113,17 @@ local function check_milestone(tracker, item_name, force, threshold)
     local team_tag    = helpers.team_tag(force.name)
     local achievement = build_achievement_desc(tracker, item_name, threshold)
     local team_name   = (storage.team_names or {})[force.name] or force.name
+    local item_tag    = helpers.item_rich_name(item_name)
 
     if result.is_first then
-        announce_first(team_tag, achievement)
-        pop_text.milestone(force, build_popup("First!", item_name, threshold))
+        if threshold == FIRST_THRESHOLD then
+            helpers.broadcast({"mts-milestone.first-produce-item",
+                team_modifiers.records_tag(), team_tag, item_tag})
+        else
+            helpers.broadcast({"mts-milestone.first-produce-count",
+                team_modifiers.records_tag(), team_tag, threshold, item_tag})
+        end
+        pop_text.milestone(force, build_popup(true, item_name, threshold))
         remote_api.emit_to_bridge("mts.milestone_first", {
             team        = team_name,
             achievement = plain(achievement),
@@ -137,13 +132,19 @@ local function check_milestone(tracker, item_name, force, threshold)
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
-        announce_speed_record(
-            team_tag, achievement,
-            new_entry.elapsed,
-            helpers.team_tag(prev.team),
-            prev.elapsed
-        )
-        pop_text.milestone(force, build_popup("New record!", item_name, threshold))
+        local prev_tag  = helpers.team_tag(prev.team)
+        if threshold == FIRST_THRESHOLD then
+            helpers.broadcast({"mts-milestone.record-produce-item",
+                team_modifiers.records_tag(), team_tag, item_tag,
+                helpers.ls_elapsed(new_entry.elapsed), prev_tag,
+                helpers.ls_elapsed(prev.elapsed)})
+        else
+            helpers.broadcast({"mts-milestone.record-produce-count",
+                team_modifiers.records_tag(), team_tag, threshold, item_tag,
+                helpers.ls_elapsed(new_entry.elapsed), prev_tag,
+                helpers.ls_elapsed(prev.elapsed)})
+        end
+        pop_text.milestone(force, build_popup(false, item_name, threshold))
         local prev_team = (storage.team_names or {})[prev.team] or prev.team
         remote_api.emit_to_bridge("mts.milestone_record", {
             team             = team_name,
@@ -226,6 +227,11 @@ end
 -- persisted; reporting is event-driven (no polling). remote_api requires this module, not
 -- the reverse, so the interface entries are injected at the bottom.
 
+--- Plain-English achievement description. BRIDGE PATH ONLY (see the
+--- announcement-helpers note above). verb/noun are English data supplied by
+--- the consumer mod over the frozen mts-v1 interface, so the noun's "s"
+--- plural is appended here in Lua — the in-game sentence keys receive the
+--- already-pluralised noun as a parameter for the same reason.
 local function build_external_achievement(spec, threshold, first_only)
     local verb = spec.verb or "reach"
     if first_only then
@@ -248,11 +254,19 @@ local function check_external(spec, force, threshold, first_only)
     local team_tag     = helpers.team_tag(force.name)
     local team_name    = (storage.team_names or {})[force.name] or force.name
     local achievement  = build_external_achievement(spec, threshold, first_only)
-    local popup_detail = first_only and spec.noun or (threshold .. " " .. spec.noun .. "s")
+    local verb         = spec.verb or "reach"
+    local noun_many    = spec.noun .. "s"
+    local popup_detail = first_only and spec.noun or (threshold .. " " .. noun_many)
 
     if result.is_first then
-        announce_first(team_tag, achievement)
-        pop_text.milestone(force, "First!\n" .. popup_detail)
+        if first_only then
+            helpers.broadcast({"mts-milestone.first-external-item",
+                team_modifiers.records_tag(), team_tag, verb, spec.noun})
+        else
+            helpers.broadcast({"mts-milestone.first-external-count",
+                team_modifiers.records_tag(), team_tag, verb, threshold, noun_many})
+        end
+        pop_text.milestone(force, {"mts-milestone.popup-first", popup_detail})
         remote_api.emit_to_bridge("mts.milestone_first", {
             team        = team_name,
             achievement = achievement,
@@ -261,9 +275,11 @@ local function check_external(spec, force, threshold, first_only)
     elseif not first_only and result.is_fastest then
         local prev      = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
-        announce_speed_record(team_tag, achievement, new_entry.elapsed,
-            helpers.team_tag(prev.team), prev.elapsed)
-        pop_text.milestone(force, "New record!\n" .. popup_detail)
+        helpers.broadcast({"mts-milestone.record-external-count",
+            team_modifiers.records_tag(), team_tag, verb, threshold, noun_many,
+            helpers.ls_elapsed(new_entry.elapsed), helpers.team_tag(prev.team),
+            helpers.ls_elapsed(prev.elapsed)})
+        pop_text.milestone(force, {"mts-milestone.popup-record", popup_detail})
         local prev_team = (storage.team_names or {})[prev.team] or prev.team
         remote_api.emit_to_bridge("mts.milestone_record", {
             team             = team_name,

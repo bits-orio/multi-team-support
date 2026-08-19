@@ -421,6 +421,17 @@ local function planet_name_to_base(name)
     return name:match("^mts%-(.+)%-%d+$") or name
 end
 
+--- LocalisedString display name for a planet or variant name: the base
+--- planet's own locale entry when one exists, else the capitalised base id
+--- (helpers.display_surface_name semantics). Local twin of
+--- compat_utils.ls_planet_display_name — compat_utils requires this module,
+--- so requiring it back here would create a load cycle.
+local function ls_planet_name(name)
+    local base = planet_name_to_base(name)
+    return {"?", {"space-location-name." .. base},
+        base:sub(1, 1):upper() .. base:sub(2)}
+end
+
 function planet_map.on_logistic_slot_changed(event)
     if not space_age.is_active() then return end
     local entity = event.entity
@@ -472,11 +483,8 @@ function planet_map.on_logistic_slot_changed(event)
     if event.player_index then
         local player = game.get_player(event.player_index)
         if player and player.connected then
-            pop_text.notify(player,
-                "[color=1,0.55,0.35]" .. current .. "[/color]"
-                .. " → "
-                .. "[color=0.45,0.9,0.45]" .. own .. "[/color]"
-            )
+            pop_text.notify(player, {"mts-chat.import-rewritten",
+                ls_planet_name(current), ls_planet_name(own)})
         end
     end
 end

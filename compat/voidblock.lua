@@ -44,6 +44,7 @@ function voidblock.is_active()
 end
 
 voidblock.planet_display_name    = compat_utils.planet_display_name
+voidblock.ls_planet_display_name = compat_utils.ls_planet_display_name
 voidblock.process_pending_teleports = compat_utils.process_pending_teleports
 
 --- Create a personal Nauvis surface for `player` with no auto-generated

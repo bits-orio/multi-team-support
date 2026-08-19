@@ -24,26 +24,29 @@ local team_settings = require("gui.team_settings")
 
 local rename = {}
 
---- Apply the whole rename rule once. Returns ok:boolean, err:string|nil.
+--- Apply the whole rename rule once. Returns ok:boolean, err:LocalisedString|nil.
 --- ok=true, err=nil means the rename was applied OR was a no-op (name unchanged).
 --- ok=false, err=<message> means it was rejected; the caller prints the message.
+--- (Both consumers — the /mts-rename command and the Team Settings GUI's
+--- injected rename_fn — only player.print the error, so a LocalisedString
+--- return needs no caller changes.)
 function rename.attempt(player, raw_text)
     if not (player and player.valid) then return false, nil end
     local force_name = player.force and player.force.name
     if not (force_name and force_name:find("^team%-")) then
-        return false, "You are not on a team yet."
+        return false, {"mts-cmd.rename-no-team"}
     end
     if not force_utils.is_team_leader(player) then
-        return false, "Only the team leader can rename the team."
+        return false, {"mts-cmd.rename-not-leader"}
     end
 
     local new_name = (raw_text or ""):match("^%s*(.-)%s*$")
     if new_name == "" then
-        return false, "Team name cannot be empty."
+        return false, {"mts-cmd.rename-empty"}
     end
     local max_len = team_settings.MAX_TEAM_NAME_LEN or 16
     if #new_name > max_len then
-        return false, "Team name is too long (max " .. max_len .. " characters)."
+        return false, {"mts-cmd.rename-too-long", max_len}
     end
     if new_name == helpers.display_name(force_name) then
         return true  -- unchanged: no-op, no broadcast/event
@@ -52,13 +55,14 @@ function rename.attempt(player, raw_text)
     storage.team_names = storage.team_names or {}
     for fn, nm in pairs(storage.team_names) do
         if fn ~= force_name and nm == new_name then
-            return false, "Another team already uses that name."
+            return false, {"mts-cmd.rename-name-taken"}
         end
     end
 
     storage.team_names[force_name] = new_name
-    helpers.broadcast("[Team] " .. helpers.colored_name(player.name, player.chat_color)
-        .. " renamed their team to " .. helpers.team_tag_with_leader(force_name) .. ".")
+    helpers.broadcast({"mts-chat.team-renamed",
+        helpers.colored_name(player.name, player.chat_color),
+        helpers.team_tag_with_leader(force_name)})
     remote_api.raise_team_renamed(force_name, new_name)
 
     -- Full refresh fan-out (the superset of what the two old paths each did):

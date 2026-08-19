@@ -18,6 +18,23 @@ local hud_clock         = require("gui.hud_clock")
 
 local M = {}
 
+--- Broadcast the tags of every occupied team flagged looking-for-more, so a
+--- pen-bound player knows where to look. No-op when none are recruiting.
+local function announce_recruiting_teams()
+    storage.team_looking_for_more = storage.team_looking_for_more or {}
+    local lfm_tags = {}
+    for i = 1, force_utils.max_teams() do
+        local fn = "team-" .. i
+        if (storage.team_pool or {})[i] == "occupied"
+           and storage.team_looking_for_more[fn] then
+            lfm_tags[#lfm_tags + 1] = helpers.team_tag(fn)
+        end
+    end
+    if #lfm_tags > 0 then
+        helpers.broadcast({"mts-chat.teams-recruiting", table.concat(lfm_tags, ", ")})
+    end
+end
+
 function M.register()
     script.on_event(defines.events.on_player_created, function(event)
         local player = game.get_player(event.player_index)
@@ -84,54 +101,28 @@ function M.register()
         if player then
             storage.seen_players = storage.seen_players or {}
             local discord_url = settings.global["mts_discord_url"].value
+            local cn = helpers.colored_name(player.name, player.chat_color)
             if not storage.seen_players[player.index] then
                 storage.seen_players[player.index] = true
-                local msg = "Welcome " .. player.name .. "!"
-                if discord_url ~= "" then
-                    msg = msg .. " Join our Discord for reset notifications: " .. discord_url
-                end
-                helpers.broadcast(msg)
+                helpers.broadcast({"",
+                    {"mts-chat.welcome", cn},
+                    discord_url ~= "" and {"mts-chat.discord-invite", discord_url} or ""})
                 -- Announce any teams currently recruiting so new players know where to look.
                 if admin_gui.flag("buddy_join_enabled") and admin_gui.flag("landing_pen_enabled") then
-                    storage.team_looking_for_more = storage.team_looking_for_more or {}
-                    local lfm_tags = {}
-                    for i = 1, force_utils.max_teams() do
-                        local fn = "team-" .. i
-                        if (storage.team_pool or {})[i] == "occupied"
-                           and storage.team_looking_for_more[fn] then
-                            lfm_tags[#lfm_tags + 1] = helpers.team_tag(fn)
-                        end
-                    end
-                    if #lfm_tags > 0 then
-                        helpers.broadcast("Teams looking for more players: "
-                            .. table.concat(lfm_tags, ", ") .. ".")
-                    end
+                    announce_recruiting_teams()
                 end
             else
-                local msg
                 if force_utils.is_team_force(player.force.name) then
-                    msg = "Welcome back " .. player.name .. " " .. helpers.team_tag_with_leader(player.force.name) .. "!"
+                    helpers.broadcast({"mts-chat.welcome-back-team", cn,
+                        helpers.team_tag_with_leader(player.force.name)})
                 else
-                    msg = "Welcome back " .. player.name .. "!"
+                    helpers.broadcast({"mts-chat.welcome-back", cn})
                 end
-                helpers.broadcast(msg)
                 -- If the returning player lands in the pen, tell them which teams are recruiting.
                 if landing_pen.is_in_pen(player)
                    and admin_gui.flag("buddy_join_enabled")
                    and admin_gui.flag("landing_pen_enabled") then
-                    storage.team_looking_for_more = storage.team_looking_for_more or {}
-                    local lfm_tags = {}
-                    for i = 1, force_utils.max_teams() do
-                        local fn = "team-" .. i
-                        if (storage.team_pool or {})[i] == "occupied"
-                           and storage.team_looking_for_more[fn] then
-                            lfm_tags[#lfm_tags + 1] = helpers.team_tag(fn)
-                        end
-                    end
-                    if #lfm_tags > 0 then
-                        helpers.broadcast("Teams looking for more players: "
-                            .. table.concat(lfm_tags, ", ") .. ".")
-                    end
+                    announce_recruiting_teams()
                 end
             end
 

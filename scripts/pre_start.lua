@@ -133,7 +133,7 @@ function M.commit(player)
     -- Start the leader's personal clock.
     force_utils.start_player_clock(player)
 
-    helpers.broadcast("[Team] " .. helpers.team_tag(force_name) .. " has started playing!")
+    helpers.broadcast({"mts-chat.team-started-playing", helpers.team_tag(force_name)})
 end
 
 -- ─── Cancel (team disbanded during pre-start) ─────────────────────────

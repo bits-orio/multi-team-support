@@ -34,11 +34,11 @@ local function perform_disband(admin_player, data)
     local force_name = data and data.force_name
     local force = force_name and game.forces[force_name]
     if not force then
-        admin_player.print("Team no longer exists."); return
+        admin_player.print({"mts-cmd.disband-team-gone"}); return
     end
     local slot = helpers.team_slot(force_name)
     if not slot or (storage.team_pool or {})[slot] ~= "occupied" then
-        admin_player.print("That team slot is no longer occupied."); return
+        admin_player.print({"mts-cmd.disband-slot-freed"}); return
     end
 
     -- The dialog may have sat open while the team it described disbanded and a
@@ -46,8 +46,7 @@ local function perform_disband(admin_player, data)
     -- detects that recycle, so Confirm can never hit a team the admin never saw.
     local current_gen = (storage.team_slot_generation or {})[slot] or 0
     if data and data.slot_generation ~= nil and data.slot_generation ~= current_gen then
-        admin_player.print("Team slot " .. slot .. " has been recycled by a different team since"
-            .. " the dialog was opened. Re-run /mts-disband to review the current team.")
+        admin_player.print({"mts-cmd.disband-slot-recycled", slot})
         return
     end
 
@@ -68,7 +67,7 @@ local function perform_disband(admin_player, data)
 
         if member.connected then
             landing_pen.return_to_pen(member)
-            member.print("Your team " .. team_tag .. " has been disbanded by an admin.")
+            member.print({"mts-chat.team-disbanded-member", team_tag})
         else
             -- Offline players can't teleport. Clear spawned flag so they land
             -- in the pen on reconnect.
@@ -80,10 +79,10 @@ local function perform_disband(admin_player, data)
     force_utils.cleanup_force_surfaces(force_name)
     force_utils.release_team_slot(force_name)
 
-    helpers.broadcast("[Team] " .. team_tag .. " has been disbanded by an admin.")
+    helpers.broadcast({"mts-chat.team-disbanded-broadcast", team_tag})
     teams_gui.update_all()
     landing_pen.update_pen_gui_all()
-    admin_player.print("Disbanded " .. team_tag .. ".")
+    admin_player.print({"mts-cmd.disband-done", team_tag})
 end
 
 confirm.register("disband", perform_disband)
@@ -92,28 +91,28 @@ confirm.register("disband", perform_disband)
 
 function M.register()
     commands.add_command("mts-disband",
-        "Disband a team and free the slot (admin only). Usage: /mts-disband <team-N>",
+        {"mts-cmd.disband-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
-            if not caller.admin then caller.print("Only admins can disband teams."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
+            if not caller.admin then caller.print({"mts-cmd.disband-admin-only"}); return end
 
             local param = cmd.parameter
             if not param or param == "" then
-                caller.print("Usage: /mts-disband <team-N>  (e.g. /mts-disband team-3)"); return
+                caller.print({"mts-cmd.disband-usage"}); return
             end
             param = param:match("^%s*(.-)%s*$")
             local force_name = param:match("^team%-%d+$") and param
                 or tonumber(param) and ("team-" .. param)
             if not force_name then
-                caller.print("Invalid team. Use team name (team-3) or slot number (3)."); return
+                caller.print({"mts-cmd.disband-invalid-team"}); return
             end
             local slot = helpers.team_slot(force_name)
             if not slot or not game.forces[force_name] then
-                caller.print("Team '" .. force_name .. "' does not exist."); return
+                caller.print({"mts-cmd.team-not-exists", force_name}); return
             end
             if (storage.team_pool or {})[slot] ~= "occupied" then
-                caller.print("Team slot " .. slot .. " is not occupied."); return
+                caller.print({"mts-cmd.disband-slot-not-occupied", slot}); return
             end
 
             local force = game.forces[force_name]
@@ -124,25 +123,24 @@ function M.register()
             -- misread, so spell out slot, leader, and last activity.
             local members = teams_data.collect_team_members(force)
             local leader  = members.leader
+            -- "★ <name>" is symbol + rich text only (no translatable words), so
+            -- composing it in Lua and passing it as a parameter is safe.
             local leader_line = (leader and leader.valid)
                 and ("\xE2\x98\x85 " .. helpers.colored_name(leader.name, leader.chat_color))
-                or "(no leader)"
+                or {"mts-confirm.disband-no-leader"}
             local activity = teams_data.activity_info(members.members)
+            -- activity.ago_text stays a plain string until the teams_data slice
+            -- converts its producer; both string and LocalisedString parameters
+            -- render fine inside the message key.
             local last_active = activity
-                and (activity.any_online and "online now" or activity.ago_text)
-                or "never"
+                and (activity.any_online and {"mts-confirm.disband-online-now"} or activity.ago_text)
+                or {"mts-confirm.disband-never-active"}
             confirm.show(caller, {
-                title        = "Disband " .. helpers.team_tag(force_name) .. " (slot " .. slot .. ")?",
-                message      = "Team: " .. helpers.team_tag(force_name) .. "\n"
-                    .. "Slot: #" .. slot .. " (" .. force_name .. ")\n"
-                    .. "Leader: " .. leader_line .. "\n"
-                    .. "Last active: " .. last_active .. "\n\n"
-                    .. "• " .. count .. " player" .. (count == 1 and "" or "s")
-                    .. " will be sent back to the Landing Pen.\n"
-                    .. "• All team surfaces and platforms will be deleted.\n"
-                    .. "• The team slot will be freed for reuse.",
-                confirm_text = "Disband Team",
-                cancel_text  = "Cancel",
+                title        = {"mts-confirm.disband-title", helpers.team_tag(force_name), slot},
+                message      = {"mts-confirm.disband-message", helpers.team_tag(force_name),
+                    slot, force_name, leader_line, last_active, count},
+                confirm_text = {"mts-confirm.disband-ok"},
+                cancel_text  = {"mts-confirm.cancel"},
                 action       = "disband",
                 data         = {
                     force_name      = force_name,
@@ -152,60 +150,58 @@ function M.register()
         end)
 
     commands.add_command("mts-resume",
-        "Resume a team's entities after /mts-pause (admin only). Usage: /mts-resume <team-N>",
+        {"mts-cmd.resume-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
-            if not caller.admin then caller.print("Only admins can force-resume teams."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
+            if not caller.admin then caller.print({"mts-cmd.resume-admin-only"}); return end
 
             local param = cmd.parameter
             if not param or param == "" then
-                caller.print("Usage: /mts-resume <team-N>  (e.g. /mts-resume team-11)"); return
+                caller.print({"mts-cmd.resume-usage"}); return
             end
             param = param:match("^%s*(.-)%s*$")
             local force_name = param:match("^team%-%d+$") and param
                 or tonumber(param) and ("team-" .. param)
             if not force_name or not game.forces[force_name] then
-                caller.print("Team '" .. param .. "' does not exist."); return
+                caller.print({"mts-cmd.team-not-exists", param}); return
             end
             if not pause_control.unpause_team(force_name, owned_surface_names(force_name)) then
-                caller.print("Could not resume " .. force_name .. " (not a team force)."); return
+                caller.print({"mts-cmd.resume-not-team", force_name}); return
             end
-            caller.print("Resume sweep started for " .. helpers.team_tag_with_leader(force_name)
-                .. ". Entities will be re-activated over the next few ticks.")
+            caller.print({"mts-cmd.resume-started", helpers.team_tag_with_leader(force_name)})
         end)
 
     commands.add_command("mts-pause",
-        "Pause a team's entities (admin only). Stops production AND defenses. Usage: /mts-pause <team-N>",
+        {"mts-cmd.pause-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
-            if not caller.admin then caller.print("Only admins can force-pause teams."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
+            if not caller.admin then caller.print({"mts-cmd.pause-admin-only"}); return end
 
             local param = cmd.parameter
             if not param or param == "" then
-                caller.print("Usage: /mts-pause <team-N>  (e.g. /mts-pause team-11)"); return
+                caller.print({"mts-cmd.pause-usage"}); return
             end
             param = param:match("^%s*(.-)%s*$")
             local force_name = param:match("^team%-%d+$") and param
                 or tonumber(param) and ("team-" .. param)
             if not force_name or not game.forces[force_name] then
-                caller.print("Team '" .. param .. "' does not exist."); return
+                caller.print({"mts-cmd.team-not-exists", param}); return
             end
             if not pause_control.pause_team(force_name, owned_surface_names(force_name)) then
-                caller.print("Could not pause " .. force_name .. " (not a team force)."); return
+                caller.print({"mts-cmd.pause-not-team", force_name}); return
             end
-            caller.print("Pause sweep started for " .. helpers.team_tag_with_leader(force_name)
-                .. ". Entities will be deactivated over the next few ticks."
-                .. " Run /mts-resume " .. force_name .. " to undo.")
+            caller.print({"mts-cmd.pause-started",
+                helpers.team_tag_with_leader(force_name), force_name})
         end)
 
     commands.add_command("mts-trim",
-        "Trim unused chunks on all team surfaces, every planet (admin only). Usage: /mts-trim [team-N] [entity_buffer] [player_buffer]  (defaults: 12, 8)",
+        {"mts-cmd.trim-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
-            if not caller.admin then caller.print("Only admins can trim chunks."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
+            if not caller.admin then caller.print({"mts-cmd.trim-admin-only"}); return end
 
             local tokens = {}
             for tok in (cmd.parameter or ""):gmatch("%S+") do tokens[#tokens + 1] = tok end
@@ -219,18 +215,18 @@ function M.register()
             if tokens[i] then
                 entity_buffer = tonumber(tokens[i])
                 if not entity_buffer or entity_buffer < 0 or entity_buffer > 100 then
-                    caller.print("entity_buffer must be a number between 0 and 100."); return
+                    caller.print({"mts-cmd.trim-entity-buffer-range"}); return
                 end
             end
             if tokens[i + 1] then
                 player_buffer = tonumber(tokens[i + 1])
                 if not player_buffer or player_buffer < 0 or player_buffer > 100 then
-                    caller.print("player_buffer must be a number between 0 and 100."); return
+                    caller.print({"mts-cmd.trim-player-buffer-range"}); return
                 end
             end
 
             if team_force and not game.forces[team_force] then
-                caller.print("Team '" .. team_force .. "' does not exist."); return
+                caller.print({"mts-cmd.team-not-exists", team_force}); return
             end
 
             local ok, count, err = chunk_trim.start{
@@ -239,16 +235,16 @@ function M.register()
                 player_buffer = player_buffer,
                 caller_idx    = caller.index,
             }
-            if not ok then caller.print(err or "Could not start trim."); return end
-            caller.print(("Chunk trim queued for %d surface(s). Processing one surface every ~0.5s."):format(count))
+            if not ok then caller.print(err or {"mts-cmd.trim-start-failed"}); return end
+            caller.print({"mts-cmd.trim-queued", count})
         end)
 
     commands.add_command("mts-fixcolors",
-        "Brighten unreadable (too dark) player name colours now (admin only). Runs automatically on join + on colour change.",
+        {"mts-cmd.fixcolors-help"},
         function(cmd)
             local caller = cmd.player_index and game.get_player(cmd.player_index)
-            if not caller then game.print("This command can only be used by a player."); return end
-            if not caller.admin then caller.print("Only admins can fix player colours."); return end
+            if not caller then game.print({"mts-cmd.player-only"}); return end
+            if not caller.admin then caller.print({"mts-cmd.fixcolors-admin-only"}); return end
             color_fix.fix_all(caller)
         end)
 end
