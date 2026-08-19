@@ -192,7 +192,8 @@ gui/stats/quality.lua     chain walk, feature gate, per-force unlocked set
 gui/stats/discovery.lua   prototype scans + unlock depth (items and fluids)
 gui/stats/columns.lua     column records, categories, defaults, storage resolution
 gui/stats/counts.lua      the batched read pipeline
-gui/stats/panel.lua       frame construction
+gui/stats/panel.lua       frame chrome: titlebar, selector rows, scroll
+gui/stats/grid.lua        the stats table: header, sort row, data rows
 gui/stats/handlers.lua    click / elem-changed routing
 gui/stats.lua             thin facade: public API + nav wiring
 ```
