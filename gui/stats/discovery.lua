@@ -6,8 +6,8 @@ local M = {}
 
 -- ─── Module-level state (rebuilt each script load, never serialised) ───
 
-local proto_cache      = nil
-local item_depth_cache = nil
+local proto_cache = nil
+local depth_cache = nil   -- {items = {name->depth}, fluids = {name->depth}}
 
 -- ─── Visibility helper ────────────────────────────────────────────────
 
@@ -22,6 +22,24 @@ local function is_visible_item(name)
         and not proto.hidden_in_factoriopedia
 end
 
+-- Fluid mirror, with a third flag the item path never needed: parameter
+-- fluids (blueprint-parametrisation placeholders) pass BOTH hidden checks
+-- -- probe 2A measured 10 of 18 "visible" fluids being parameter-0..9.
+-- No FluidPrototypeFilter variant covers this, so it must live in Lua.
+local function is_visible_fluid(name)
+    local proto = prototypes.fluid[name]
+    return proto ~= nil
+        and not proto.hidden
+        and not proto.hidden_in_factoriopedia
+        and not proto.parameter
+end
+
+--- Kind-aware visibility, the elem-changed backstop for picker gaps.
+function M.is_visible(kind, name)
+    if kind == "fluid" then return is_visible_fluid(name) end
+    return is_visible_item(name)
+end
+
 -- ─── Unlock depth ──────────────────────────────────────────────────────
 
 --- Computes, for every item, the depth at which it first becomes
@@ -32,7 +50,10 @@ end
 --- the item has no primary producer anywhere, falls back to the min across
 --- byproduct recipes. This keeps trace-byproduct paths from yanking items
 --- to the front of the sort.
-local function compute_item_unlock_depths()
+--- Fluid depth = min across ANY producing recipe (or 0 for resource
+--- products like crude oil): no primary/byproduct split -- a byproduct
+--- fluid (petroleum gas) is still how you get it.
+local function compute_unlock_depths()
     local tech_depth = {}
     local function depth_of(tech_name, on_stack)
         local cached = tech_depth[tech_name]
@@ -76,12 +97,16 @@ local function compute_item_unlock_depths()
     -- exactly one item product (single-output recipes have no ambiguity).
     -- Mining is the canonical "primary" producer for ore-style items, at
     -- depth 0.
-    local primary_depth, byproduct_depth = {}, {}
+    local primary_depth, byproduct_depth, fluid_depth = {}, {}, {}
 
     for _, entity in pairs(prototypes.entity) do
         if entity.type == "resource" and entity.mineable_properties then
             for _, product in pairs(entity.mineable_properties.products or {}) do
-                if product.type == "item" then primary_depth[product.name] = 0 end
+                if product.type == "item" then
+                    primary_depth[product.name] = 0
+                elseif product.type == "fluid" then
+                    fluid_depth[product.name] = 0
+                end
             end
         end
     end
@@ -90,11 +115,17 @@ local function compute_item_unlock_depths()
         local rd = recipe_unlock_depth[recipe_name]
         if rd == nil and recipe.enabled then rd = 0 end
         if rd ~= nil then
-            local item_products = {}
+            local item_products, fluid_products = {}, {}
             for _, product in pairs(recipe.products or {}) do
                 if product.type == "item" then
                     item_products[#item_products + 1] = product.name
+                elseif product.type == "fluid" then
+                    fluid_products[#fluid_products + 1] = product.name
                 end
+            end
+            for _, name in ipairs(fluid_products) do
+                local cur = fluid_depth[name]
+                if not cur or rd < cur then fluid_depth[name] = rd end
             end
             local main_name = recipe.main_product and recipe.main_product.name or nil
             for _, name in ipairs(item_products) do
@@ -120,19 +151,19 @@ local function compute_item_unlock_depths()
     for name, d in pairs(byproduct_depth) do
         if item_depth[name] == nil then item_depth[name] = d end
     end
-    return item_depth
+    return {items = item_depth, fluids = fluid_depth}
 end
 
-local function get_item_depths()
-    if item_depth_cache then return item_depth_cache end
-    item_depth_cache = compute_item_unlock_depths()
-    return item_depth_cache
+local function get_depths()
+    if depth_cache then return depth_cache end
+    depth_cache = compute_unlock_depths()
+    return depth_cache
 end
 
 -- Order a list of item names by tech-unlock depth, with the prototype's
 -- group/item order as a tiebreaker. Drops items the modder has hidden.
 function M.sort_by_unlock_depth(names)
-    local depths = get_item_depths()
+    local depths = get_depths().items
     local list = {}
     for _, name in ipairs(names) do
         if is_visible_item(name) then
@@ -203,9 +234,41 @@ function M.proto_lists()
     return proto_cache
 end
 
+--- Order fluid names by unlock depth with the same tiebreak as items,
+--- dropping hidden and parameter fluids. Fluids with no producing recipe
+--- and no resource (offshore-pumped water) fall through to depth 0.
+function M.sort_fluids(names)
+    local depths = get_depths().fluids
+    local list = {}
+    for _, name in ipairs(names) do
+        if is_visible_fluid(name) then
+            local proto = prototypes.fluid[name]
+            local g = (proto.group and proto.group.order) or ""
+            list[#list + 1] = {
+                name  = name,
+                depth = depths[name] or 0,
+                tie   = g .. proto.order,
+            }
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.depth ~= b.depth then return a.depth < b.depth end
+        return a.tie < b.tie
+    end)
+    return list
+end
+
+--- Every visible fluid, sorted -- the Fluids tab fallback when zero
+--- curated seeds survive (total-conversion packs).
+function M.all_visible_fluids()
+    local names = {}
+    for name in pairs(prototypes.fluid) do names[#names + 1] = name end
+    return M.sort_fluids(names)
+end
+
 function M.invalidate_categories()
     proto_cache = nil
-    item_depth_cache = nil
+    depth_cache = nil
     storage.stats_categories = nil
 end
 

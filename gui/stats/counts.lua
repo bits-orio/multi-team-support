@@ -83,6 +83,12 @@ function M.collect(entries, col_recs, cols, precision, qview)
     local owned = surfaces_by_force(entries)
     local chain = quality.chain()
 
+    local has_fluid = false
+    for col_idx = 1, cols do
+        local col = col_recs[col_idx]
+        if col and col.kind == "fluid" then has_fluid = true break end
+    end
+
     local req  = {name = nil, category = "input", precision_index = precision, count = true}
     local pair = {name = nil, quality = nil}
 
@@ -175,6 +181,41 @@ function M.collect(entries, col_recs, cols, precision, qview)
                 end
             end
         end
+        -- Fluid columns: separate statistics object, bare-string IDs only
+        -- ({name=...} parses as the Fluid concept and demands `amount` --
+        -- probe D4/D5), fractional doubles, and NO quality axis: qview is
+        -- ignored, a fluid cell always shows its full value (the panel
+        -- hides the quality selector on the Fluids tab to match).
+        if has_fluid then
+            for _, surface in ipairs(owned[force.name]) do
+                local okf2, fstats = pcall(force.get_fluid_production_statistics, surface)
+                if okf2 and fstats then
+                    if precision == M.ALLTIME then
+                        local okd, flatf = pcall(read_input_counts, fstats)
+                        if okd and flatf then
+                            for col_idx = 1, cols do
+                                local col = col_recs[col_idx]
+                                if col and col.kind == "fluid" then
+                                    totals[col_idx] = totals[col_idx] + (flatf[col.name] or 0)
+                                end
+                            end
+                        end
+                    else
+                        for col_idx = 1, cols do
+                            local col = col_recs[col_idx]
+                            if col and col.kind == "fluid" then
+                                req.name = col.name
+                                local ok2, val = pcall(fstats.get_flow_count, req)
+                                if ok2 and val then
+                                    totals[col_idx] = totals[col_idx] + val
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
         row_counts[i] = totals
         breakdown[i]  = brk
     end

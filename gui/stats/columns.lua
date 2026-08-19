@@ -28,13 +28,14 @@ local function cap_for(cat)
     return AUTO_CATEGORIES[cat] and M.HARD_MAX_COLS or M.CURATED_COLS
 end
 
-M.CATEGORIES = {"ores", "plates", "intermediates", "science", "custom"}
+M.CATEGORIES = {"ores", "plates", "intermediates", "science", "fluids", "custom"}
 
 M.CAT_LABELS = {
     ores          = "Ores",
     plates        = "Plates",
     intermediates = "Intermediates",
     science       = "Science",
+    fluids        = "Fluids",
     custom        = "Custom",
 }
 
@@ -47,10 +48,28 @@ local DEFAULT_INTERMEDIATES = {
 
 local DEFAULT_CUSTOM = {"iron-plate", "steel-plate"}
 
+-- Curated fluid seeds (player request: crude oil, petroleum gas and
+-- sulfuric acid pre-added, the rest player-editable). Each entry is
+-- guarded by existence/visibility at resolution time, so a modpack
+-- lacking any of them silently shows fewer.
+local DEFAULT_FLUIDS = {
+    "crude-oil", "petroleum-gas", "sulfuric-acid",
+    "light-oil", "heavy-oil", "lubricant", "water", "steam",
+}
+
 -- ─── Item List Resolution ──────────────────────────────────────────────
 
 local function default_item_names(cat)
-    if cat == "intermediates" or cat == "custom" then
+    if cat == "fluids" then
+        -- sort_fluids drops missing/hidden/parameter seeds; if a total
+        -- conversion kills every seed, fall back to discovered fluids so
+        -- the tab is never empty.
+        local sorted = discovery.sort_fluids(DEFAULT_FLUIDS)
+        if #sorted == 0 then sorted = discovery.all_visible_fluids() end
+        local out = {}
+        for _, entry in ipairs(sorted) do out[#out + 1] = entry.name end
+        return out
+    elseif cat == "intermediates" or cat == "custom" then
         local src = cat == "intermediates" and DEFAULT_INTERMEDIATES or DEFAULT_CUSTOM
         -- Sort curated lists by tech-unlock depth too, so the visual
         -- progression matches the auto-discovered tabs.
@@ -106,9 +125,10 @@ function M.get_columns(player_index, cat)
         return out
     end
     local defaults = default_item_names(cat)
+    local kind = (cat == "fluids") and "fluid" or "item"
     local out = {}
     for i = 1, math.min(#defaults, cap) do
-        out[i] = {kind = "item", name = defaults[i]}
+        out[i] = {kind = kind, name = defaults[i]}
     end
     return out
 end

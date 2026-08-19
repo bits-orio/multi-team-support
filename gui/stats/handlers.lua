@@ -1,9 +1,10 @@
 -- gui/stats/handlers.lua
 -- Click / elem-changed routing for the production stats GUI.
 
-local columns = require("gui.stats.columns")
-local counts  = require("gui.stats.counts")
-local panel   = require("gui.stats.panel")
+local columns   = require("gui.stats.columns")
+local counts    = require("gui.stats.counts")
+local discovery = require("gui.stats.discovery")
+local panel     = require("gui.stats.panel")
 
 local M = {}
 
@@ -84,6 +85,14 @@ function M.on_gui_elem_changed(event)
     local new_item = el.elem_value
     local col_idx  = el.tags.sb_stats_col
     local cat      = el.tags.sb_stats_cat
+    local kind     = (el.elem_type == "fluid") and "fluid" or "item"
+
+    -- Backstop for picker gaps the elem_filters cannot express (parameter
+    -- fluids pass every filter variant): an invisible pick clears instead
+    -- of storing junk.
+    if new_item and not discovery.is_visible(kind, new_item) then
+        new_item = nil
+    end
 
     if not storage.stats_category_items then storage.stats_category_items = {} end
     if not storage.stats_category_items[player.index] then
@@ -93,11 +102,11 @@ function M.on_gui_elem_changed(event)
         storage.stats_category_items[player.index][cat] =
             columns.get_columns(player.index, cat)
     end
-    -- elem_type "item" yields a name string (or nil on clear); store the
-    -- column-record shape. Legacy string entries in older saves are
-    -- coerced on read by columns.as_column.
+    -- elem_type "item"/"fluid" yields a name string (or nil on clear);
+    -- store the column-record shape. Legacy string entries in older saves
+    -- are coerced on read by columns.as_column.
     storage.stats_category_items[player.index][cat][col_idx] =
-        new_item and {kind = "item", name = new_item} or nil
+        new_item and {kind = kind, name = new_item} or nil
     panel.build_stats_gui(player)
     return true
 end

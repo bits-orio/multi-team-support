@@ -28,6 +28,17 @@ local function slot_metrics(cols)
     return btn, sort_h
 end
 
+-- The picker-side hidden filter cannot exclude parameter fluids (they are
+-- not hidden -- probe 2A -- and FluidPrototypeFilter has no parameter
+-- variant). The engine appears to exclude parameter prototypes from
+-- pickers natively (the filterless item picker never shows them):
+-- playtest checkpoint, with the elem-changed visibility backstop in
+-- handlers.lua as defence in depth. pcall'd per plan 3.15 -- a wrong
+-- filter variant errors at assignment.
+local function set_fluid_filters(btn)
+    btn.elem_filters = {{filter = "hidden", invert = true}}
+end
+
 -- Union of is_quality_unlocked across the rendered teams. The docs
 -- declare no return value but the call returns a real boolean in-game
 -- (probe-verified); nil counts as unlocked so the doc quirk can only
@@ -143,11 +154,12 @@ function M.build_stats_gui(player, leaving_index)
     end
 
     -- Quality view row: merged + per-quality pins. Rendered only when the
-    -- quality axis exists at all (base-only installs see no change).
+    -- quality axis exists at all (base-only installs see no change), and
+    -- not on the Fluids tab -- fluids have no quality dimension.
     -- Membership: unlocked by ANY rendered team UNION produced -- data can
     -- exist at a quality nobody unlocked (scripted/cheat production) and
     -- must stay selectable on a competitive panel.
-    if quality.multi_enabled() then
+    if quality.multi_enabled() and state.category ~= "fluids" then
         local qrow = frame.add{type = "flow", name = "sb_stats_quals", direction = "horizontal"}
         qrow.style.horizontal_spacing = 4
         qrow.style.bottom_padding     = 4
@@ -202,30 +214,39 @@ function M.build_stats_gui(player, leaving_index)
     tbl.style.horizontal_spacing = 4
     tbl.style.vertical_spacing   = 2
 
-    -- Header row: blank corner + per-column choose-elem-buttons.
+    -- Header row: blank corner + per-column choose-elem-buttons. The
+    -- Fluids tab types its buttons "fluid"; elem_type is create-time-only,
+    -- and a full rebuild happens on every category switch anyway.
+    local tab_fluid  = (state.category == "fluids")
+    local col_elem   = tab_fluid and "fluid" or "item"
     tbl.add{type = "label", caption = ""}
     for col_idx = 1, cols do
         local col = col_recs[col_idx]
         local btn = tbl.add{
             type      = "choose-elem-button",
             name      = "sb_stats_item_" .. col_idx,
-            elem_type = "item",
+            elem_type = col_elem,
             style     = "slot_button",
             tags      = {sb_stats_col = col_idx, sb_stats_cat = state.category},
         }
+        if tab_fluid then pcall(set_fluid_filters, btn) end
         if col then
             btn.elem_value = col.name
-            local proto = prototypes.item[col.name]
+            local is_fluid = col.kind == "fluid"
+            local proto = is_fluid and prototypes.fluid[col.name]
+                                    or prototypes.item[col.name]
+            local tag = is_fluid and "[fluid=" or "[item="
             -- Big icon + localised name (large-bold font scales both up so the
             -- icon stays readable when the slot button itself has been shrunk),
             -- then the click hint on a new line.
             btn.tooltip = {"",
-                "[font=default-large-bold][item=" .. col.name .. "]  ",
+                "[font=default-large-bold]" .. tag .. col.name .. "]  ",
                 proto and proto.localised_name or col.name,
                 "[/font]\nClick to change this column",
             }
         else
-            btn.tooltip = "Click to add an item to this column"
+            btn.tooltip = tab_fluid and "Click to add a fluid to this column"
+                                     or "Click to add an item to this column"
         end
         btn.style.width   = btn_size
         btn.style.height  = btn_size
