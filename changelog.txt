@@ -1,4 +1,34 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.66
+Date: 2026-08-19
+  Features:
+    - Fluids tab in Production Stats. A sixth tab pre-loaded with crude oil, petroleum gas,
+      sulfuric acid, light oil, heavy oil, lubricant, water and steam -- seeds the modpack lacks
+      are silently skipped, and the remaining slots take any fluid via the column picker. Fluid
+      production has no quality dimension, so the quality selector stays hidden on this tab and a
+      fluid column always shows its full output.
+    - Quality views in Production Stats. When a quality mod is active, a selector row offers
+      Merged -- the default, summing every tier -- plus one button per quality tier. Tiers are
+      discovered from the modpack's own quality chain, not hardcoded to vanilla's five, and the
+      row shows only tiers some visible team has unlocked or actually produced. Pinning a tier
+      filters the whole table to it, on every time period. In Merged view, a cell whose team has
+      produced non-normal tiers carries a per-quality breakdown tooltip with quality-badged
+      icons; a cell without one has only ever produced normal quality.
+  Bugfixes:
+    - Production Stats counted only normal-quality output. Statistics reads by bare prototype
+      name resolve to normal quality, so a team leaning on quality modules read low everywhere --
+      on the test save the panel showed 108 iron plates where the true merged total was 208. A
+      team going hard on quality looked BEHIND on a panel whose whole job is the race. All-time
+      now reads the engine's merged totals directly; timed periods sum the per-quality series.
+    - Milestones had the identical bug: "first to N" thresholds ignored non-normal production.
+      Teams already past a threshold on merged numbers announce it on the first poll after
+      loading -- a one-time catch-up burst, and the announcements are correct.
+  Optimizations:
+    - Production Stats rebuilds resolve surface ownership once per refresh instead of once per
+      table cell, and fetch one statistics object per team surface instead of one per cell. With
+      many teams and show-offline enabled, a click on the panel previously triggered dozens of
+      full surface scans before reading a single number.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.65
 Date: 2026-08-19
   Bugfixes:
