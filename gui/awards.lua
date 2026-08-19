@@ -185,7 +185,7 @@ local function resolve_row_proto(row)
     if row.kind == "tech" then
         local proto = prototypes.technology and prototypes.technology[row.name]
         if not proto then return nil end
-        return proto, "technology/" .. row.name, proto.localised_name
+        return proto, "technology/" .. row.name, helpers.tech_label(proto)
     else
         local proto = prototypes.item and prototypes.item[row.name]
         if proto then return proto, "item/" .. row.name, proto.localised_name end

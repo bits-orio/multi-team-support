@@ -401,4 +401,53 @@ function helpers.add_show_offline_checkbox(parent, player)
     return flow
 end
 
+--- Display name for a technology, with its level where the engine omits one.
+---
+--- The engine builds localised_name in one of two shapes, and only one of
+--- them needs help:
+---
+---   max_level == level   {"", {"technology-name.refined-flammables"}, " 6"}
+---   max_level >  level   {"technology-name.mining-productivity"}
+---
+--- A single-level technology already carries its number, so appending one
+--- gave "Refined flammables 6 6". Only a multi-level family -- vanilla's
+--- mining and research productivity, Land Title Registry's land-grant
+--- ladder -- arrives as a bare family name, which is why eight land-grant
+--- tiers all rendered identically.
+---
+--- Which number to add depends on what the caller holds, and the two
+--- callers genuinely want different levels, because MTS records the two
+--- ends of a multi-level family in two different places:
+---
+---   tech_research_ticks[force][name]  overwritten every level -> LAST
+---   records entries[force]            set on the first call   -> FIRST
+---
+--- So given a force's LuaTechnology (the research GUIs, which read the
+--- tick) the answer is the level that force last COMPLETED -- tech.level is
+--- the level it would research NEXT, so it overshoots by one until the
+--- family is finished. Given only a prototype (the awards list, which reads
+--- the record) the answer is the family's STARTING level, because that is
+--- the only level whose completion that record describes. Labelling that
+--- row with the span it covers would claim a tier completion nobody
+--- recorded.
+---@param tech LuaTechnology|LuaTechnologyPrototype
+---@return LocalisedString
+function helpers.tech_label(tech)
+    local runtime = tech.object_name == "LuaTechnology"
+    local proto   = runtime and tech.prototype or tech
+    if proto.max_level <= proto.level then return tech.localised_name end
+
+    local label
+    if runtime then
+        local done = tech.researched and tech.level or (tech.level - 1)
+        -- Nothing finished in this family yet: labelling a tier that starts
+        -- at 21 with "20" would be a lie, so leave the bare name.
+        if done < proto.level then return tech.localised_name end
+        label = done
+    else
+        label = proto.level
+    end
+    return { "", tech.localised_name, " ", label }
+end
+
 return helpers

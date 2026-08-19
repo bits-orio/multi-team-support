@@ -60,7 +60,7 @@ end
 function research_diff.queue_tooltip(tech, position, progress)
     local pct = math.floor(progress * 100)
     local status = position == 1 and "Currently researching" or ("Queued at position " .. position)
-    return {"", tech.localised_name, "\n" .. status .. (pct > 0 and ("\nProgress: " .. pct .. "%") or "")}
+    return {"", helpers.tech_label(tech), "\n" .. status .. (pct > 0 and ("\nProgress: " .. pct .. "%") or "")}
 end
 
 --- Render the research queue for a force as a fixed row of max_slots icon buttons.
@@ -170,14 +170,14 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
             if viewer_force.technologies[name] and viewer_force.technologies[name].researched then
                 both_have[#both_have + 1] = {
                     name      = name,
-                    localised = tech.localised_name,
+                    localised = helpers.tech_label(tech),
                     tick      = target_ticks[name],
                     order     = tech.order,
                 }
             else
                 they_have[#they_have + 1] = {
                     name      = name,
-                    localised = tech.localised_name,
+                    localised = helpers.tech_label(tech),
                     tick      = target_ticks[name],
                     order     = tech.order,
                 }
@@ -189,7 +189,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
         if tech.researched and not (target_force.technologies[name] and target_force.technologies[name].researched) then
             you_have[#you_have + 1] = {
                 name      = name,
-                localised = tech.localised_name,
+                localised = helpers.tech_label(tech),
                 tick      = viewer_ticks[name],
                 order     = tech.order,
             }
@@ -247,7 +247,7 @@ function research_diff.draw(content_frame, viewer_force, viewer_clock, target_fo
                     name   = name,
                     v_lvl  = vl,
                     t_lvl  = tl,
-                    loc    = v_tech.localised_name,
+                    loc    = helpers.tech_label(v_tech),
                 }
             end
         end

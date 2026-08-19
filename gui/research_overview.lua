@@ -61,9 +61,9 @@ local function get_researched(force)
         if tech.researched then
             local t = ticks[name]
             if t then
-                stamped[#stamped + 1] = {name = name, localised = tech.localised_name, tick = t, order = tech.order}
+                stamped[#stamped + 1] = {name = name, localised = helpers.tech_label(tech), tick = t, order = tech.order}
             else
-                unstamp[#unstamp + 1] = {name = name, localised = tech.localised_name, tick = nil, order = tech.order}
+                unstamp[#unstamp + 1] = {name = name, localised = helpers.tech_label(tech), tick = nil, order = tech.order}
             end
         end
     end

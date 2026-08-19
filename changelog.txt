@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.4.65
+Date: 2026-08-19
+  Bugfixes:
+    - Multi-level technologies now show their level in the research and awards GUIs. Where a
+      technology covers a span of levels - vanilla's mining and research productivity, and Land
+      Title Registry's land-grant ladder - the engine leaves the level out of the name, so every
+      tier of a family rendered as an identical row with nothing to tell it apart. A team's rows
+      in the research GUIs now carry the level that team last completed, matching the timestamp
+      shown beside them. An awards row carries the family's starting level, because that is the
+      only level whose completion an award actually records. Technologies that hold a single
+      level already carry their own number and are untouched.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.64
 Date: 2026-08-13
   Features:
