@@ -52,7 +52,7 @@ local function location_name_for(surface, force)
             return plat.name
         end
     end
-    return helpers.display_surface_name(surface.name)
+    return helpers.ls_display_surface_name(surface.name)
 end
 
 -- Returns a LocalisedString: both consumers hand it to a render object

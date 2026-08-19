@@ -45,7 +45,7 @@ function M.register()
             or not chat_channel.is_local_for(author)
 
         if go_global then
-            local prefix = spectator.get_chat_prefix(author)
+            local prefix = spectator.ls_get_chat_prefix(author)
             local line = {"mts-chat.global-chat-line", prefix, author.name, message}
             for _, player in pairs(game.connected_players) do
                 if player.force ~= author.force then

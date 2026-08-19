@@ -62,32 +62,6 @@ end
 confirm.register("leave", perform_leave)
 confirm.register("kick",  perform_kick)
 
--- ─── Listing composition ──────────────────────────────────────────────
-
--- Join listing lines (strings or LocalisedStrings) with newlines into one
--- LocalisedString. table.concat can't take tables, and the engine caps a
--- localised string at 20 parameters and 20 nesting levels — so lines are
--- grouped, then the groups grouped again: depth grows with the log of the
--- line count, never linearly.
-local function join_lines(lines)
-    local items = {}
-    for i, line in ipairs(lines) do
-        items[i] = i == 1 and line or {"", "\n", line}
-    end
-    while #items > 1 do
-        local grouped = {}
-        for i = 1, #items, 20 do
-            local group = {""}
-            for j = i, math.min(i + 19, #items) do
-                group[#group + 1] = items[j]
-            end
-            grouped[#grouped + 1] = group
-        end
-        items = grouped
-    end
-    return items[1]
-end
-
 -- ─── Commands ─────────────────────────────────────────────────────────
 
 function M.register()
@@ -126,7 +100,7 @@ function M.register()
                 end
             end
             if #order == 0 then lines[#lines + 1] = {"mts-cmd.players-none"} end
-            local msg = join_lines(lines)
+            local msg = helpers.ls_join(lines, "\n")
             if caller then caller.print(msg) else game.print(msg) end
         end)
 
@@ -188,7 +162,7 @@ function M.register()
                     end
                 end
             end
-            local msg = join_lines(lines)
+            local msg = helpers.ls_join(lines, "\n")
             if caller then caller.print(msg) else game.print(msg) end
         end)
 
@@ -214,20 +188,17 @@ function M.register()
                 for i = 1, force_utils.max_teams() do
                     local force_name = "team-" .. i
                     if (storage.team_pool or {})[i] == "occupied" then
-                        -- describe()/marked_badge() are another slice's plain-string
-                        -- producers; this row stays English until they grow
-                        -- LocalisedString variants (locale stage: deferred).
-                        local desc  = team_modifiers.describe(force_name)
-                        local badge = team_modifiers.marked_badge(force_name)
-                        lines[#lines + 1] = string.format("  %s%s — %s",
-                            helpers.team_tag_with_leader(force_name),
-                            badge and (" " .. badge) or "",
-                            desc and ("[color=1,0.65,0]" .. desc .. "[/color]")
-                                 or "standard")
+                        local desc  = team_modifiers.ls_describe(force_name)
+                        local badge = team_modifiers.ls_marked_badge(force_name)
+                        local tag   = helpers.team_tag_with_leader(force_name)
+                        local label = badge and {"", tag, " ", badge} or tag
+                        lines[#lines + 1] = desc
+                            and {"mts-cmd.modifiers-team-line", label, desc}
+                            or  {"mts-cmd.modifiers-team-line-standard", label}
                     end
                 end
             end
-            local msg = join_lines(lines)
+            local msg = helpers.ls_join(lines, "\n")
             if caller then caller.print(msg) else game.print(msg) end
         end)
 

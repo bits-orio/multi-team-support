@@ -26,25 +26,6 @@ local BUDDY_TEAM_LIMIT_MAX = admin_flags.BUDDY_TEAM_LIMIT_MAX
 
 local function is_admin(player) return player.admin end
 
---- Join LocalisedString parts with a separator. Twin of the private helper in
---- scripts/admin_flags.lua: the engine caps a LocalisedString at 20 parameters
---- per table, and an armor grid can carry more equipment pieces than that, so
---- overflow continues in a nested table.
-local function ls_join(parts, sep)
-    local root = {""}
-    local node = root
-    for i, part in ipairs(parts) do
-        if #node >= 17 then  -- room left for sep + part + a continuation table
-            local child = {""}
-            node[#node + 1] = child
-            node = child
-        end
-        if i > 1 then node[#node + 1] = sep end
-        node[#node + 1] = part
-    end
-    return root
-end
-
 -- ─── GUI Building ──────────────────────────────────────────────────────
 
 function admin_gui.build_admin_gui(player)
@@ -228,7 +209,8 @@ function admin_gui.build_admin_gui(player)
                     parts[#parts + 1] = eq_proto and eq_proto.localised_name or eq.name
                 end
                 name_lbl.caption = {"", item_label, " [+grid]"}
-                name_lbl.tooltip = {"mts-tip.equipment-list", ls_join(parts, ", ")}
+                name_lbl.tooltip = {"mts-tip.equipment-list",
+                    helpers.ls_join(parts, ", ")}
             end
             tbl.add{type = "label", caption = {"mts-gui.starter-item-count", item.count}}
             tbl.add{

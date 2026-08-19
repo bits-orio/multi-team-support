@@ -62,13 +62,13 @@ function tech_records.on_research_finished(event)
     -- mode is on, so records earned under uneven settings wear an asterisk.
     if result.is_first then
         helpers.broadcast({"mts-milestone.first-research",
-            team_modifiers.records_tag(), team_tag, tech_tag})
+            team_modifiers.ls_records_tag(), team_tag, tech_tag})
         pop_text.milestone(force, {"mts-milestone.popup-first", tech_tag})
     elseif result.is_fastest then
         local prev = result.previous_fastest
         local new_entry = storage.tech_records[tech.name].fastest
         helpers.broadcast({"mts-milestone.record-research",
-            team_modifiers.records_tag(),
+            team_modifiers.ls_records_tag(),
             team_tag,
             tech_tag,
             helpers.ls_elapsed(new_entry.elapsed),

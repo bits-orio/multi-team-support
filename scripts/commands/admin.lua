@@ -128,10 +128,7 @@ function M.register()
             local leader_line = (leader and leader.valid)
                 and ("\xE2\x98\x85 " .. helpers.colored_name(leader.name, leader.chat_color))
                 or {"mts-confirm.disband-no-leader"}
-            local activity = teams_data.activity_info(members.members)
-            -- activity.ago_text stays a plain string until the teams_data slice
-            -- converts its producer; both string and LocalisedString parameters
-            -- render fine inside the message key.
+            local activity = teams_data.ls_activity_info(members.members)
             local last_active = activity
                 and (activity.any_online and {"mts-confirm.disband-online-now"} or activity.ago_text)
                 or {"mts-confirm.disband-never-active"}

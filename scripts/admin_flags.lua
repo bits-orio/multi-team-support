@@ -263,24 +263,6 @@ function M.distribute_items_to_spawned(items)
     end
 end
 
---- Join LocalisedString parts with a separator. The engine caps a
---- LocalisedString at 20 parameters per table, and a starter-item batch can
---- be a whole captured inventory, so overflow continues in a nested table.
-local function ls_join(parts, sep)
-    local root = {""}
-    local node = root
-    for i, part in ipairs(parts) do
-        if #node >= 17 then  -- room left for sep + part + a continuation table
-            local child = {""}
-            node[#node + 1] = child
-            node = child
-        end
-        if i > 1 then node[#node + 1] = sep end
-        node[#node + 1] = part
-    end
-    return root
-end
-
 --- Broadcast that an admin added entries to the starter items list. In-game
 --- text only; the bridge/delivery consumers get item DATA via
 --- distribute_items_to_spawned's payload, never this message.
@@ -293,7 +275,8 @@ function M.announce_starter_items_added(items, admin_player)
     local who = admin_player
         and helpers.colored_name(admin_player.name, admin_player.chat_color)
         or {"mts-chat.admin-actor"}
-    helpers.broadcast({"mts-chat.starter-items-added", who, ls_join(parts, ", ")})
+    helpers.broadcast({"mts-chat.starter-items-added", who,
+        helpers.ls_join(parts, ", ")})
 end
 
 --- Serialize an armor stack's equipment grid into a storage-safe table, or

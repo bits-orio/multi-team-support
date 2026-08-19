@@ -180,7 +180,8 @@ M.fmt_ago = fmt_ago
 
 --- LocalisedString twin of fmt_ago. Own keys (not the engine time symbols)
 --- because the "ago" phrasing must travel with the units for translators to
---- reorder. Plain fmt_ago stays for gui/stats/grid.lua (dual API).
+--- reorder. Plain fmt_ago stays only for the plain activity_info twin
+--- (post-playtest cleanup may fold both once no consumer remains).
 local function ls_fmt_ago(ticks)
     if ticks < 3600 then return {"mts-gui.ago-just-now"} end
     local s = math.floor(ticks / 60)
@@ -259,20 +260,6 @@ M.build_activity_tooltip = build_activity_tooltip
 -- Join LocalisedString lines with "\n", chunked below the engine's
 -- 20-parameters-per-table limit (a nested table restarts the budget). Two
 -- levels cover ~170 lines — far beyond any team's member count.
-local function ls_join_lines(lines)
-    local root, chunk = {""}, {""}
-    for i, line in ipairs(lines) do
-        if i > 1 then chunk[#chunk + 1] = "\n" end
-        chunk[#chunk + 1] = line
-        if #chunk >= 19 then
-            root[#root + 1] = chunk
-            chunk = {""}
-        end
-    end
-    if #chunk > 1 then root[#root + 1] = chunk end
-    return root
-end
-
 --- LocalisedString twin of build_activity_tooltip (dual API).
 local function ls_build_activity_tooltip(member_list)
     if #member_list == 0 then return nil end
@@ -285,7 +272,7 @@ local function ls_build_activity_tooltip(member_list)
         lines[#lines + 1] = {"mts-tip.member-activity", member_rich_name(p),
             ls_fmt_playtime(p.online_time), seen}
     end
-    return ls_join_lines(lines)
+    return helpers.ls_join(lines, "\n")
 end
 M.ls_build_activity_tooltip = ls_build_activity_tooltip
 

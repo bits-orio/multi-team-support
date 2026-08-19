@@ -200,6 +200,21 @@ function helpers.display_surface_name(surface_name)
     return surface_name
 end
 
+--- LocalisedString twin of display_surface_name: resolves the base planet's
+--- own localised name where a space-location prototype exists, falling back
+--- to the English-side capitalisation for surfaces without one. Use only as
+--- a display parameter — Discord/log paths keep the plain twin.
+function helpers.ls_display_surface_name(surface_name)
+    local plain = helpers.display_surface_name(surface_name)
+    if not surface_name then return plain end
+    local base = surface_name:match("^mts%-(.+)%-%d+$")
+        or surface_name:match("^team%-%d+%-(.+)$")
+    if base then
+        return {"?", {"space-location-name." .. base}, plain}
+    end
+    return plain
+end
+
 --- Get the team name for use in chat announcements. Always prefixed with
 --- "Team " when the display name doesn't already start with "Team".
 ---   "team-1" with default name "Team 01" → "Team 01"
@@ -366,6 +381,31 @@ function helpers.ls_elapsed(ticks)
     else
         return {"time-symbol-seconds-short", secs}
     end
+end
+
+--- Join a list of strings/LocalisedStrings with a separator into one
+--- LocalisedString. The engine caps localised strings at 20 parameters and
+--- 20 nesting levels, so items are grouped bottom-up, then the groups
+--- grouped again: depth grows with the log of the item count, never
+--- linearly. Canonical version of the per-module ls_join locals the
+--- conversion slices grew independently.
+function helpers.ls_join(items, sep)
+    local parts = {}
+    for i, item in ipairs(items) do
+        parts[i] = i == 1 and item or {"", sep, item}
+    end
+    while #parts > 1 do
+        local grouped = {}
+        for i = 1, #parts, 20 do
+            local group = {""}
+            for j = i, math.min(i + 19, #parts) do
+                group[#group + 1] = parts[j]
+            end
+            grouped[#grouped + 1] = group
+        end
+        parts = grouped
+    end
+    return parts[1] or ""
 end
 
 -- ─── Broadcast ─────────────────────────────────────────────────────────

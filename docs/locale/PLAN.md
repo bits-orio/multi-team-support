@@ -1,5 +1,11 @@
 # MTS Localisation Plan — Phase 1: make every string localisable
 
+**Status (2026-08-19): stages 0–4 implemented** (commits `2ed28e5`…the final-sweep
+commit; 472 mts-* keys, checker clean). Awaiting playtest before push.
+**Stage 5 remains** and needs explicit sign-off: the `storage.nav_button_order`
+tooltip migration (the one save-touching change), the pen-panel default text,
+and the debug task labels — all marked `TODO(locale-stage5)` in code.
+
 Written 2026-08-19 against commit `e755abe`. Companion documents:
 - [INVENTORY.md](INVENTORY.md) — all 754 user-visible strings, per file/line, with hazards. This is the phase-1 checklist.
 - [inventory.json](inventory.json) — the same data machine-readable, for driving the conversion.

@@ -135,7 +135,7 @@ function M.register()
         if el and el.valid and el.tags
            and el.tags.sb_admin_flag == "non_competitive_enabled"
            and not el.state then
-            local reason = team_modifiers.disable_blocked_reason()
+            local reason = team_modifiers.ls_disable_blocked_reason()
             if reason then
                 local admin_player = game.get_player(event.player_index)
                 if admin_player then
@@ -151,7 +151,7 @@ function M.register()
             local admin_player = game.get_player(event.player_index)
             if admin_player then
                 local cn    = helpers.colored_name(admin_player.name, admin_player.chat_color)
-                local label = admin_gui.get_flag_label(changed_flag)
+                local label = admin_gui.ls_get_flag_label(changed_flag)
                 helpers.broadcast(admin_gui.flag(changed_flag)
                     and {"mts-chat.admin-flag-enabled", cn, label}
                     or  {"mts-chat.admin-flag-disabled", cn, label})

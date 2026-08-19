@@ -92,7 +92,7 @@ function M.announce_spectation(viewer, target_force, is_entering, target_player,
 
     local surface_name
     if surface and surface.valid then
-        surface_name = helpers.display_surface_name(surface.name)
+        surface_name = helpers.ls_display_surface_name(surface.name)
     end
 
     -- One whole-sentence key per shape: the parenthesised team/surface

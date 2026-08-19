@@ -118,10 +118,10 @@ local function check_milestone(tracker, item_name, force, threshold)
     if result.is_first then
         if threshold == FIRST_THRESHOLD then
             helpers.broadcast({"mts-milestone.first-produce-item",
-                team_modifiers.records_tag(), team_tag, item_tag})
+                team_modifiers.ls_records_tag(), team_tag, item_tag})
         else
             helpers.broadcast({"mts-milestone.first-produce-count",
-                team_modifiers.records_tag(), team_tag, threshold, item_tag})
+                team_modifiers.ls_records_tag(), team_tag, threshold, item_tag})
         end
         pop_text.milestone(force, build_popup(true, item_name, threshold))
         remote_api.emit_to_bridge("mts.milestone_first", {
@@ -135,12 +135,12 @@ local function check_milestone(tracker, item_name, force, threshold)
         local prev_tag  = helpers.team_tag(prev.team)
         if threshold == FIRST_THRESHOLD then
             helpers.broadcast({"mts-milestone.record-produce-item",
-                team_modifiers.records_tag(), team_tag, item_tag,
+                team_modifiers.ls_records_tag(), team_tag, item_tag,
                 helpers.ls_elapsed(new_entry.elapsed), prev_tag,
                 helpers.ls_elapsed(prev.elapsed)})
         else
             helpers.broadcast({"mts-milestone.record-produce-count",
-                team_modifiers.records_tag(), team_tag, threshold, item_tag,
+                team_modifiers.ls_records_tag(), team_tag, threshold, item_tag,
                 helpers.ls_elapsed(new_entry.elapsed), prev_tag,
                 helpers.ls_elapsed(prev.elapsed)})
         end
@@ -261,10 +261,10 @@ local function check_external(spec, force, threshold, first_only)
     if result.is_first then
         if first_only then
             helpers.broadcast({"mts-milestone.first-external-item",
-                team_modifiers.records_tag(), team_tag, verb, spec.noun})
+                team_modifiers.ls_records_tag(), team_tag, verb, spec.noun})
         else
             helpers.broadcast({"mts-milestone.first-external-count",
-                team_modifiers.records_tag(), team_tag, verb, threshold, noun_many})
+                team_modifiers.ls_records_tag(), team_tag, verb, threshold, noun_many})
         end
         pop_text.milestone(force, {"mts-milestone.popup-first", popup_detail})
         remote_api.emit_to_bridge("mts.milestone_first", {
@@ -276,7 +276,7 @@ local function check_external(spec, force, threshold, first_only)
         local prev      = result.previous_fastest
         local new_entry = storage.milestone_records[record_key].fastest
         helpers.broadcast({"mts-milestone.record-external-count",
-            team_modifiers.records_tag(), team_tag, verb, threshold, noun_many,
+            team_modifiers.ls_records_tag(), team_tag, verb, threshold, noun_many,
             helpers.ls_elapsed(new_entry.elapsed), helpers.team_tag(prev.team),
             helpers.ls_elapsed(prev.elapsed)})
         pop_text.milestone(force, {"mts-milestone.popup-record", popup_detail})

@@ -149,7 +149,7 @@ function M.update_player(player)
     -- Non-competitive mode tag, second line under the chip row, with this
     -- team's own modifiers appended ("non-competitive · peaceful") so an
     -- asymmetry is visible at a glance.
-    local tag, tag_tip = team_modifiers.hud_tag(force_name)
+    local tag, tag_tip = team_modifiers.ls_hud_tag(force_name)
     local tag_lbl = root.mts_hud_mode_tag
     if tag then
         if not tag_lbl then
