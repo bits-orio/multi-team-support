@@ -147,6 +147,7 @@ function M.get_state(player)
         s = {
             category  = "ores",
             precision = defines.flow_precision_index.one_minute,
+            quality   = "merged",
             sort_col  = nil,
             sort_dir  = "desc",
         }

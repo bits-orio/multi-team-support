@@ -39,6 +39,20 @@ function M.on_gui_click(event)
         end
     end
 
+    -- Quality view buttons. "merged" is checked first, so a quality
+    -- prototype literally named "merged" would be shadowed -- acceptable.
+    if name == "sb_stats_qual_merged" then
+        columns.get_state(player).quality = "merged"
+        panel.build_stats_gui(player)
+        return true
+    end
+    local qname = name:match("^sb_stats_qual_(.+)$")
+    if qname and prototypes.quality[qname] then
+        columns.get_state(player).quality = qname
+        panel.build_stats_gui(player)
+        return true
+    end
+
     if el.tags and el.tags.sb_stats_sort then
         local col   = el.tags.sb_stats_sort
         local state = columns.get_state(player)

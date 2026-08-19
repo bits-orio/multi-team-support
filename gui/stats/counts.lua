@@ -51,42 +51,72 @@ end
 -- allocating a closure per call.
 local function read_input_counts(stats) return stats.input_counts end
 
---- Batched replacement for the old per-cell get_count: one statistics
---- object per (force, surface), shared across every column, and
---- pcall(fn, arg) instead of a fresh closure per protected read.
+--- Batched, quality-correct statistics reads: one statistics object per
+--- (force, surface) shared across every column, pcall(fn, arg) instead
+--- of per-read closures, reusable id tables (item IDs take a
+--- {name, quality} pair; fluid IDs must stay bare strings).
 ---
---- Quality-correct totals (the old bare-name reads were normal-quality
---- only -- measured 108 vs the true 208, see PRODUCTION_STATS_PROBES.md):
----   * All-time: one input_counts dictionary read per (force, surface).
----     The dict merges across qualities and covers every column at once.
----   * Timed: there is no merged shortcut -- a bare name is normal-only
----     -- so merged mode sums per-quality get_flow_count over the chain.
+--- qview: "merged" (default) or a quality name to pin the whole table.
 ---
---- entries: rows from player_forces. col_recs: positional table of
---- column records {kind, name} with nil holes. Returns
---- row_counts[row_index][col_index] = number, with nil exactly where
---- col_recs has a hole (matching the old shape).
-function M.collect(entries, col_recs, cols, precision)
+--- Merged mode (the old bare-name reads were normal-only -- measured 108
+--- vs the true 208, see PRODUCTION_STATS_PROBES.md):
+---   * All-time totals come from one input_counts dictionary read per
+---     surface -- it merges across qualities and covers every column.
+---   * The same flat read powers the fan-out gate: flat[name] (merged)
+---     vs get_input_count(name) (normal-only) differ exactly when this
+---     force ever produced the item at a non-normal quality. Gating on
+---     DATA rather than is_quality_unlocked keeps scripted or cheated
+---     production at locked qualities counted.
+---   * Normal-only cells: timed reads use the single bare call (equal to
+---     merged by the gate). Multi cells expand once on the all-time axis
+---     and read only qualities with real production -- sound because
+---     counts are cumulative: all-time zero implies every window zero.
+---
+--- Returns (row_counts, breakdown, produced):
+---   row_counts[row][col] = number, nil exactly at col_recs holes.
+---   breakdown[row][col]  = {quality_name -> count} for merged-mode cells
+---                          with non-normal production (tooltip data).
+---   produced             = set of quality names seen with production
+---                          across all rendered cells (selector row).
+function M.collect(entries, col_recs, cols, precision, qview)
+    qview = qview or "merged"
     local owned = surfaces_by_force(entries)
     local chain = quality.chain()
 
-    -- Reusable request/id tables: the API reads them synchronously, so
-    -- mutating per read is safe and skips a per-cell allocation. Item IDs
-    -- take a {name, quality} pair; fluid IDs must stay bare strings.
     local req  = {name = nil, category = "input", precision_index = precision, count = true}
     local pair = {name = nil, quality = nil}
 
-    local row_counts = {}
+    local row_counts, breakdown, produced = {}, {}, {}
     for i, entry in ipairs(entries) do
         local force  = entry.force
         local totals = {}
+        local brk    = {}
         for col_idx = 1, cols do
             if col_recs[col_idx] then totals[col_idx] = 0 end
         end
         for _, surface in ipairs(owned[force.name]) do
             local ok, istats = pcall(force.get_item_production_statistics, surface)
             if ok and istats then
-                if precision == M.ALLTIME then
+                if qview ~= "merged" then
+                    -- Pinned view: one read per cell at that quality. No
+                    -- gate, no breakdown -- the number IS one quality.
+                    for col_idx = 1, cols do
+                        local col = col_recs[col_idx]
+                        if col and col.kind == "item" then
+                            pair.name, pair.quality = col.name, qview
+                            local ok2, val
+                            if precision == M.ALLTIME then
+                                ok2, val = pcall(istats.get_input_count, pair)
+                            else
+                                req.name = pair
+                                ok2, val = pcall(istats.get_flow_count, req)
+                            end
+                            if ok2 and val then
+                                totals[col_idx] = totals[col_idx] + val
+                            end
+                        end
+                    end
+                else
                     local okf, flat = pcall(read_input_counts, istats)
                     if okf and flat then
                         for col_idx = 1, cols do
@@ -94,30 +124,61 @@ function M.collect(entries, col_recs, cols, precision)
                             -- kind dispatch: the fluid statistics path lands
                             -- with the Fluids tab (plan step 6).
                             if col and col.kind == "item" then
-                                totals[col_idx] = totals[col_idx] + (flat[col.name] or 0)
+                                local merged_all = flat[col.name] or 0
+                                local okn, normal_all = pcall(istats.get_input_count, col.name)
+                                local multi = okn and normal_all ~= nil
+                                    and merged_all ~= normal_all
+
+                                if precision == M.ALLTIME then
+                                    totals[col_idx] = totals[col_idx] + merged_all
+                                end
+
+                                if not multi then
+                                    if precision ~= M.ALLTIME then
+                                        req.name = col.name
+                                        local ok2, val = pcall(istats.get_flow_count, req)
+                                        if ok2 and val then
+                                            totals[col_idx] = totals[col_idx] + val
+                                        end
+                                    end
+                                else
+                                    local cell_brk = brk[col_idx]
+                                    if not cell_brk then
+                                        cell_brk = {}
+                                        brk[col_idx] = cell_brk
+                                    end
+                                    for _, qname in ipairs(chain) do
+                                        pair.name, pair.quality = col.name, qname
+                                        local oka, alltime = pcall(istats.get_input_count, pair)
+                                        if oka and alltime and alltime > 0 then
+                                            produced[qname] = true
+                                            local val
+                                            if precision == M.ALLTIME then
+                                                val = alltime
+                                            else
+                                                req.name = pair
+                                                local ok2, v = pcall(istats.get_flow_count, req)
+                                                val = ok2 and v or nil
+                                                if val then
+                                                    totals[col_idx] = totals[col_idx] + val
+                                                end
+                                            end
+                                            if val and val > 0 then
+                                                cell_brk[qname] = (cell_brk[qname] or 0) + val
+                                            end
+                                        end
+                                    end
+                                end
                             end
-                        end
-                    end
-                else
-                    for col_idx = 1, cols do
-                        local col = col_recs[col_idx]
-                        if col and col.kind == "item" then
-                            local sum = 0
-                            for _, qname in ipairs(chain) do
-                                pair.name, pair.quality = col.name, qname
-                                req.name = pair
-                                local ok2, val = pcall(istats.get_flow_count, req)
-                                if ok2 and val then sum = sum + val end
-                            end
-                            totals[col_idx] = totals[col_idx] + sum
                         end
                     end
                 end
             end
         end
         row_counts[i] = totals
+        breakdown[i]  = brk
     end
-    return row_counts
+    return row_counts, breakdown, produced
 end
 
 --- Returns team forces sorted by display name; includes online status.
