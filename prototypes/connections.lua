@@ -137,7 +137,9 @@ for _, info in ipairs(base_connections) do
         -- translators control the word order of the team suffix.
         variant.localised_name = {
             "space-connection-name.mts-team-connection",
-            {"space-connection-name." .. info.name}, slot,
+            -- tostring: see prototypes/planets.lua — data-stage
+            -- localised strings only accept string parameters.
+            {"space-connection-name." .. info.name}, tostring(slot),
         }
 
         data:extend{variant}

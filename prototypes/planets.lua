@@ -98,7 +98,12 @@ for _, base_name in ipairs(space_age.list_base_planets_data()) do
             -- planets and well-behaved modded ones both qualify.
             variant.localised_name = {
                 "space-location-name.mts-team-planet",
-                {"space-location-name." .. base_name}, slot,
+                -- tostring: data-stage localised strings are property
+                -- trees, whose parameters must be strings — a raw number
+                -- fails prototype load ("Value must be a string in
+                -- property tree"). Runtime LocalisedStrings accept
+                -- numbers; prototypes do not.
+                {"space-location-name." .. base_name}, tostring(slot),
             }
             variant.localised_description = {
                 "space-location-description." .. base_name,
