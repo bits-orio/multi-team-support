@@ -55,6 +55,10 @@ Join the Discord: https://discord.gg/tWz4FT74pH
 - `/mts-kick <player>` — Kick a player from your team (leader only, with confirmation).
 - `/mts-rename <name>` — Rename your team (leader only, 32 char limit, no duplicates).
 
+## 🌍 Languages
+
+English, Spanish, Russian, German. Localization is per player: everyone on a server sees the mod in their own game language, so mixed-language servers just work. (Two cosmetic limits: the TEAM/GLOBAL chat badge next to player names is engine plain-text and stays English, and team names players type are shown as typed.) Want another language? Open an issue.
+
 ## ⚙️ Compatibility
 
 - Requires **Factorio 2.0** (`base >= 2.0`)

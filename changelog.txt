@@ -1,4 +1,24 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.5.0
+Date: 2026-08-19
+  Features:
+    - Localization support. Every player-visible string -- chat, commands, dialogs, and all
+      panels -- now renders through locale keys, so each player sees the mod in their own game
+      language on the same server. Log lines, Discord bridge output, and typed data (player and
+      team names) intentionally stay as they were.
+    - Spanish, Russian, and German translations, built on the base game's own terminology and
+      register conventions per language (including full Russian plural forms). One engine limit:
+      the TEAM/GLOBAL chat badge next to player names stays English -- player tags accept only
+      plain text.
+    - /mts-debug locale: admin self-check that verifies every localization key resolves for your
+      language and lists any that would render as "Unknown key: ...".
+  Bugfixes:
+    - The mod description shown in the in-game Mods list used a section name the engine does not
+      recognize, so it never displayed. The Discord URL setting was also missing its description.
+    - The admin panel's starter-items list showed internal ids ("iron-plate") instead of item
+      names, and logistic-import notices showed internal surface ids ("mts-vulcanus-2") instead
+      of planet names.
+---------------------------------------------------------------------------------------------------
 Version: 0.4.66
 Date: 2026-08-19
   Features:
