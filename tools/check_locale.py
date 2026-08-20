@@ -88,10 +88,84 @@ def manifest_content(defs):
     return "\n".join(lines) + "\n"
 
 
+PARAM_RE = re.compile(r"__(\d+)__")
+PLURAL_RE = re.compile(r"__plural_for_parameter__(\d+)__\{[^{}]*\}__")
+TAG_RE = re.compile(r"\[(img|item|entity|technology|fluid|gps|font|quality|virtual-signal)=[^\]]*\]")
+
+
+def parse_lang(lang_dir):
+    """All section.key -> value for one language dir (every section)."""
+    out = {}
+    for p in sorted(lang_dir.glob("*.cfg")):
+        section = None
+        for line in p.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            m = SECTION_RE.match(s)
+            if m:
+                section = m.group(1)
+                continue
+            if s.startswith("#") or s.startswith(";") or "=" not in line:
+                continue
+            if section is None:
+                continue  # our files never use root-scope keys
+            key, value = line.split("=", 1)
+            out[f"[{section}] {key.strip()}"] = value
+    return out
+
+
+def value_params(value):
+    """Set of parameter indexes a value consumes (incl. plural selectors)."""
+    stripped = PLURAL_RE.sub("", value)
+    return set(int(n) for n in PARAM_RE.findall(stripped)) | set(
+        int(n) for n in PLURAL_RE.findall(value)
+    )
+
+
+def check_language(code, en, errors, warnings):
+    lang = parse_lang(ROOT / "locale" / code)
+    for k in sorted(en.keys() - lang.keys()):
+        errors.append(f"{code}: missing key {k}")
+    for k in sorted(lang.keys() - en.keys()):
+        errors.append(f"{code}: extra key {k} (not in en)")
+    for k in sorted(en.keys() & lang.keys()):
+        ev, lv = en[k], lang[k]
+        if value_params(ev) != value_params(lv):
+            errors.append(
+                f"{code}: param mismatch {k}: en uses "
+                f"{sorted(value_params(ev))}, {code} uses {sorted(value_params(lv))}"
+            )
+        for name, side in (("leading", lambda v: v[: len(v) - len(v.lstrip())]),
+                           ("trailing", lambda v: v[len(v.rstrip()):])):
+            if side(ev) != side(lv):
+                errors.append(f"{code}: {name} whitespace differs on {k}")
+        if ev.count("[color=") != ev.count("[/color]"):
+            pass  # en's own imbalance is en's problem, not the translation's
+        elif lv.count("[color=") != lv.count("[/color]"):
+            errors.append(f"{code}: unbalanced [color] tags on {k}")
+        if sorted(TAG_RE.findall(ev)) != sorted(TAG_RE.findall(lv)):
+            errors.append(f"{code}: rich-text tags differ on {k}")
+        for m in re.finditer(r"__plural_for_parameter__\d+__", lv):
+            tail = lv[m.end():]
+            if not re.match(r"\{[^{}]*\}__", tail):
+                errors.append(f"{code}: malformed plural block on {k}")
+        if ev.count("\\n") != lv.count("\\n"):
+            warnings.append(
+                f"{code}: \\n count differs on {k} "
+                f"(en {ev.count(chr(92) + 'n')}, {code} {lv.count(chr(92) + 'n')})"
+            )
+
+
 def main():
     refs = collect_refs()
     defs, dynamic = collect_defs()
     errors, warnings = [], []
+
+    en_all = parse_lang(ROOT / "locale" / "en")
+    lang_codes = sorted(
+        p.name for p in (ROOT / "locale").iterdir() if p.is_dir() and p.name != "en"
+    )
+    for code in lang_codes:
+        check_language(code, en_all, errors, warnings)
 
     expected = manifest_content(defs)
     if "--write" in sys.argv[1:]:
@@ -118,9 +192,10 @@ def main():
         print(f"warning: {w}")
     for e in errors:
         print(f"ERROR: {e}")
+    lang_note = f", languages checked: {', '.join(lang_codes)}" if lang_codes else ""
     print(
         f"check_locale: {len(refs)} referenced, {len(defs)} defined, "
-        f"{len(errors)} errors, {len(warnings)} warnings"
+        f"{len(errors)} errors, {len(warnings)} warnings{lang_note}"
     )
     return 1 if errors else 0
 
