@@ -69,6 +69,7 @@ local ev_research         = require("events.research")
 local ev_gui_clicks       = require("events.gui_clicks")
 local ev_gui_state        = require("events.gui_state")
 local ev_chat             = require("events.chat")
+local locale_audit        = require("scripts.locale_audit")
 
 local function init_events()
     ev_ticks.register()
@@ -82,6 +83,7 @@ local function init_events()
     ev_chat.register()
     global_milestones.register()
     platform_hub_gui.register()
+    locale_audit.register()
 end
 
 -- ─── Lifecycle ─────────────────────────────────────────────────────────

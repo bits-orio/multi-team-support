@@ -2,6 +2,7 @@
 -- /mts-debug: admin scheduling sandbox (research, stop, list).
 
 local debug_engine = require("scripts.debug")
+local locale_audit = require("scripts.locale_audit")
 
 local M = {}
 
@@ -13,6 +14,8 @@ local DEBUG_HELP = table.concat({
     "    --players defaults to caller. --delay N inserts N ticks between each (default 0).",
     "/mts-debug stop <id|all>",
     "/mts-debug list",
+    "/mts-debug locale",
+    "    Verify every mts-* locale key resolves for your locale (missing-key detector).",
     "/mts-debug help",
 }, "\n")
 
@@ -62,6 +65,11 @@ function M.register()
 
             local sub = tokens[1]
             if not sub or sub == "help" then caller.print(DEBUG_HELP); return end
+
+            if sub == "locale" then
+                locale_audit.start(caller)
+                return
+            end
 
             if sub == "list" then
                 local rows = debug_engine.list()

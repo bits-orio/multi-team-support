@@ -127,7 +127,7 @@ Rough scope for estimates: ~600 player/admin-visible strings → ~450 unique key
 ## 6. Tooling & verification (how we keep 750 conversions honest)
 
 1. **Static checker** (`tools/check_locale.py`, wired into release): extract every literal `{"mts-*.…"}` key from Lua, extract every key from `locale/en/*.cfg`, fail on either-direction mismatch; verify `__n__` references don't exceed supplied parameter counts. Catches typos before the engine renders `Unknown key: '…'`.
-2. **In-game missing-key detector**: a debug command that runs every `mts-*` key through `player.request_translations` and reports entries where `on_string_translated` returns `translated=false`. (Verified: the event carries exactly this boolean.) This also becomes the phase-2 per-language completeness check, for free.
+2. **In-game missing-key detector** (built: `/mts-debug locale`, `scripts/locale_audit.lua` + the generated `scripts/locale_keys.lua` manifest): runs every `mts-*` key through `player.request_translations` and reports entries where `on_string_translated` returns `translated=false`. (Verified: the event carries exactly this boolean.) Scope correction vs. the original claim: a key missing from a non-English locale falls back to en and still resolves, so this detector catches broken/typo'd keys against the runtime locale merge — per-language completeness in phase 2 is a *static* cfg-set comparison instead (a `--lang` extension of `tools/check_locale.py`).
 3. **Playtest matrix for stage 5**: two connected clients with different locales (per-player language is the whole point — must see different languages simultaneously); Discord regression (unchanged output); save/load with the migrated nav storage; the world-rendered-text resolution question from D9.
 
 ---
