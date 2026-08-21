@@ -39,14 +39,25 @@ function M.register()
     script.on_event(defines.events.on_player_created, function(event)
         local player = game.get_player(event.player_index)
         h.register_nav_buttons(player)
-        admin_gui.auto_populate_starter_items(player)
 
         -- With a delivery override (e.g. Brave New MTS), starter items go to the
-        -- team's logistic chests, not the player. auto_populate (above) has just
-        -- captured the map's default loadout into the admin list, so now empty the
-        -- character: the player should arrive in the pen / on their team carrying
-        -- nothing.
+        -- team's logistic chests, not the player. Capture the map's default
+        -- loadout into the admin list, then empty the character: the player should
+        -- arrive in the pen / on their team carrying nothing.
+        --
+        -- This is the ONLY path that still captures here, and it is a KNOWN GAP:
+        -- on_player_created is too early (see the note in on_player_joined_game),
+        -- so under an override a kit granted by a mod that loads after MTS is not
+        -- recorded, and the stub captured instead latches and suppresses the later
+        -- capture. It is kept here because the character is emptied on the very
+        -- next line -- moving the capture later means moving the clear later too,
+        -- and the clear is what an override consumer relies on to have the player
+        -- arrive carrying nothing. Consequence is bounded: with an override active
+        -- grant_starter_items never runs, so nobody is stripped -- the consumer's
+        -- own delivery just misses the map-default top-up. Revisit together with
+        -- the consumer if an override is ever paired with a late-loading overhaul.
         if player and player.character and remote_api.starter_delivery_override() then
+            admin_gui.auto_populate_starter_items(player)
             player.character.clear_items_inside()
         end
 
@@ -86,6 +97,26 @@ function M.register()
 
     script.on_event(defines.events.on_player_joined_game, function(event)
         local player = game.get_player(event.player_index)
+
+        -- Capture the map's default starter loadout on a player's FIRST join.
+        --
+        -- NOT in on_player_created: the engine dispatches that event to every mod
+        -- in load order, and a mod that loads after MTS hands out its starting kit
+        -- after we would have looked. That is not a tie-break we can win -- an
+        -- overhaul sitting behind a hard dependency chain (Sea Block behind
+        -- Angel's/Bob's, say) is pinned near the end of the load order by the
+        -- topological sort. Capturing there recorded the pre-kit inventory, and
+        -- grant_starter_items then wiped the real kit and re-inserted that stub at
+        -- pen exit. on_player_joined_game is only dispatched once EVERY mod's
+        -- on_player_created has run, so the loadout is final by the time we read it.
+        --
+        -- Gated on seen_players (set further down) so this is a first-join capture:
+        -- a reconnecting veteran carrying a built-up inventory must never redefine
+        -- what a starting kit looks like.
+        if player and not (storage.seen_players or {})[player.index] then
+            admin_gui.auto_populate_starter_items(player)
+        end
+
         if player then color_fix.on_joined(player) end
         if player then spectator.on_player_joined(player) end
         if player and landing_pen.is_in_pen(player) then

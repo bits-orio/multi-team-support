@@ -15,6 +15,7 @@ local chat_channel = require("scripts.chat_channel")
 local pause_state = require("scripts.pause.state")
 local buddy_store = require("scripts.buddy_store")
 local pen_info_panel = require("gui.pen_info_panel")
+local starter_scope = require("scripts.starter_scope")
 
 local M = {}
 
@@ -254,6 +255,10 @@ function M.wipe_slot_state(force_name)
     if storage.left_teams then
         for _, teams in pairs(storage.left_teams) do teams[force_name] = nil end
     end
+
+    -- The next team to occupy this slot must get its own copy of the team-scoped
+    -- starter items, not inherit the previous occupant's "already granted" mark.
+    starter_scope.clear_team_kit(force_name)
 
     storage.team_looking_for_more = storage.team_looking_for_more or {}
     storage.team_looking_for_more[force_name] = nil

@@ -1,4 +1,30 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.0
+Date: 2026-08-21
+  Features:
+    - Starter items are now scoped per item. "Player" gives every member their own copy, as
+      before; "Team" hands the item out once, to the first member of a team to spawn. Toggle it
+      per row in the Admin panel's Starter Items tab. Two people on one team no longer start with
+      two full copies of the map's resources while a solo team gets one.
+    - Sea Block support: its starting kit -- landfill, plates, solar panels -- is marked Team
+      automatically. The kit is read from Sea Block itself rather than hardcoded, so it follows
+      your startup settings and which of Bob's and Angel's mods are installed. Armor, weapons, and
+      other mods' personal equipment (FasterStart's construction robots, for instance) stay
+      per-player, so every member still spawns with their own.
+  Bugfixes:
+    - The starter-items list captured the wrong loadout on any mod stack where an overhaul loads
+      after Multi-Team Support. Sea Block sits behind the whole Angel's/Bob's dependency chain, so
+      it always loads last: MTS read the new player's inventory before Sea Block had filled it,
+      recorded the leftovers, and then handed players that stub when they left the landing pen --
+      wiping the real kit they had been given. The capture now happens once every mod has finished
+      handing out items, so the list reflects the map's actual starting loadout.
+    - A player sent back to the landing pen by /mts-disband could have their entire built-up
+      inventory recorded as the map's starter loadout and handed to everyone who spawned
+      afterwards. Only players who have never been on a team are used for the capture now.
+    - An empty starter-items list is no longer taken literally. Previously it emptied the player's
+      inventory and gave nothing back, which on a start like Sea Block -- where spawn is a
+      one-tile island -- left them with no way to recover.
+---------------------------------------------------------------------------------------------------
 Version: 0.5.1
 Date: 2026-08-20
   Bugfixes:

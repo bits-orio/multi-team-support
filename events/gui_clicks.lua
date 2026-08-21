@@ -43,7 +43,21 @@ function M.register()
                 if not force_name then return end
                 local default_group = game.permissions.get_group("Default")
                 if default_group then default_group.add_player(player) end
-                admin_gui.auto_populate_starter_items(player)
+                -- Backstop capture, for the cases the first-join capture in
+                -- player_lifecycle can't cover (MTS added to an already-running
+                -- save, or a player whose character wasn't ready at join time).
+                -- Gated on left_teams: a player who has been on a team before is
+                -- carrying whatever they built, and /mts-disband routes exactly
+                -- such a veteran back through the pen -- letting that snapshot
+                -- become the map's default loadout would hand every future player
+                -- a copy of someone's base. left_teams is written by both disband
+                -- branches (scripts/commands/admin.lua) and by a voluntary leave
+                -- (scripts/team_slots.lua), so it is the precise marker for "not a
+                -- fresh arrival". Normally a no-op: the first-join capture has
+                -- already latched by the time anyone reaches this button.
+                if not (storage.left_teams or {})[player.index] then
+                    admin_gui.auto_populate_starter_items(player)
+                end
                 landing_pen.grant_starter_items(player)
                 landing_pen.finish_spawn(player)
                 storage.pending_spawn_pop = storage.pending_spawn_pop or {}

@@ -4,6 +4,7 @@
 local helpers        = require("scripts.helpers")
 local nav            = require("gui.nav")
 local admin_flags    = require("scripts.admin_flags")
+local starter_scope = require("scripts.starter_scope")
 local team_modifiers = require("scripts.team_modifiers")
 local pen_info_panel = require("gui.pen_info_panel")
 
@@ -189,7 +190,8 @@ function admin_gui.build_admin_gui(player)
 
     local starter_items = storage.starter_items
     if starter_items and #starter_items > 0 then
-        local tbl = starter_content.add{type = "table", name = "sb_starter_table", column_count = 3}
+        -- 4 columns: item, count, scope toggle, remove.
+        local tbl = starter_content.add{type = "table", name = "sb_starter_table", column_count = 4}
         tbl.style.horizontal_spacing = 8
         tbl.style.vertical_spacing   = 4
         for i, item in ipairs(starter_items) do
@@ -213,6 +215,18 @@ function admin_gui.build_admin_gui(player)
                     helpers.ls_join(parts, ", ")}
             end
             tbl.add{type = "label", caption = {"mts-gui.starter-item-count", item.count}}
+            -- Scope toggle: "team" entries are granted once per force, "player"
+            -- entries to everyone. See scripts/starter_scope.lua.
+            local is_team = starter_scope.is_team(item)
+            tbl.add{
+                type    = "button",
+                name    = "sb_starter_scope_" .. i,
+                caption = is_team and {"mts-gui.starter-scope-team"}
+                                  or  {"mts-gui.starter-scope-player"},
+                style   = is_team and "confirm_button" or "button",
+                tags    = {sb_starter_scope_index = i},
+                tooltip = {"mts-tip.starter-scope", item_label},
+            }.style.minimal_width = 72
             tbl.add{
                 type    = "sprite-button",
                 name    = "sb_starter_remove_" .. i,
@@ -337,6 +351,8 @@ function admin_gui.on_gui_click(event)
             local old_counts = {}
             for _, item in pairs(old_items) do old_counts[item.name] = item.count end
             storage.starter_items = admin_flags.collect_character_items(player)
+            -- Replaces every entry, so re-seed compat scope defaults.
+            starter_scope.seed_defaults(storage.starter_items)
             local diff = {}
             for _, item in pairs(storage.starter_items) do
                 local prev = old_counts[item.name] or 0
@@ -385,6 +401,19 @@ function admin_gui.on_gui_click(event)
                 local added = {{name = item_name, count = count}}
                 admin_flags.distribute_items_to_spawned(added)
                 admin_flags.announce_starter_items_added(added, player)
+                admin_gui.build_admin_gui(player)
+            end
+        end
+        return true
+    end
+
+    if el.tags and el.tags.sb_starter_scope_index and el.name:find("^sb_starter_scope_") then
+        local player = game.get_player(event.player_index)
+        if player and is_admin(player) then
+            local idx  = el.tags.sb_starter_scope_index
+            local item = storage.starter_items and storage.starter_items[idx]
+            if item then
+                starter_scope.toggle(item)
                 admin_gui.build_admin_gui(player)
             end
         end

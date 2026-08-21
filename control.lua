@@ -70,6 +70,7 @@ local ev_gui_clicks       = require("events.gui_clicks")
 local ev_gui_state        = require("events.gui_state")
 local ev_chat             = require("events.chat")
 local locale_audit        = require("scripts.locale_audit")
+local starter_scope       = require("scripts.starter_scope")
 
 local function init_events()
     ev_ticks.register()
@@ -123,6 +124,7 @@ script.on_init(function()
     storage.research_gui_diff_target = {}
     storage.show_offline_players     = {}
     storage.return_button_location   = {}
+    starter_scope.init_storage()
     global_milestones.init_storage()
     admin_gui.get_flags()
     spectator.init()
@@ -225,6 +227,7 @@ script.on_configuration_changed(function()
     storage.left_teams               = storage.left_teams               or {}
     storage.seen_players             = storage.seen_players             or {}
     storage.player_last_seen         = storage.player_last_seen         or {}
+    starter_scope.init_storage()
 
     -- Back-fill seen_players so existing players aren't greeted as new after an update.
     for _, player in pairs(game.players) do

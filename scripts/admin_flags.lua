@@ -3,6 +3,7 @@
 -- No GUI; imported by gui/admin.lua which re-exports everything.
 
 local helpers = require("scripts.helpers")
+local starter_scope = require("scripts.starter_scope")
 
 local M = {}
 
@@ -252,12 +253,30 @@ function M.distribute_items_to_spawned(items)
         delivery.raise(clean)
         return
     end
+    -- Team-scoped entries are one per FORCE, so hand each team exactly one copy
+    -- (to the first spawned member we reach) instead of one to every player --
+    -- otherwise an admin adding a team item mid-run undoes the whole point of the
+    -- scope split. Player-scoped entries still go to everyone.
+    local team_served = {}
     storage.spawned_players = storage.spawned_players or {}
     for idx in pairs(storage.spawned_players) do
         local p = game.get_player(idx)
         if p and p.valid and p.connected and p.character then
+            local force_name = p.force.name
+            local on_team    = helpers.is_team_force(force_name)
             for _, item in pairs(items) do
-                M.insert_starter_item(p, item)
+                if not starter_scope.is_team(item) then
+                    M.insert_starter_item(p, item)
+                elseif on_team and not team_served[force_name]
+                       and not starter_scope.team_has_kit(force_name) then
+                    M.insert_starter_item(p, item)
+                end
+            end
+            -- Mark AFTER the item loop so every team entry lands on the same
+            -- player, rather than the first entry claiming the team and the rest
+            -- being skipped.
+            if on_team and not team_served[force_name] then
+                team_served[force_name] = true
             end
         end
     end
@@ -351,10 +370,20 @@ end
 --- override (e.g. Brave New MTS) the same capture is what pre-populates the list
 --- that then gets routed to team logistic chests instead of player inventories
 --- (the spawning character is emptied separately, in on_player_created).
+---
+--- Idempotent by design -- callers fire it from more than one point in the spawn
+--- flow (first join, and a left_teams-gated backstop at pen exit) and only the
+--- first one that finds a non-empty character sticks. An EMPTY result does not
+--- latch: it means we looked before the mod stack finished handing out the kit, so
+--- a later caller should get another go rather than freezing "nothing" in as the
+--- map's loadout.
 function M.auto_populate_starter_items(player)
-    if storage.starter_items then return end
+    if storage.starter_items and #storage.starter_items > 0 then return end
     if not player.character then return end
     storage.starter_items = M.collect_character_items(player)
+    -- Let compat modules claim the bulk map resources as team-scoped before the
+    -- list is ever granted (see scripts/starter_scope.lua).
+    starter_scope.seed_defaults(storage.starter_items)
     if #storage.starter_items > 0 then
         log("[multi-team-support] auto-populated starter items from " .. player.name
             .. " (" .. #storage.starter_items .. " item types)")
