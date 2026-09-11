@@ -25,6 +25,13 @@ Date: 2026-09-10
       landing-pad limits) like the quality and platform unlocks they already copied.
     - The pen info panel and passive spectate radars are marked protected, so automated weapons
       never target them.
+Version: 0.6.5
+Date: 2026-09-11
+  Changes:
+    - The team clock tools for AI Agent Bridge take a team by its display name ("Team 02") or a
+      slot spelled with a space ("team 2") as well as by its force name, and always answer with
+      the force name.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.4
 Date: 2026-09-11
   Features:
