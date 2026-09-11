@@ -935,9 +935,26 @@ local AGENT_TOOLS = {
     },
 }
 
+--- A team force from whatever the caller wrote: the force name, the display
+--- name ("Team 02", "Team Ace"), or a slot spelled with a space ("team 2"),
+--- case-insensitive. Nil when nothing matches. The reply still names the
+--- force, so a caller that came in by label leaves with the name.
+local function team_force_from(text)
+    if type(text) ~= "string" then return nil end
+    if is_team_force_name(text) and game.forces[text] then return text end
+    local wanted = text:lower():gsub("^%s+", ""):gsub("%s+$", "")
+    local slot = wanted:match("^team[%s%-]+0*(%d+)$")
+    if slot and game.forces["team-" .. slot] then return "team-" .. slot end
+    for _, info in ipairs(get_team_list_impl()) do
+        if helpers.team_display(info.force_name):lower() == wanted then return info.force_name end
+    end
+    return nil
+end
+
 local function team_clock_tool(args)
     local force_name = type(args) == "table" and args.force or nil
     if type(force_name) ~= "string" then error("force is required", 0) end
+    force_name = team_force_from(force_name) or force_name
     local info = get_team_info_impl(force_name)
     if not info then
         return { found = false, force = force_name, reason = "not a team force; teams are named team-1, team-2 and so on" }
