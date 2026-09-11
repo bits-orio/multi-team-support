@@ -891,6 +891,71 @@ local function force_labels_v1()
     return labels
 end
 
+--- Tools for an AI assistant (AI Agent Bridge's agent_tools_v1 seam: its
+--- companion scans every interface for this probe and offers the tools to
+--- the model; `force` is injected into every call). Two reads, both about
+--- the thing the server's own clock cannot tell: each team keeps its own
+--- clock, running only while a member is online, so comparing teams means
+--- comparing these, never game time.
+local TICKS_PER_HOUR = 60 * 60 * 60
+
+--- Hours to two decimals, as the short string "1.79" (or the number 2 for a
+--- whole one): the engine's JSON writer prints any non-integer double at
+--- full precision, fifty digits of 0.79, which the reply's reader would
+--- have to wade through.
+local function hours(ticks)
+    if not ticks then return nil end
+    local rounded = math.floor(ticks / TICKS_PER_HOUR * 100 + 0.5) / 100
+    if rounded == math.floor(rounded) then return math.floor(rounded) end
+    return (string.format("%.2f", rounded):gsub("0+$", ""))
+end
+
+local function clock_row(info)
+    local elapsed = info.clock_start_tick and (game.tick - info.clock_start_tick) or nil
+    return {
+        force          = info.force_name,
+        label          = helpers.team_display(info.force_name),
+        status         = info.status,
+        members        = info.member_count,
+        paused         = info.is_paused,
+        online_ticks   = info.online_ticks,
+        online_hours   = hours(info.online_ticks),
+        claimed_tick   = info.clock_start_tick,
+        elapsed_ticks  = elapsed,
+        elapsed_hours  = hours(elapsed),
+    }
+end
+
+local AGENT_TOOLS = {
+    team_clock = {
+        desc = "One team's own clocks, never game time: online_hours runs only while a member is online (fair for 'how am I doing compared to them'); elapsed_hours runs since the slot was claimed (what records and awards use). Also paused, status, members.",
+    },
+    team_clocks = {
+        desc = "Every claimed team's own clocks in one call: label, online_hours (only while a member is online, use for comparisons), elapsed_hours since claim (records and awards), paused, members.",
+    },
+}
+
+local function team_clock_tool(args)
+    local force_name = type(args) == "table" and args.force or nil
+    if type(force_name) ~= "string" then error("force is required", 0) end
+    local info = get_team_info_impl(force_name)
+    if not info then
+        return { found = false, force = force_name, reason = "not a team force; teams are named team-1, team-2 and so on" }
+    end
+    local row = clock_row(info)
+    row.found = true
+    row.tick = game.tick
+    return row
+end
+
+local function team_clocks_tool()
+    local rows = {}
+    for _, info in ipairs(get_team_list_impl()) do
+        if info.is_occupied then rows[#rows + 1] = clock_row(info) end
+    end
+    return { tick = game.tick, total = #rows, teams = rows }
+end
+
 function remote_api.register()
     if remote.interfaces["mts-v1"] then
         remote.remove_interface("mts-v1")
@@ -901,9 +966,13 @@ function remote_api.register()
             return remote_api.events[name]
         end,
 
-        -- AI Agent Bridge probes, see chat_scope_v1 and force_labels_v1 above.
+        -- AI Agent Bridge probes, see chat_scope_v1, force_labels_v1 and
+        -- the agent tools above.
         chat_scope_v1   = chat_scope_v1,
         force_labels_v1 = force_labels_v1,
+        agent_tools_v1  = function() return { v = 1, tools = AGENT_TOOLS } end,
+        team_clock      = team_clock_tool,
+        team_clocks     = team_clocks_tool,
 
         -- Queries
         get_team_list      = get_team_list_impl,
