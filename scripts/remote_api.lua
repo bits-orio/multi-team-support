@@ -33,6 +33,8 @@ local helpers       = require("scripts.helpers")
 local team_clock    = require("scripts.team_clock")
 local spawn_labels  = require("scripts.spawn_labels")
 local pop_text      = require("scripts.pop_text")
+local chat_channel  = require("scripts.chat_channel")
+local chat_tag      = require("scripts.chat_tag")
 -- pause/control has no require cycle (it pulls only pause/power|wires|state),
 -- so it is required directly here.
 local pause_control = require("scripts.pause.control")
@@ -843,6 +845,52 @@ end
 
 -- ═══ Remote interface registration ════════════════════════════════════
 
+--- Who may hear an AI assistant's reply to this player's question. This is
+--- the chat scope probe AI Agent Bridge's companion scans every remote
+--- interface for (its README, "Chat scope by probe, chat_scope_v1"); that
+--- mod never names MTS, and MTS never names it beyond this comment. The
+--- answer follows the player's chat channel exactly: team-only chat means a
+--- private reply to the team, carrying the same [TEAM] badge the player's
+--- own lines carry; global chat, a "!" shout, a pen spectator or a player
+--- with no team means a reply to everyone with the [GLOBAL] badge.
+---
+--- The audience is the team's connected members by index rather than the
+--- force, because a member force-swapped into spectator mode is still on
+--- the team and must hear the reply too (chat_channel.peers has the same
+--- rule for channel announcements).
+local function chat_scope_v1(player_index, text)
+    local player = type(player_index) == "number" and game.get_player(player_index) or nil
+    if not (player and player.valid) then return nil end
+    local fn = effective_fn(player)
+    local shout = type(text) == "string" and text:sub(1, 1) == "!"
+    if not (fn and is_team_force_name(fn)) or shout or not chat_channel.is_local_for(player) then
+        return { key = "global", private = false, tag = chat_tag.GLOBAL_BADGE }
+    end
+    local members = {}
+    for _, p in pairs(game.connected_players) do
+        if effective_fn(p) == fn then members[#members + 1] = p.index end
+    end
+    return {
+        key      = fn,
+        private  = true,
+        audience = { players = members },
+        label    = helpers.team_display(fn),
+        tag      = chat_tag.LOCAL_BADGE,
+    }
+end
+
+--- What players call each claimed team, for the same assistant: its
+--- companion scans for `force_labels_v1` and tells the model, so an answer
+--- says "Team Ace" and never "team-1". Plain text; the companion strips
+--- rich text anyway.
+local function force_labels_v1()
+    local labels = {}
+    for _, info in ipairs(get_team_list_impl()) do
+        labels[info.force_name] = helpers.team_display(info.force_name)
+    end
+    return labels
+end
+
 function remote_api.register()
     if remote.interfaces["mts-v1"] then
         remote.remove_interface("mts-v1")
@@ -852,6 +900,10 @@ function remote_api.register()
         get_event_id = function(name)
             return remote_api.events[name]
         end,
+
+        -- AI Agent Bridge probes, see chat_scope_v1 and force_labels_v1 above.
+        chat_scope_v1   = chat_scope_v1,
+        force_labels_v1 = force_labels_v1,
 
         -- Queries
         get_team_list      = get_team_list_impl,
