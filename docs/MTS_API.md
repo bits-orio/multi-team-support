@@ -104,6 +104,9 @@ Synchronous queries you can call any time:
 | `get_event_id(name)`                                | Event ID for the named event, or `nil`             |
 | `get_team_list()`                                   | Array of team info tables (one per claimed slot)   |
 | `get_team_info(force_name)`                         | Team info table, or `nil` if not a team force      |
+| `chat_scope_v1(player_index, text)`                 | Who may hear an AI assistant's reply to this player: `{key, private, audience, label, tag}`, private to the team's connected members when the player's chat is team-only, global otherwise (a leading `!` shouts). The probe AI Agent Bridge scans for; any mod may call it. |
+| `force_labels_v1()`                                  | `{ [force_name] = "Team Ace", ... }` for every claimed team: what players call each force. The other probe AI Agent Bridge scans for. |
+| `agent_tools_v1()`, `team_clock({force})`, `team_clocks()` | Tools for an AI assistant (the AI Agent Bridge tools probe): one team's own clock, or every claimed team's, online and elapsed hours since claim, paused, members. Teams compare by online time, never game time. |
 | `is_team_surface(surface_name)`                     | `true` if the surface is owned by a team           |
 | `get_surface_owner(surface_name)`                   | The owning team's `force_name`, or `nil`           |
 | `list_team_surfaces(force_name)`                    | Array of surface names owned by that team          |

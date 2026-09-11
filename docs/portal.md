@@ -54,6 +54,7 @@ Mod authors: Multi-Team Support exposes a versioned `mts-v1` remote interface an
 - [MTS Dimension Warp](https://mods.factorio.com/mod/mts-dimension-warp) warps every team's base through its own sequence of dimensions.
 - [Land Title Registry](https://mods.factorio.com/mod/land-title-registry) makes each team earn its buildable land cell by cell.
 - [Open Discord Bridge](https://mods.factorio.com/mod/open-discord-bridge) relays team events and chat to Discord.
+- [AI Agent Bridge](https://mods.factorio.com/mod/ai-agent-bridge) answers questions in chat from the live game. On an MTS server team-only chat gets team-only answers, teams are called by their names, and teams are compared on their own clocks.
 
 ## Links
 

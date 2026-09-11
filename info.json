@@ -3,7 +3,7 @@
   "version": "0.7.0",
   "title": "Multi-Team Support",
   "author": "bits-orio",
-  "description": "Each player gets their own force with independent research and their own copy of the map. Race your friends, compare stats, toggle friendships, and optionally buddy up — all from one server.",
+  "description": "Each player gets their own force with independent research and their own copy of the map. Race your friends, compare stats, toggle friendships, and optionally buddy up \u2014 all from one server.",
   "homepage": "https://github.com/bits-orio/multi-team-support",
   "factorio_version": "2.1",
   "dependencies": [

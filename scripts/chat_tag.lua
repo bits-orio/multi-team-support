@@ -51,6 +51,12 @@ end
 local GLOBAL_BADGE = badge(chat_channel.GLOBAL_COLOR, "GLOBAL")
 local LOCAL_BADGE  = badge(chat_channel.LOCAL_COLOR,  "TEAM")
 
+-- Exported for the one consumer that stamps a line of its own with the same
+-- badge: the AI Agent Bridge chat scope probe in remote_api.lua, which must
+-- mark the bot's reply the way the player's own line is marked.
+M.GLOBAL_BADGE = GLOBAL_BADGE
+M.LOCAL_BADGE  = LOCAL_BADGE
+
 --- The badge for one player's current channel — their team's under team
 --- scope, their own under individual scope; chat_channel resolves which.
 --- Players with no team (pen spectators) have no channel to report and get
