@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.4
+Date: 2026-09-11
+  Features:
+    - Works with AI Agent Bridge, the mod that answers questions in chat from the live game.
+      Three additions to the mts-v1 interface, all found by that mod on its own: chat_scope_v1
+      keeps an AI answer inside team-only chat with the same [TEAM] badge a player's line
+      carries (a "!" shout stays global); force_labels_v1 tells it what each team is called, so
+      answers say "Team Ace" and never "team-1"; team_clock and team_clocks give it each team's
+      own online and elapsed hours, so "how am I doing compared to Team Ace" is compared on the
+      teams' clocks rather than the server's.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.3
 Date: 2026-09-02
   Features:
