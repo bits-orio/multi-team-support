@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.2
+Date: 2026-09-11
+  Changes:
+    - The 2.1 line picks up release 0.6.5: the team clock tools for AI Agent Bridge take a team
+      by its display name or a spaced slot as well as by its force name. Nothing 2.1-specific
+      changed.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.1
 Date: 2026-09-11
   Changes:
