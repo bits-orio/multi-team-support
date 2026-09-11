@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.1
+Date: 2026-09-11
+  Changes:
+    - The 2.1 line picks up release 0.6.4: works with AI Agent Bridge (team-only chat stays
+      team-only for its answers, teams by name, teams compared on their own clocks), through
+      three additive functions on the mts-v1 interface. Nothing 2.1-specific changed.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.0
 Date: 2026-09-10
   Changes:
