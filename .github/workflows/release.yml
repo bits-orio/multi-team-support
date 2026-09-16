@@ -140,6 +140,8 @@ jobs:
           rsync -a --exclude='.git' \
                    --exclude='.github' \
                    --exclude='.gitignore' \
+                   --exclude='.claude' \
+                   --exclude='.vscode' \
                    --exclude='.luarc.json' \
                    --exclude='tools' \
                    --exclude='docs' \
