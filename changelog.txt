@@ -32,6 +32,16 @@ Date: 2026-09-10
       landing-pad limits) like the quality and platform unlocks they already copied.
     - The pen info panel and passive spectate radars are marked protected, so automated weapons
       never target them.
+---------------------------------------------------------------------------------------------------
+Version: 0.6.6
+Date: 2026-09-16
+  Changes:
+    - The team names MTS hands to AI Agent Bridge carry the team's colour, the same tag every
+      announcement uses, so a team reads the same in the assistant's answers as it does everywhere
+      else on the server. AI Agent Bridge 1.0.5 prints them that way.
+    - The release zip leaves out the editor and assistant configuration folders that rode along
+      inside it.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.5
 Date: 2026-09-11
   Changes:

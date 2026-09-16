@@ -916,12 +916,16 @@ end
 
 --- What players call each claimed team, for the same assistant: its
 --- companion scans for `force_labels_v1` and tells the model, so an answer
---- says "Team Ace" and never "team-1". Plain text; the companion strips
---- rich text anyway.
+--- says "Team Ace" and never "team-1". The label carries the team's colour,
+--- the same tag announcements use: the companion keeps a label's colour and
+--- font tags when it prints a team name (and strips any other tag), so a
+--- team reads the same in the assistant's answers as it does everywhere
+--- else. Plain text was sent while the companion stripped every tag, and
+--- team names came out uncoloured in every answer for it.
 local function force_labels_v1()
     local labels = {}
     for _, info in ipairs(get_team_list_impl()) do
-        labels[info.force_name] = helpers.team_display(info.force_name)
+        labels[info.force_name] = helpers.team_tag(info.force_name)
     end
     return labels
 end
