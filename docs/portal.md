@@ -55,6 +55,7 @@ Mod authors: Multi-Team Support exposes a versioned `mts-v1` remote interface an
 - [Land Title Registry](https://mods.factorio.com/mod/land-title-registry) makes each team earn its buildable land cell by cell.
 - [Open Discord Bridge](https://mods.factorio.com/mod/open-discord-bridge) relays team events and chat to Discord.
 - [AI Agent Bridge](https://mods.factorio.com/mod/ai-agent-bridge) answers questions in chat from the live game. On an MTS server team-only chat gets team-only answers, teams are called by their names, and teams are compared on their own clocks.
+- [Research Cost Shaper](https://mods.factorio.com/mod/research-cost-shaper) puts research costs on a curve you design and previews every tech's cost before the run. Every team researches against the same curve, so races stay fair.
 
 ## Links
 
