@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.4
+Date: 2026-09-29
+  Changes:
+    - The 2.1 line picks up release 0.6.7: new maps start with enemy expansion off and the
+      evolution time factor at 0, as the defaults on the Map generator's Enemy tab. Nothing
+      2.1-specific changed.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.3
 Date: 2026-09-16
   Changes:
