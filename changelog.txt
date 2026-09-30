@@ -40,6 +40,15 @@ Date: 2026-09-10
     - The pen info panel and passive spectate radars are marked protected, so automated weapons
       never target them.
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.7
+Date: 2026-09-29
+  Changes:
+    - New maps start with enemy expansion off and the evolution time factor at 0, so evolution only
+      rises with pollution and nest kills, not with how long the server has been up. These are the
+      defaults on the Map generator's Enemy tab, so either can be ticked back on there for a given
+      map. Presets with their own values (Death world, Rail world) keep them, and existing saves are
+      not changed.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.6
 Date: 2026-09-16
   Changes:

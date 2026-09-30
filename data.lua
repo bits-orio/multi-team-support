@@ -48,3 +48,6 @@ require("prototypes.entities.alert-anchor")
 
 -- Chat mode switch segment-button styles (gui/chat_switch.lua).
 require("prototypes.styles")
+
+-- New maps default to no biter expansion and no time-based evolution.
+require("prototypes.map-settings")
