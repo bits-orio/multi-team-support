@@ -9,6 +9,7 @@ local landing_pen   = require("gui.landing_pen")
 local follow_cam    = require("gui.follow_cam")
 local friendship    = require("gui.friendship")
 local teams_data    = require("gui.teams_data")
+local teams_sort    = require("gui.teams_sort")
 local team_card     = require("gui.team_card")
 local team_modifiers = require("scripts.team_modifiers")
 
@@ -41,7 +42,29 @@ function teams_gui.build_gui(player)
     frame.style.maximal_width  = 400
 
     local show_offline = helpers.show_offline(player)
-    helpers.add_show_offline_checkbox(frame, player)
+    local controls = frame.add{type = "flow", direction = "horizontal"}
+    controls.style.horizontally_stretchable = true
+    controls.style.vertical_align = "center"
+    controls.style.top_margin = 2
+    controls.style.bottom_margin = 4
+    local sort_label = controls.add{type = "label", caption = {"mts-gui.teams-sort"}}
+    sort_label.style.font = "default-small"
+    sort_label.style.font_color = {0.6, 0.6, 0.6}
+    sort_label.style.right_margin = 4
+    local sort_mode = teams_sort.get_mode(player)
+    local sort_dropdown = controls.add{
+        type = "drop-down",
+        name = "sb_teams_sort",
+        style = "mts_teams_sort_dropdown",
+        items = {{"mts-gui.teams-sort-name"}, {"mts-gui.teams-sort-recent-online"}},
+        selected_index = sort_mode == "recent_online" and 2 or 1,
+    }
+    sort_dropdown.style.width = 136
+    controls.add{type = "empty-widget"}.style.horizontally_stretchable = true
+    local offline = helpers.add_show_offline_checkbox(controls, player)
+    offline.style.horizontally_stretchable = false
+    offline.style.vertical_align = "center"
+    offline.style.bottom_margin = 0
 
     local scroll = frame.add{
         type = "scroll-pane",
@@ -57,7 +80,7 @@ function teams_gui.build_gui(player)
     local viewer_force      = game.forces[viewer_force_name]
     local current_target    = spectator.get_target(player)
 
-    -- Own team first, then sorted by name. Uses team_pool occupancy so
+    -- Own team first, then the viewer's sort mode. Uses team_pool occupancy so
     -- spectating members don't make their team card disappear.
     local team_forces = {}
     for _, force in pairs(game.forces) do
@@ -65,11 +88,7 @@ function teams_gui.build_gui(player)
             team_forces[#team_forces + 1] = force
         end
     end
-    table.sort(team_forces, function(a, b)
-        if a.name == viewer_force_name then return true end
-        if b.name == viewer_force_name then return false end
-        return a.name < b.name
-    end)
+    teams_sort.sort(team_forces, viewer_force_name, sort_mode)
 
     local visible_count = 0
     for _, force in ipairs(team_forces) do
@@ -101,6 +120,17 @@ teams_gui.update_queue_progress_all   = team_card.update_queue_progress_all
 teams_gui.update_clock_labels_all     = team_card.update_clock_labels_all
 
 -- ─── Click Handlers ────────────────────────────────────────────────────
+
+function teams_gui.on_gui_selection_state_changed(event)
+    local element = event.element
+    if not element or not element.valid or element.name ~= "sb_teams_sort" then return false end
+    local player = game.get_player(event.player_index)
+    if player then
+        teams_sort.set_mode(player, element.selected_index == 2 and "recent_online" or "name")
+        teams_gui.build_gui(player)
+    end
+    return true
+end
 
 local function on_spectate_click(player, tags)
     local target_force = game.forces[tags.sb_target_force]

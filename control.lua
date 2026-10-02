@@ -131,6 +131,7 @@ script.on_init(function()
     storage.research_gui_expanded    = {}
     storage.research_gui_diff_target = {}
     storage.show_offline_players     = {}
+    storage.teams_sort_mode          = {}
     storage.return_button_location   = {}
     storage.cleanup_selection        = {}
     storage.cleanup_sort             = {}
@@ -229,6 +230,7 @@ script.on_configuration_changed(function()
     storage.research_gui_expanded    = storage.research_gui_expanded    or {}
     storage.research_gui_diff_target = storage.research_gui_diff_target or {}
     storage.show_offline_players     = storage.show_offline_players     or {}
+    storage.teams_sort_mode          = storage.teams_sort_mode          or {}
     storage.return_button_location   = storage.return_button_location   or {}
     global_milestones.init_storage()
     storage.awards_gui_state         = storage.awards_gui_state         or {}

@@ -32,6 +32,7 @@ function M.register()
     end)
 
     script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+        if teams_gui.on_gui_selection_state_changed(event) then return end
         if admin_gui.on_gui_selection_state_changed(event) then
             local p = game.get_player(event.player_index)
             local new_limit = admin_gui.buddy_team_limit()

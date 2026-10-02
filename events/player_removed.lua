@@ -37,7 +37,7 @@ local PLAYER_TABLES = {
     "return_button_location", "team_settings_location", "follow_cam_location",
     "lfm_hint_close_tick",
     -- session / misc
-    "seen_players", "player_last_seen", "show_offline_players", "god_pre_remote",
+    "seen_players", "player_last_seen", "show_offline_players", "teams_sort_mode", "god_pre_remote",
     "pending_admin_check", "odb_suppress_claim", "color_fix_last", "zoom_apply",
     -- spectator (flat, player-index-keyed)
     "spectator_real_force", "spectating_target", "spectator_saved_craft_mod",

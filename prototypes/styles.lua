@@ -35,6 +35,47 @@ local function seg(pos, tint)
     return { base = { position = pos, corner_size = 8, tint = tint } }
 end
 
+-- Keep Teams sorting as quiet as the adjacent Show offline control.
+styles["mts_teams_sort_dropdown"] = {
+    type = "dropdown_style",
+    parent = "dropdown",
+    minimal_height = 28,
+    height = 28,
+    left_padding = 8,
+    right_padding = 6,
+    top_padding = 0,
+    bottom_padding = 0,
+    selector_and_title_spacing = 8,
+    button_style = {
+        type = "button_style",
+        parent = "dropdown_button",
+        font = "default-small",
+        default_font_color = {0.6, 0.6, 0.6},
+        hovered_font_color = {0.1, 0.1, 0.1},
+        clicked_font_color = {0.1, 0.1, 0.1},
+        -- Use the raised button face, not the recessed disabled face.
+        default_graphical_set = {
+            base = {position = {0, 17}, corner_size = 8, tint = {0.40, 0.40, 0.40}},
+            shadow = table.deepcopy(styles.button.default_graphical_set.shadow),
+        },
+        hovered_graphical_set = table.deepcopy(styles.button.hovered_graphical_set),
+        clicked_graphical_set = table.deepcopy(styles.button.clicked_graphical_set),
+        clicked_vertical_offset = 1,
+    },
+    icon = {
+        filename = "__core__/graphics/icons/mip/collapse.png",
+        size = 32,
+        scale = 0.375,
+        mipmap_count = 2,
+        flags = {"gui-icon"},
+        tint = {0.6, 0.6, 0.6},
+    },
+    list_box_style = {
+        type = "list_box_style",
+        item_style = {type = "button_style", parent = "list_box_item", font = "default-small"},
+    },
+}
+
 local function active_segment(name, tint, font_color)
     styles[name] = {
         type   = "button_style",
