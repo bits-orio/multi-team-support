@@ -1,4 +1,18 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.8
+Date: 2026-10-11
+  Features:
+    - Three tools for AI Agent Bridge: records (what a team holds, or every team), record_chase
+      (which records a team can still beat on its own clock) and player_teams (claims, joins and
+      restarts, counted from this update).
+  Changes:
+    - A team's private chat key now names the team's incarnation, so a new group in a reused slot
+      never reads the previous group's private chat. A free slot gets the global scope.
+    - team_clocks rows are leaner; team_clock still gives one team in full.
+  Bugfixes:
+    - A member spectating while offline is no longer left on a released team force.
+    - First-only milestones count as first records only, never as speed records.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.7
 Date: 2026-09-29
   Changes:
