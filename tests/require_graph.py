@@ -41,7 +41,9 @@ def cycles(graph):
             walk(node)
     return found
 
-NEW = ("scripts.reaper", "gui.cleanup", "scripts.team_teardown")
+NEW = ("scripts.reaper", "gui.cleanup", "scripts.team_teardown",
+       "scripts.agent_tools", "scripts.player_team_history",
+       "scripts.team_incarnation", "milestones.external_keys")
 
 def main():
     sys.setrecursionlimit(10000)

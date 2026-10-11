@@ -80,6 +80,10 @@ local function evict(member, force_name, team_tag, opts)
     end
 end
 
+-- The same rule for anyone still on a slot when it is released, whatever
+-- released it: control.lua hands this to team_slots.set_evict_hook.
+M.evict = evict
+
 --- Tear the team down. Returns (true, team_tag) or (false, reason).
 --- opts.expected_generation - recycle guard (see M.check)
 --- opts.silent              - suppress the per-team broadcast (bulk sends one

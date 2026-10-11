@@ -308,6 +308,34 @@ do
     check("teardown: spectating member penned", (storage.penned or {})[1] == true)
 end
 
+do
+    -- Spectating when the server went down: offline on the spectator force,
+    -- still the team's member. The scan judges them on when they were last
+    -- online, like any member, and never reads the team as empty.
+    local m = setup{teams = {
+        [1] = team{members = {member{name = "gone", last_online = NOW - 2 * DAY,
+                                     spectating_from = "team-2"}}},
+        [2] = team{members = {member{name = "back", last_online = NOW - HOUR,
+                                     spectating_from = "team-1"}}},
+    }}
+    local result = m.scan.run{}
+    eq("rule: an offline spectating member long gone reaps", row_for(result, 1).verdict, "reap")
+    eq("rule: one online an hour ago keeps", row_for(result, 2).verdict, "keep")
+end
+
+do
+    local m = setup{teams = {[1] = team{members = {
+        member{name = "spec", last_online = NOW - 2 * DAY, spectating_from = "team-2"}}}}}
+    storage.spawned_players = {[1] = true}
+    local ok = m.teardown.teardown("team-1", {inactive = true})
+    check("teardown: reaches an offline spectating member", ok)
+    eq("teardown: they end on the spectator force", game.get_player(1).force.name, "spectator")
+    eq("teardown: no longer watching for the team", storage.spectator_real_force[1], nil)
+    check("teardown: they land in the pen when they reconnect", storage.spawned_players[1] == nil)
+    check("teardown: and are told why then", (storage.reaper_notice or {})[1] == true)
+    check("teardown: not sent to the pen while offline", (storage.penned or {})[1] == nil)
+end
+
 -- ─── staged execution ──────────────────────────────────────────────────
 
 do

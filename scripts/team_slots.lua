@@ -16,6 +16,8 @@ local pause_state = require("scripts.pause.state")
 local buddy_store = require("scripts.buddy_store")
 local pen_info_panel = require("gui.pen_info_panel")
 local starter_scope = require("scripts.starter_scope")
+local player_team_history = require("scripts.player_team_history")
+local team_incarnation = require("scripts.team_incarnation")
 
 local M = {}
 
@@ -25,19 +27,28 @@ local function max_teams()
     return settings.startup["mts_max_teams"].value
 end
 
-local function force_member_count(force)
-    local n = 0
-    for _ in pairs(force.players) do n = n + 1 end
-    -- A member currently spectating is on the "spectator" force, so absent from
-    -- force.players. Count them too, or a disband/leave decision undercounts and
-    -- can wrongly disband a team that still has a spectating member.
+--- Everyone on the team: the force's players, plus every member watching
+--- another team from the spectator force, connected or not. A member who was
+--- spectating when the server went down is offline on the spectator force
+--- (no on_player_left_game fired) and still on the team: spectator restores
+--- them onto it when they reconnect. Counting only connected spectators
+--- disbanded a team under them, and the restore then put them on whoever
+--- claimed the slot next. A stale entry for a player already back on the
+--- force is not counted twice.
+local function team_members(force)
+    local list = {}
+    for _, member in pairs(force.players) do list[#list + 1] = member end
     for idx, real in pairs(storage.spectator_real_force or {}) do
         if real == force.name then
             local p = game.get_player(idx)
-            if p and p.connected then n = n + 1 end
+            if p and p.valid and p.force.name ~= real then list[#list + 1] = p end
         end
     end
-    return n
+    return list
+end
+
+local function force_member_count(force)
+    return #team_members(force)
 end
 
 -- Forces that script-spawned turrets / triggers belong to (e.g. K2's
@@ -83,9 +94,12 @@ local function reset_force_state(force)
     spectator.setup_force(force)
 end
 
+--- A connected member first, else the first offline one. Spectating members
+--- count: a team left with only a member watching elsewhere (or offline
+--- mid-spectate) continues under them, so they lead it.
 local function pick_new_leader(force, exclude_index)
     local fallback = nil
-    for _, member in pairs(force.players) do
+    for _, member in ipairs(team_members(force)) do
         if member.valid and member.index ~= exclude_index then
             if member.connected then return member end
             if not fallback then fallback = member end
@@ -203,6 +217,10 @@ function M.claim_team_slot(player, opts)
     storage.team_leader = storage.team_leader or {}
     storage.team_leader[force_name] = player.index
     storage.team_pool[slot] = "occupied"
+    -- A new team in the slot, whatever the clock does. chat_scope_v1 keys
+    -- private chat by it, so this team never reads the private chat of the
+    -- team that held the slot before.
+    team_incarnation.on_claim(force_name)
 
     -- Track whether THIS claim is the call that starts the clock, so we raise
     -- on_team_clock_started exactly once. A staged start defers the clock
@@ -222,6 +240,9 @@ function M.claim_team_slot(player, opts)
     planet_map.apply_force_locks(force)
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
         .. " (" .. force_name .. ")")
+    -- The restart counter (player_teams). Kept outside the slot's state on
+    -- purpose: releasing the slot later must not wipe the player's count.
+    player_team_history.on_claim(player.index)
     remote_api.raise_team_created(force_name, player.index)
     if clock_started_now then
         remote_api.raise_team_clock_started(force_name, storage.team_clock_start[force_name])
@@ -289,9 +310,36 @@ function M.wipe_slot_state(force_name)
     friendship.break_all_for(force_name)
 end
 
+-- Filled in by control.lua with team_teardown.evict, the one rule for taking a
+-- player off a team (spectator force, pen return, spawned flag). team_teardown
+-- requires force_utils, which requires this module, so it cannot be required
+-- here; control.lua hands it down at parse time, before any event can run.
+local evict = nil
+function M.set_evict_hook(fn) evict = fn end
+
+--- Nobody stays tied to a released slot. Every path that releases one moves
+--- its members off first; this catches anyone still on the force or still
+--- spectating away from it, online or offline. Left there, they would be on
+--- whichever team claims the slot next, in its chat and its private replies.
+local function evict_leftovers(force_name)
+    local force = game.forces[force_name]
+    if not force then return end
+    local leftovers = team_members(force)
+    if #leftovers == 0 then return end
+    log("[multi-team-support] releasing " .. force_name .. " with "
+        .. #leftovers .. " player(s) still on it")
+    if not evict then return end
+    local team_tag = helpers.team_tag_with_leader(force_name)
+    for _, member in ipairs(leftovers) do evict(member, force_name, team_tag, {}) end
+end
+
 function M.release_team_slot(force_name)
     local slot = helpers.team_slot(force_name)
     if not slot then return end
+
+    -- First, while the slot still reads occupied: the force changes it makes
+    -- raise on_player_left_team before on_team_released, as on every path.
+    evict_leftovers(force_name)
 
     storage.team_pool = storage.team_pool or {}
     storage.team_pool[slot] = "available"
@@ -306,6 +354,7 @@ function M.release_team_slot(force_name)
     storage.team_leader[force_name] = nil
     storage.team_clock_start = storage.team_clock_start or {}
     storage.team_clock_start[force_name] = nil
+    team_incarnation.on_release(force_name)
     team_clock.on_release(force_name)
     team_modifiers.on_release(force_name)
     chat_channel.on_release(force_name)

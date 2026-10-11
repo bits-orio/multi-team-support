@@ -15,6 +15,7 @@ local config      = require("milestones.config")
 local pop_text    = require("scripts.pop_text")
 local team_modifiers = require("scripts.team_modifiers")
 local remote_api  = require("scripts.remote_api")
+local external_keys = require("milestones.external_keys")
 
 --- Strip Factorio rich-text tags (e.g. "[item=foo]" -> "foo") so milestone text
 --- reads cleanly in Discord, which can't render them.
@@ -241,15 +242,16 @@ local function build_external_achievement(spec, threshold, first_only)
 end
 
 -- first_only: announce first-to-reach only (no speed record). Used for the smallest
--- threshold, where a "fastest" race isn't wanted (e.g. the very first unlock).
+-- threshold, where a "fastest" race isn't wanted (e.g. the very first unlock). The
+-- agent tools count such a record as first only (milestones/external_keys.lua).
 local function check_external(spec, force, threshold, first_only)
-    local key = "ext:" .. spec.category
+    local key = external_keys.reached_key(spec.category)
     storage.milestone_reached[force.name] = storage.milestone_reached[force.name] or {}
     storage.milestone_reached[force.name][key] = storage.milestone_reached[force.name][key] or {}
     if storage.milestone_reached[force.name][key][threshold] then return end
     storage.milestone_reached[force.name][key][threshold] = true
 
-    local record_key   = key .. "@" .. threshold
+    local record_key   = external_keys.record_key(spec.category, threshold)
     local result       = records.update(storage.milestone_records, record_key, force.name, game.tick)
     local team_tag     = helpers.team_tag(force.name)
     local team_name    = (storage.team_names or {})[force.name] or force.name
