@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.5
+Date: 2026-10-11
+  Changes:
+    - The 2.1 line picks up release 0.6.8: the records, record_chase and player_teams tools for AI
+      Agent Bridge, private chat keys per team incarnation, and the offline spectator and
+      first-only milestone fixes. Nothing 2.1-specific changed.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.4
 Date: 2026-09-29
   Changes:

@@ -49,6 +49,9 @@ local PLAYER_TABLES = {
     "cleanup_selection", "cleanup_sort", "cleanup_pending", "cleanup_cache",
     "cleanup_gui_location",
     "reaper_notice",
+    -- restart counter (player_teams): a new player reusing this index must
+    -- not inherit the removed player's claims and joins
+    "player_team_history",
 }
 
 local function cleanup_player_storage(idx)

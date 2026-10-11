@@ -2,6 +2,7 @@
 -- on_player_changed_force, on_player_promoted, on_player_demoted, on_player_died
 
 local remote_api    = require("scripts.remote_api")
+local player_team_history = require("scripts.player_team_history")
 local team_settings = require("gui.team_settings")
 local force_utils   = require("scripts.force_utils")
 local admin_gui     = require("gui.admin")
@@ -15,6 +16,9 @@ function M.register()
         -- Public mts-v1: translate force changes into player_joined_team /
         -- player_left_team events before our own handlers run.
         remote_api.on_player_changed_force(event)
+        -- The join half of the restart counter, beside that raise. It skips
+        -- a member coming back from spectating, which the raise does not.
+        player_team_history.on_player_changed_force(event)
 
         local player = game.get_player(event.player_index)
         if player and player.connected then

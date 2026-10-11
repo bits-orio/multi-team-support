@@ -35,6 +35,13 @@ local spawn_labels  = require("scripts.spawn_labels")
 local pop_text      = require("scripts.pop_text")
 local chat_channel  = require("scripts.chat_channel")
 local chat_tag      = require("scripts.chat_tag")
+local team_incarnation = require("scripts.team_incarnation")
+-- AI Agent Bridge tools; each owns its manifest entry and its function.
+local reply               = require("scripts.agent_tools.reply")
+local team_lookup         = require("scripts.agent_tools.team_lookup")
+local records_tool        = require("scripts.agent_tools.records")
+local record_chase_tool   = require("scripts.agent_tools.record_chase")
+local player_team_history = require("scripts.player_team_history")
 -- pause/control has no require cycle (it pulls only pause/power|wires|state),
 -- so it is required directly here.
 local pause_control = require("scripts.pause.control")
@@ -893,12 +900,22 @@ end
 --- force, because a member force-swapped into spectator mode is still on
 --- the team and must hear the reply too (chat_channel.peers has the same
 --- rule for channel announcements).
+---
+--- The key names the team, not just its slot: the force name plus the tick
+--- the team claimed the slot, "team-4@81234" (scripts/team_incarnation.lua).
+--- MTS reuses slots, and the bridge keeps chat history longer than a team
+--- lasts, so a key that was only the force name would let the next team in
+--- this slot read this team's private chat. Nothing in MTS reads the key.
+---
+--- Only a claimed slot has a team. A player on a released slot's force (an
+--- admin's console move, say) gets the global scope, never a team key.
 local function chat_scope_v1(player_index, text)
     local player = type(player_index) == "number" and game.get_player(player_index) or nil
     if not (player and player.valid) then return nil end
     local fn = effective_fn(player)
     local shout = type(text) == "string" and text:sub(1, 1) == "!"
-    if not (fn and is_team_force_name(fn)) or shout or not chat_channel.is_local_for(player) then
+    local team = is_team_force_name(fn) and team_slot_status(fn) == "occupied"
+    if not team or shout or not chat_channel.is_local_for(player) then
         return { key = "global", private = false, tag = chat_tag.GLOBAL_BADGE }
     end
     local members = {}
@@ -906,7 +923,7 @@ local function chat_scope_v1(player_index, text)
         if effective_fn(p) == fn then members[#members + 1] = p.index end
     end
     return {
-        key      = fn,
+        key      = team_incarnation.key(fn),
         private  = true,
         audience = { players = members },
         label    = helpers.team_display(fn),
@@ -932,71 +949,81 @@ end
 
 --- Tools for an AI assistant (AI Agent Bridge's agent_tools_v1 seam: its
 --- companion scans every interface for this probe and offers the tools to
---- the model; `force` is injected into every call). Two reads, both about
+--- the model; `force` is injected into every call). All reads. Two are about
 --- the thing the server's own clock cannot tell: each team keeps its own
 --- clock, running only while a member is online, so comparing teams means
---- comparing these, never game time.
-local TICKS_PER_HOUR = 60 * 60 * 60
+--- comparing these, never game time. The rest read what MTS alone keeps:
+--- records, and how often a player started over. Doubles leave through
+--- reply.hours as short strings.
+---
+--- The functions are frozen like the rest of mts-v1, but their replies are
+--- shaped for the model and may change in any release (docs/MTS_API.md). A
+--- mod that needs team data calls get_team_list or get_team_info instead.
 
---- Hours to two decimals, as the short string "1.79" (or the number 2 for a
---- whole one): the engine's JSON writer prints any non-integer double at
---- full precision, fifty digits of 0.79, which the reply's reader would
---- have to wade through.
-local function hours(ticks)
-    if not ticks then return nil end
-    local rounded = math.floor(ticks / TICKS_PER_HOUR * 100 + 0.5) / 100
-    if rounded == math.floor(rounded) then return math.floor(rounded) end
-    return (string.format("%.2f", rounded):gsub("0+$", ""))
+--- Ticks on a team's own clock. It starts at the claim, or under Staged
+--- Start when the leader clicks Start Playing; nil until then.
+local function elapsed_of(info)
+    return info.clock_start_tick and (game.tick - info.clock_start_tick) or nil
 end
 
 local function clock_row(info)
-    local elapsed = info.clock_start_tick and (game.tick - info.clock_start_tick) or nil
+    local elapsed = elapsed_of(info)
     return {
-        force          = info.force_name,
-        label          = helpers.team_display(info.force_name),
-        status         = info.status,
-        members        = info.member_count,
-        paused         = info.is_paused,
-        online_ticks   = info.online_ticks,
-        online_hours   = hours(info.online_ticks),
-        claimed_tick   = info.clock_start_tick,
-        elapsed_ticks  = elapsed,
-        elapsed_hours  = hours(elapsed),
+        force            = info.force_name,
+        label            = helpers.team_display(info.force_name),
+        status           = info.status,
+        members          = info.member_count,
+        paused           = info.is_paused,
+        online_ticks     = info.online_ticks,
+        online_hours     = reply.hours(info.online_ticks),
+        -- The clock's start, which is not the claim under Staged Start.
+        clock_start_tick = info.clock_start_tick,
+        elapsed_ticks    = elapsed,
+        elapsed_hours    = reply.hours(elapsed),
     }
+end
+
+--- One team's row in team_clocks: what a comparison needs, so the most teams
+--- fit one reply. No label (the bridge prints a force name as its label, so
+--- the model only ever reads force names), no raw ticks (the hours carry
+--- them), and paused only on a team that is.
+local function clock_summary(info)
+    return {
+        force         = info.force_name,
+        members       = info.member_count,
+        paused        = info.is_paused or nil,
+        online_hours  = reply.hours(info.online_ticks),
+        elapsed_hours = reply.hours(elapsed_of(info)),
+    }
+end
+
+--- Most online time first, so a server too big for one reply leaves out the
+--- teams that played least. Slot order breaks a tie, the same on every peer.
+local function more_online(a, b)
+    local x, y = a.online_ticks or 0, b.online_ticks or 0
+    if x ~= y then return x > y end
+    return helpers.team_slot(a.force_name) < helpers.team_slot(b.force_name)
 end
 
 local AGENT_TOOLS = {
     team_clock = {
-        desc = "One team's own clocks, never game time: online_hours runs only while a member is online (fair for 'how am I doing compared to them'); elapsed_hours runs since the slot was claimed (what records and awards use). Also paused, status, members.",
+        desc = "One team's own clocks, never game time: online_hours runs only while a member is online (fair for 'how am I doing compared to them'); elapsed_hours runs since the team started playing, at its claim or, on a Staged Start server, when its leader clicked Start Playing (what records and awards use; absent before that). Also paused, status, members.",
     },
     team_clocks = {
-        desc = "Every claimed team's own clocks in one call: label, online_hours (only while a member is online, use for comparisons), elapsed_hours since claim (records and awards), paused, members.",
+        desc = "Every claimed team's own clocks in one call, most online time first: online_hours (only while a member is online, use for comparisons), elapsed_hours since the team started playing (records and awards), members, and paused=true on a paused team. On a big server shown can be under total: the teams left out played least. team_clock has one team in full.",
     },
+    records      = records_tool.manifest,
+    record_chase = record_chase_tool.manifest,
+    player_teams = player_team_history.manifest,
 }
-
---- A team force from whatever the caller wrote: the force name, the display
---- name ("Team 02", "Team Ace"), or a slot spelled with a space ("team 2"),
---- case-insensitive. Nil when nothing matches. The reply still names the
---- force, so a caller that came in by label leaves with the name.
-local function team_force_from(text)
-    if type(text) ~= "string" then return nil end
-    if is_team_force_name(text) and game.forces[text] then return text end
-    local wanted = text:lower():gsub("^%s+", ""):gsub("%s+$", "")
-    local slot = wanted:match("^team[%s%-]+0*(%d+)$")
-    if slot and game.forces["team-" .. slot] then return "team-" .. slot end
-    for _, info in ipairs(get_team_list_impl()) do
-        if helpers.team_display(info.force_name):lower() == wanted then return info.force_name end
-    end
-    return nil
-end
 
 local function team_clock_tool(args)
     local force_name = type(args) == "table" and args.force or nil
     if type(force_name) ~= "string" then error("force is required", 0) end
-    force_name = team_force_from(force_name) or force_name
+    force_name = team_lookup.force_from(force_name) or force_name
     local info = get_team_info_impl(force_name)
     if not info then
-        return { found = false, force = force_name, reason = "not a team force; teams are named team-1, team-2 and so on" }
+        return team_lookup.not_found(force_name, team_lookup.NOT_A_TEAM)
     end
     local row = clock_row(info)
     row.found = true
@@ -1005,11 +1032,16 @@ local function team_clock_tool(args)
 end
 
 local function team_clocks_tool()
-    local rows = {}
+    local claimed = {}
     for _, info in ipairs(get_team_list_impl()) do
-        if info.is_occupied then rows[#rows + 1] = clock_row(info) end
+        if info.is_occupied then claimed[#claimed + 1] = info end
     end
-    return { tick = game.tick, total = #rows, teams = rows }
+    table.sort(claimed, more_online)
+    local rows = {}
+    for i, info in ipairs(claimed) do rows[i] = clock_summary(info) end
+    return reply.fit(rows, function(shown)
+        return { tick = game.tick, total = #rows, shown = #shown, teams = shown }
+    end)
 end
 
 function remote_api.register()
@@ -1029,6 +1061,9 @@ function remote_api.register()
         agent_tools_v1  = function() return { v = 1, tools = AGENT_TOOLS } end,
         team_clock      = team_clock_tool,
         team_clocks     = team_clocks_tool,
+        records         = records_tool.call,
+        record_chase    = record_chase_tool.call,
+        player_teams    = player_team_history.call,
 
         -- Queries
         get_team_list      = get_team_list_impl,

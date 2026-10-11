@@ -32,7 +32,15 @@ local function make_player(spec, index)
 end
 
 local function make_force(name, surfaces)
-    local force = {name = name, valid = true, players = {}, charted = {}}
+    local force = {name = name, valid = true, players = {}, charted = {},
+                   technologies = {}, platforms = {}}
+    -- What team_slots' claim and release call on a force. No-ops: the tests
+    -- that run them assert on MTS storage, not on engine diplomacy.
+    function force.reset() end
+    function force.set_cease_fire(_other, _value) end
+    function force.set_friend(_other, _value) end
+    function force.is_space_platforms_unlocked() return false end
+    function force.unlock_space_platforms() end
     local function key(surface, chunk) return surface.name .. ":" .. chunk.x .. ":" .. chunk.y end
     function force.is_chunk_charted(surface, chunk) return force.charted[key(surface, chunk)] == true end
     function force.chart(surface, area)
@@ -154,7 +162,16 @@ function M.build(spec)
             return out
         end)(),
     }
-    function game.get_player(index) return players[index] end
+    -- An index or a name, as LuaGameScript.get_player takes; nil when unknown.
+    function game.get_player(id)
+        if type(id) == "string" then
+            for _, p in pairs(players) do
+                if p.name == id then return p end
+            end
+            return nil
+        end
+        return players[id]
+    end
     function game.print(msg) game.printed[#game.printed + 1] = msg end
 
     _G.prototypes = {item = {}}
@@ -165,7 +182,7 @@ function M.build(spec)
     function commands.add_command(name, help, fn)
         commands.registered[name] = {help = help, fn = fn}
     end
-    _G.helpers = {files = {}}
+    _G.helpers = {files = {}, table_to_json = M.to_json}
     function helpers.write_file(name, data, _append, _for_player)
         helpers.files[name] = data
     end
@@ -366,6 +383,149 @@ function M.install_stubs(opts)
     }
 
     package.loaded["gui.teams"] = {update_all = function() end}
+end
+
+-- ─── Agent tools: JSON, the engine's seams, live players ──────────────
+
+local function is_array(t)
+    local n = 0
+    for _ in pairs(t) do n = n + 1 end
+    for i = 1, n do
+        if t[i] == nil then return false end
+    end
+    return n > 0
+end
+
+local function json_string(s)
+    return '"' .. s:gsub('[%c"\\]', function(c)
+        if c == '"' then return '\\"' end
+        if c == "\\" then return "\\\\" end
+        return string.format("\\u%04x", c:byte())
+    end) .. '"'
+end
+
+--- A compact JSON writer standing in for helpers.table_to_json. Integers
+--- print bare; any other number prints at 17 significant digits, so a double
+--- that leaks into a reply shows up as the long run of digits the engine
+--- sends. Anything that is not plain data refuses, as the engine would.
+function M.to_json(v)
+    local t = type(v)
+    if v == nil then return "null" end
+    if t == "boolean" then return tostring(v) end
+    if t == "number" then
+        if v == math.floor(v) and math.abs(v) < 2 ^ 53 then return string.format("%d", v) end
+        return string.format("%.17g", v)
+    end
+    if t == "string" then return json_string(v) end
+    if t ~= "table" then error("cannot encode a " .. t .. " as JSON", 0) end
+    local parts = {}
+    if next(v) == nil then return "[]" end
+    if is_array(v) then
+        for i = 1, #v do parts[i] = M.to_json(v[i]) end
+        return "[" .. table.concat(parts, ",") .. "]"
+    end
+    local keys = {}
+    for k in pairs(v) do keys[#keys + 1] = tostring(k) end
+    table.sort(keys)
+    for _, k in ipairs(keys) do
+        local value = v[k]
+        if value == nil then value = v[tonumber(k)] end
+        parts[#parts + 1] = json_string(k) .. ":" .. M.to_json(value)
+    end
+    return "{" .. table.concat(parts, ",") .. "}"
+end
+
+--- What crosses remote.call: a copy, and plain data only.
+function M.copy(v)
+    local t = type(v)
+    if t == "function" or t == "userdata" or t == "thread" then
+        error("remote.call cannot carry a " .. t, 0)
+    end
+    if t ~= "table" then return v end
+    local out = {}
+    for k, value in pairs(v) do out[M.copy(k)] = M.copy(value) end
+    return out
+end
+
+M.make_force = make_force
+
+--- script, defines, remote and settings: the seams remote_api, the event
+--- modules and team_slots touch at load and at call time.
+function M.install_engine(opts)
+    opts = opts or {}
+    _G.defines = {events = {
+        on_player_changed_force = "on_player_changed_force",
+        on_player_promoted      = "on_player_promoted",
+        on_player_demoted       = "on_player_demoted",
+        on_player_died          = "on_player_died",
+        on_pre_player_removed   = "on_pre_player_removed",
+    }}
+    local next_id = 1000
+    _G.script = {handlers = {}, raised = {}}
+    function script.generate_event_name() next_id = next_id + 1; return next_id end
+    function script.raise_event(id, payload) script.raised[#script.raised + 1] = {id = id, data = payload} end
+    function script.on_event(id, fn) script.handlers[id] = fn end
+    _G.remote = {interfaces = {}, impl = {}}
+    function remote.add_interface(name, functions)
+        if remote.impl[name] then error("interface " .. name .. " already exists", 0) end
+        remote.impl[name] = functions
+        remote.interfaces[name] = {}
+        for fn in pairs(functions) do remote.interfaces[name][fn] = true end
+    end
+    function remote.remove_interface(name)
+        remote.impl[name], remote.interfaces[name] = nil, nil
+        return true
+    end
+    function remote.call(iface, fn, ...)
+        local f = remote.impl[iface] and remote.impl[iface][fn]
+        if not f then error("unknown interface or function: " .. tostring(iface) .. "." .. tostring(fn), 0) end
+        return M.copy(f(table.unpack(M.copy({...}))))
+    end
+    _G.settings = {startup = {mts_max_teams = {value = opts.max_teams or 8}}}
+end
+
+--- Moves a player between forces the way the engine does: the force.players
+--- lists follow, and on_player_changed_force fires synchronously, inside the
+--- assignment, carrying the OLD force.
+local function change_force(player, state, new)
+    if type(new) == "string" then new = game.forces[new] end
+    local old = state.force
+    if old == new then return end
+    if old then
+        for i, p in ipairs(old.players) do
+            if p == player then table.remove(old.players, i); break end
+        end
+    end
+    state.force = new
+    new.players[#new.players + 1] = player
+    local handler = script and script.handlers[defines.events.on_player_changed_force]
+    if handler then
+        handler({name = defines.events.on_player_changed_force, tick = game.tick,
+                 player_index = player.index, force = old})
+    end
+end
+
+--- A player whose `force` is a real mock force and whose force assignment
+--- behaves like LuaPlayer's (see change_force). Appended to game.players.
+function M.add_live_player(spec)
+    local index = #game.players + 1
+    local state = {}
+    -- chat_color and color: what team_slots' leave and the team tags read.
+    local player = {index = index, name = spec.name or ("player" .. index), valid = true,
+                    connected = spec.connected or false, printed = {},
+                    chat_color = {r = 1, g = 1, b = 1}, color = {r = 1, g = 1, b = 1}}
+    function player.print(msg) player.printed[#player.printed + 1] = msg end
+    setmetatable(player, {
+        __index = function(_, key) if key == "force" then return state.force end end,
+        __newindex = function(t, key, value)
+            if key == "force" then change_force(t, state, value) else rawset(t, key, value) end
+        end,
+    })
+    game.players[index] = player
+    local force = game.forces[spec.force or "spectator"]
+    state.force = force
+    force.players[#force.players + 1] = player
+    return player
 end
 
 --- Drop every reaper module so the next test re-requires it against fresh

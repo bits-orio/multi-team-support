@@ -58,6 +58,10 @@ team_settings.set_rename_fn(require("scripts.team_rename").attempt)
 -- Same reason: pre_start can't require remote_api (cycle) and a runtime require is
 -- illegal, so inject its staged-start clock-started raise at parse time.
 pre_start.set_clock_started_hook(remote_api.raise_team_clock_started)
+-- Same reason: team_teardown requires force_utils, which requires team_slots, so
+-- team_slots can't require it. Releasing a slot evicts anyone still tied to it
+-- with teardown's own rule, so nobody is left on the next team to claim it.
+require("scripts.team_slots").set_evict_hook(require("scripts.team_teardown").evict)
 
 -- Inject starter-item delivery hooks into admin_flags. It can't require
 -- remote_api itself (that closes a load-time cycle via team_clock → spectator →
@@ -79,6 +83,8 @@ local ev_gui_state        = require("events.gui_state")
 local ev_chat             = require("events.chat")
 local locale_audit        = require("scripts.locale_audit")
 local starter_scope       = require("scripts.starter_scope")
+local player_team_history = require("scripts.player_team_history")
+local team_incarnation    = require("scripts.team_incarnation")
 
 local function init_events()
     ev_ticks.register()
@@ -139,6 +145,8 @@ script.on_init(function()
     storage.reaper_notice            = {}
     reaper.on_init()
     starter_scope.init_storage()
+    player_team_history.init_storage()
+    team_incarnation.init_storage()
     global_milestones.init_storage()
     admin_gui.get_flags()
     spectator.init()
@@ -248,6 +256,13 @@ script.on_configuration_changed(function()
     storage.reaper_notice            = storage.reaper_notice            or {}
     reaper.on_configuration_changed()
     starter_scope.init_storage()
+    -- Counting restarts starts here on a save that predates it; the tick it
+    -- starts is kept, so player_teams can say how far back it reaches.
+    player_team_history.init_storage()
+    -- Drops claim entries a downgrade left behind for teams that have since
+    -- gone, and gives every claimed slot without one a key unique to this
+    -- save at this tick. Needs team_pool and team_slot_generation, made above.
+    team_incarnation.on_configuration_changed()
 
     -- Back-fill seen_players so existing players aren't greeted as new after an update.
     for _, player in pairs(game.players) do
