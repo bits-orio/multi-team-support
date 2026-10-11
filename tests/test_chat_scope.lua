@@ -104,6 +104,12 @@ do
     eq("spectating: a member watching away asks under the team's key", scope(spy).key, "team-2@700")
     eq("spectating: and is in the team's audience", audience(scope(bee)), bee.index .. "," .. spy.index)
 
+    eq("home force: a member watching away is about their own team",
+        remote.call("mts-v1", "home_force_v1", spy.index), "team-2")
+    eq("home force: a player on their team is about it", remote.call("mts-v1", "home_force_v1", ace.index), "team-1")
+    eq("home force: a pen player is about their own force", remote.call("mts-v1", "home_force_v1", pen.index), pen.force.name)
+    check("home force: an unknown index is nobody", remote.call("mts-v1", "home_force_v1", 99) == nil)
+
     check("args: a non-number index is nobody", remote.call("mts-v1", "chat_scope_v1", "Ace", "hi") == nil)
     check("args: an unknown index is nobody", remote.call("mts-v1", "chat_scope_v1", 99, "hi") == nil)
 end

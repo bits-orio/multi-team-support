@@ -931,6 +931,17 @@ local function chat_scope_v1(player_index, text)
     }
 end
 
+--- The force a player's questions are about, for the same assistant: its
+--- companion scans for `home_force_v1`. A member watching another team sits
+--- on the spectator force but is still on their team, and "how about our
+--- team?" asked from there is about that team. Asked on the live server, it
+--- was answered for the spectator force instead.
+local function home_force_v1(player_index)
+    local player = type(player_index) == "number" and game.get_player(player_index) or nil
+    if not (player and player.valid) then return nil end
+    return effective_fn(player)
+end
+
 --- What players call each claimed team, for the same assistant: its
 --- companion scans for `force_labels_v1` and tells the model, so an answer
 --- says "Team Ace" and never "team-1". The label carries the team's colour,
@@ -1054,10 +1065,11 @@ function remote_api.register()
             return remote_api.events[name]
         end,
 
-        -- AI Agent Bridge probes, see chat_scope_v1, force_labels_v1 and
-        -- the agent tools above.
+        -- AI Agent Bridge probes, see chat_scope_v1, force_labels_v1,
+        -- home_force_v1 and the agent tools above.
         chat_scope_v1   = chat_scope_v1,
         force_labels_v1 = force_labels_v1,
+        home_force_v1   = home_force_v1,
         agent_tools_v1  = function() return { v = 1, tools = AGENT_TOOLS } end,
         team_clock      = team_clock_tool,
         team_clocks     = team_clocks_tool,
