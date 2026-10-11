@@ -1,4 +1,10 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.9
+Date: 2026-10-11
+  Bugfixes:
+    - AI Agent Bridge now answers a spectating member about their own team: MTS answers its
+      home_force_v1 probe with the team they still belong to.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.8
 Date: 2026-10-11
   Features:
