@@ -109,6 +109,13 @@ do
     eq("home force: a player on their team is about it", remote.call("mts-v1", "home_force_v1", ace.index), "team-1")
     eq("home force: a pen player is about their own force", remote.call("mts-v1", "home_force_v1", pen.index), pen.force.name)
     check("home force: an unknown index is nobody", remote.call("mts-v1", "home_force_v1", 99) == nil)
+    storage.spectating_target = storage.spectating_target or {}
+    storage.spectating_target[spy.index] = "team-1"
+    eq("watching force: the team a spectator is looking at",
+        remote.call("mts-v1", "watching_force_v1", spy.index), "team-1")
+    check("watching force: a player spectating nobody watches nobody",
+        remote.call("mts-v1", "watching_force_v1", ace.index) == nil)
+    storage.spectating_target[spy.index] = nil
 
     check("args: a non-number index is nobody", remote.call("mts-v1", "chat_scope_v1", "Ace", "hi") == nil)
     check("args: an unknown index is nobody", remote.call("mts-v1", "chat_scope_v1", 99, "hi") == nil)
