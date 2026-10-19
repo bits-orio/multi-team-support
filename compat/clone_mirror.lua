@@ -13,6 +13,8 @@
 --      against the nauvis surface, where their filters DO accept it.
 --   2. Mirrors the resulting tiles + entities + decoratives from
 --      nauvis to the team surface via clone_area.
+--   3. Re-creates the wires clone_area drops at the chunk edge
+--      (compat/clone_wires.lua).
 --
 -- Net effect: whatever the mod stack puts on nauvis, every team
 -- surface gets the same. Per-team variety is traded for "same map
@@ -29,6 +31,8 @@
 -- count grows, because nauvis is generated once per chunk-area and
 -- amortized across all teams. The first team to explore a chunk pays
 -- ~2×; subsequent teams exploring the same chunk pay ~1×.
+
+local clone_wires = require("compat.clone_wires")
 
 local clone_mirror = {}
 
@@ -131,6 +135,9 @@ function clone_mirror.on_chunk_generated(event)
         clone_decoratives   = true,
         expand_map          = false,
     }
+    -- clone_area keeps only the wires with both ends in this chunk. Put back
+    -- the ones that cross into chunks copied earlier.
+    clone_wires.restore(source, team_surface, event.area)
 end
 
 return clone_mirror
