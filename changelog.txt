@@ -1,4 +1,12 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.6.11
+Date: 2026-10-19
+  Bugfixes:
+    - Power lines and red and green circuit wires that cross a chunk line now survive on every
+      team's copy of the map. Maps that start with built structures, such as a custom scenario,
+      lost every wire crossing one of the 32-tile chunk lines there. Parts of a team map copied
+      before this update are not rewired, so start a new game from the scenario.
+---------------------------------------------------------------------------------------------------
 Version: 0.6.10
 Date: 2026-10-11
   Features:
