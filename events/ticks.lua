@@ -92,6 +92,12 @@ function M.register()
         reaper.on_pre_surface_deleted(event)
     end)
 
+    -- A deleted surface frees its planet for a team surface that was created
+    -- while the planet was still held (see team_surfaces.create_team_surface).
+    script.on_event(defines.events.on_surface_deleted, function()
+        team_surfaces.tie_waiting_surfaces()
+    end)
+
     script.on_event(defines.events.on_force_reset, function(event)
         if event.force then planet_map.apply_force_locks(event.force) end
     end)

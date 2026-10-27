@@ -114,9 +114,20 @@ function team_surfaces.create_team_surface(force_name, spec)
     end
 
     -- Associate to the planet (non-nauvis) so Space Age planet mechanics apply.
+    -- A planet holds ONE surface at a time. A consumer that replaces a surface
+    -- with a new one on the same planet (MTS Dimension Warp warping twice in a
+    -- row to the same world) creates the new one while the old one still holds
+    -- the planet; associating then fails and the new surface runs on Nauvis
+    -- pressure and gravity with no planet mechanics. So the tie waits until the
+    -- holder is deleted (tie_waiting_surfaces, on on_surface_deleted).
     local planet = game.planets and game.planets[base]
     if planet and planet.valid and base ~= "nauvis" then
-        pcall(function() planet.associate_surface(surface) end)
+        if planet.surface then
+            storage.surfaces_waiting_for_planet = storage.surfaces_waiting_for_planet or {}
+            storage.surfaces_waiting_for_planet[surface.index] = base
+        else
+            pcall(function() planet.associate_surface(surface) end)
+        end
     end
 
     -- Pre-generate the spawn area so a later clone/teleport lands on real terrain.
@@ -129,6 +140,24 @@ function team_surfaces.create_team_surface(force_name, spec)
     if raise_hook then raise_hook(surface.name, force_name) end
 
     return surface.name
+end
+
+--- A surface was deleted, which may have freed a planet: associate every team
+--- surface that create_team_surface left waiting for that planet. Entries whose
+--- surface is gone are dropped; ones whose planet is still held keep waiting.
+function team_surfaces.tie_waiting_surfaces()
+    local waiting = storage.surfaces_waiting_for_planet
+    if not waiting then return end
+    for index, base in pairs(waiting) do
+        local surface = game.surfaces[index]
+        local planet = game.planets[base]
+        if not (surface and surface.valid and planet and planet.valid) then
+            waiting[index] = nil
+        elseif not planet.surface then
+            pcall(function() planet.associate_surface(surface) end)
+            waiting[index] = nil
+        end
+    end
 end
 
 -- ─── Retire ───────────────────────────────────────────────────────────
