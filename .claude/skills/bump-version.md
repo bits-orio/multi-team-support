@@ -38,10 +38,10 @@ When the user asks to bump the version, release a new version, or after the vers
    - Only include sections (Features, Changes, Bugfixes) that have entries. Categorize each commit appropriately. Reword commit messages into clear, user-facing descriptions — don't just paste raw commit subjects.
    - Show the draft entry to the user for approval before writing it.
 
-4. **Mod symlinks need no change.** `./link-mod.sh` creates the unversioned `multi-team-support` link (Factorio refuses a `name_version` folder whose version differs from info.json, and one working tree serves both release lines), so a bump never invalidates it. Run it only if a link is missing.
+4. **Mod symlinks need no change.** `./link-mod.sh` creates the unversioned `multi-team-support` link (Factorio refuses a `name_version` folder whose version differs from info.json, so a bump never invalidates it. Run it only if a link is missing.
 
 5. **Commit the version bump**: stage `info.json`, `changelog.txt`, and any `README.md` / `gui/welcome.lua` edits from step 2. Commit with message: `Bump version to <new_version>` (or `Release <new_version>: <one-line summary>` if substantial doc/feature work shipped — match the recent commit history's style).
 
-6. **Release** (when the user asks): push the bump commit, then run `./tools/release.sh`. Two release lines exist until Factorio 2.1 is stable (0.6.x on `master` for 2.0, 0.7.x on `factorio-2.1` for 2.1); the paired procedure, including the order and the routine merge conflicts, is in `docs/RELEASING.md`. The script verifies the changelog entry, creates and pushes `v<new_version>`, and the GitHub Actions workflow takes over (build zip → GitHub release → Discord → mod portal upload).
+6. **Release** (when the user asks): push the bump commit, then run `./tools/release.sh`. One release line: 0.7.x on `master` for Factorio 2.1; the procedure is in `docs/RELEASING.md`. The script verifies the changelog entry, creates and pushes `v<new_version>`, and the GitHub Actions workflow takes over (build zip → GitHub release → Discord → mod portal upload).
    - If the mod-portal upload step fails (portal outage, etc.), the GH release and tag remain. Re-run the upload via the **Upload to Mod Portal** workflow (Actions tab → workflow_dispatch). The upload script is idempotent — it noops if the version is already published.
    - Required secrets on the GitHub repo: `FACTORIO_API_KEY` (scope: ModPortal: Upload Mods), and optionally `DISCORD_WEBHOOK` and `DISCORD_ANNOUNCEMENTS_WEBHOOK`.
