@@ -12,7 +12,7 @@ local spawn_labels = require("scripts.spawn_labels")
 local team_clock  = require("scripts.team_clock")
 local team_modifiers = require("scripts.team_modifiers")
 local chat_channel = require("scripts.chat_channel")
-local pause_state = require("scripts.pause.state")
+local pause_control = require("scripts.pause.control")
 local buddy_store = require("scripts.buddy_store")
 local pen_info_panel = require("gui.pen_info_panel")
 local starter_scope = require("scripts.starter_scope")
@@ -312,10 +312,11 @@ function M.wipe_slot_state(force_name)
         end
     end
 
-    -- Clear the pause marker so a recycled slot never inherits a stale "paused"
-    -- flag (which would silently disable the next team's warp loop). Just the
-    -- marker -- the surfaces are being deleted, so no unpause_team is needed.
-    pause_state.set_paused(force_name, false)
+    -- Clear the pause marker and the pause snapshots, so a recycled slot never
+    -- inherits a stale "paused" flag (which would silently disable the next
+    -- team's warp loop) or the old team's restore data. The surfaces are being
+    -- deleted, so no unpause_team is needed.
+    pause_control.forget_team(force_name)
 
     -- Must run BEFORE reset_force_state: break_pair checks engine friendship
     -- flags that force.reset() would wipe silently.

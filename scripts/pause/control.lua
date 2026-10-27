@@ -98,6 +98,16 @@ function control.unpause_team(force_name, surface_names, opts)
     return true
 end
 
+--- Forget a team whose slot is being released: the paused marker, the power
+--- snapshots and the wire record, so a recycled slot inherits none of them.
+--- The surfaces are being deleted, so nothing is restored.
+--- @param force_name string
+function control.forget_team(force_name)
+    power.forget(force_name)
+    wires.forget(force_name)
+    pause_state.set_paused(force_name, false)
+end
+
 -- ─── Tick ─────────────────────────────────────────────────────────────
 
 --- Drive the staggered wire reconnect. Cheap no-op when nothing is pending.

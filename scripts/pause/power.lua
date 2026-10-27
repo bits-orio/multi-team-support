@@ -147,6 +147,15 @@ function power.thaw(force, surfaces)
     return power.set_active(force, surfaces, true)
 end
 
+--- Drop a released team's snapshots, so a recycled slot starts clean: a freeze
+--- keeps the first snapshot it finds, so a stale one would be restored.
+--- @param force_name string
+function power.forget(force_name)
+    for _, key in ipairs({"pause_accumulator_charge", "pause_solar_mult", "pause_eei"}) do
+        if storage[key] then storage[key][force_name] = nil end
+    end
+end
+
 --- Shared core for freeze/thaw. Runs in every mode (pre-SA teams have power
 --- sources too) — this airtight freeze is NOT Space-Age-gated; only the
 --- cosmetic wire layer is.

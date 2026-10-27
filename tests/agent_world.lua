@@ -97,7 +97,7 @@ local function install_stubs()
         end,
     })
     stub("scripts.chat_tag", {GLOBAL_BADGE = "[G]", LOCAL_BADGE = "[T]"})
-    stub("scripts.pause.control", {pause_team = noop, unpause_team = noop})
+    stub("scripts.pause.control", {pause_team = noop, unpause_team = noop, forget_team = noop})
     stub("scripts.pause.state", {set_paused = noop, is_paused = noop})
     -- Required by remote_api on the factorio-2.1 line only. Stubbed here as
     -- well, so this file is the same on both branches.

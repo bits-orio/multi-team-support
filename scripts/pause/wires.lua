@@ -44,9 +44,14 @@ local surface_utils = require("scripts.surface_utils")
 
 local wires = {}
 
--- How many pole pairs to reconnect per driver tick on resume, so a large base
--- powers back up as a visible ripple rather than an instant snap.
+-- How many pole pairs to reconnect per driver call on resume, so a large base
+-- powers back up as a visible ripple rather than an instant snap. A large base
+-- reconnects more per call, so every reconnect ends within RECONNECT_CALLS
+-- calls (6 s on the 10-tick driver): MTS Dimension Warp clones a docked base to
+-- a new world 20 s after the resume, the clone gives every pole a new
+-- unit_number, and pairs still queued then were lost.
 local RECONNECT_PER_TICK = 20
+local RECONNECT_CALLS    = 36
 
 -- Diagnostic logging for the connection-enumeration path. Off by default; flip
 -- to true to trace the cut/reconnect in factorio-current.log (lines prefixed
@@ -64,6 +69,28 @@ function wires.init_storage()
 end
 
 -- ─── Helpers ──────────────────────────────────────────────────────────
+
+--- One key per pole pair, whichever end it was read from.
+local function pair_key(a, b)
+    return (a < b) and (a .. ":" .. b) or (b .. ":" .. a)
+end
+
+--- Stop a reconnect that is still running and add the pairs it has not reached
+--- to `into` (deduped by `seen`). Those wires are still cut, and nothing else
+--- remembers them.
+local function take_pending(force_name, into, seen)
+    local state = storage.pause_wire_reconnect[force_name]
+    if not state then return end
+    storage.pause_wire_reconnect[force_name] = nil
+    for i = state.idx, #state.pairs do
+        local r = state.pairs[i]
+        local key = pair_key(r[1], r[2])
+        if not seen[key] then
+            seen[key] = true
+            into[#into + 1] = r
+        end
+    end
+end
 
 --- Find an electric pole by unit_number across the given surfaces. Poles are
 --- the only entities whose wires we record, so the lookup pool is small.
@@ -146,8 +173,11 @@ function wires.cut(force, surfaces)
     local recorded = storage.pause_wire_cuts[force.name] or {}
     local seen     = {}   -- dedupe a<->b vs b<->a
     for _, r in ipairs(recorded) do
-        seen[(r[1] < r[2]) and (r[1] .. ":" .. r[2]) or (r[2] .. ":" .. r[1])] = true
+        seen[pair_key(r[1], r[2])] = true
     end
+    -- A team paused again while its wires are still coming back: the pairs not
+    -- reconnected yet are cut too, so they join the record.
+    take_pending(force.name, recorded, seen)
     local cut_count = 0
     local total_poles, total_conns, samples = 0, 0, 0
 
@@ -186,9 +216,7 @@ function wires.cut(force, surfaces)
                                     tostring(far_pole and far_pole.type), tostring(b_unit), tostring(origin)))
                             end
                             if target_conn and b_unit then
-                                local key = (a_unit < b_unit)
-                                    and (a_unit .. ":" .. b_unit)
-                                    or  (b_unit .. ":" .. a_unit)
+                                local key = pair_key(a_unit, b_unit)
                                 if not seen[key] then
                                     seen[key] = true
                                     -- Record the origin too so reconnect restores
@@ -254,8 +282,9 @@ local function step_reconnect(force_name, state)
     -- between cut and resume) and never holds stale LuaEntity handles.
     local index = build_pole_index(force)
 
+    local per_call = math.max(RECONNECT_PER_TICK, math.ceil(#state.pairs / RECONNECT_CALLS))
     local done = 0
-    while done < RECONNECT_PER_TICK and state.idx <= #state.pairs do
+    while done < per_call and state.idx <= #state.pairs do
         local pair   = state.pairs[state.idx]
         local pole_a = index[pair[1]]
         local pole_b = index[pair[2]]
@@ -276,6 +305,14 @@ local function step_reconnect(force_name, state)
     end
 
     return state.idx > #state.pairs
+end
+
+--- Drop everything recorded for a team whose slot is being released, so a
+--- recycled slot never reconnects the old team's wires.
+--- @param force_name string
+function wires.forget(force_name)
+    if storage.pause_wire_cuts then storage.pause_wire_cuts[force_name] = nil end
+    if storage.pause_wire_reconnect then storage.pause_wire_reconnect[force_name] = nil end
 end
 
 --- Tick driver for staggered reconnect. Returns immediately when nothing is
