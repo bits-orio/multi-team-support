@@ -66,6 +66,13 @@ radar.energy_usage = "50kW"
 radar.energy_per_sector = "10kJ"
 radar.energy_per_nearby_scan = "10kJ"
 
+-- Never freezes. The vanilla radar carries Space Age's heating_energy, and since
+-- Factorio 2.1.21 a team surface associated with a planet that requires heating
+-- (Aquilo) freezes every unheated entity that has it. A frozen radar reveals
+-- nothing, so the floor went dark in remote view: the black screen this radar
+-- exists to prevent.
+radar.heating_energy = nil
+
 -- Reveal a BOUNDED local bubble: an always-revealed nearby ring PLUS a sector scan
 -- bounded to the same small radius (8 chunks ~= 512 tiles across). The scan is the
 -- part that actually guarantees the floor is charted/viewable; bounding it to a
