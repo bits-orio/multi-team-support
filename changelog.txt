@@ -1,4 +1,25 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.9
+Date: 2026-10-27
+  Changes:
+    - Factorio 2.1 is stable, so this is now the only release line. 0.6.11 stays available for
+      Factorio 2.0.
+    - Each team's copy of a planet plays that planet's music. The copies were silent.
+  Bugfixes:
+    - After a resume, every power line of a paused team is back within 6 seconds, whatever the
+      size of the base. MTS Dimension Warp moves a docked base to a new world 20 seconds after
+      the resume, and a big base arrived with part of its wiring missing.
+    - A team paused again while its wires were still coming back no longer loses the rest of them.
+    - A team paused twice keeps the data it needs to resume. The second pause overwrote it, and
+      solar power stayed off after the resume.
+    - Electric energy interfaces stop supplying power while their team is paused.
+    - A released team's pause data is cleared, so the next team in that slot starts clean.
+    - Factorio 2.1 ties a planet to one surface at a time. A new surface whose planet is still
+      tied to an older one now gets the planet once the older surface is deleted.
+    - A team sees its own surfaces that are tied to a shared planet, such as MTS Dimension Warp's
+      floors and dock. They were hidden from their owner too.
+    - The radar that charts a team's base for spectators no longer freezes on Aquilo.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.8
 Date: 2026-10-19
   Changes:

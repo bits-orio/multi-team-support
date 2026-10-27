@@ -1,8 +1,8 @@
 # 🏭 Multi-Team Support
 
-A Factorio 2.0 mod for cooperative and competitive multiplayer where each team races on their own copy of the world. Research independently, compare progress, watch your rivals and form alliances, all from one server.
+A Factorio 2.1 mod for cooperative and competitive multiplayer where each team races on their own copy of the world. Research independently, compare progress, watch your rivals and form alliances, all from one server.
 
-> **Inspired by OARC.** Multi-Team Support carries the same many-players-one-server spirit as the OARC separated-spawns mods, reimagined for Factorio 2.0 with a full per-team copy of the world.
+> **Inspired by OARC.** Multi-Team Support carries the same many-players-one-server spirit as the OARC separated-spawns mods, reimagined for Factorio 2 with a full per-team copy of the world.
 
 > **Note on tooling:** This mod is developed with AI coding assistants alongside human review and in-game testing. Bug reports, feature requests, and contributions are welcome from everyone. If AI-assisted development isn't your thing, that's fine. This mod's threads are for bugs and features.
 
@@ -60,7 +60,7 @@ English, Spanish, Russian, German. Localization is per player: everyone on a ser
 
 ## ⚙️ Compatibility
 
-- Requires **Factorio 2.0** (`base >= 2.0`, releases 0.6.x) or **Factorio 2.1** (`base >= 2.1`, releases 0.7.x)
+- Requires **Factorio 2.1** (`base >= 2.1`, releases 0.7.x). The last release for Factorio 2.0 is 0.6.11
 - **Space Age** is optional. When it is present, MTS detects it automatically and enables per-team planets plus space connections
 - Compatible with [Platformer](https://mods.factorio.com/mod/platformer)
 - **Companion modes** *(optional; built on the `mts-v1` API, so each plays out independently per team)*:
