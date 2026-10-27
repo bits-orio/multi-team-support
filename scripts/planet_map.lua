@@ -20,6 +20,7 @@
 local space_age = require("scripts.space_age")
 local helpers   = require("scripts.helpers")
 local pop_text  = require("scripts.pop_text")
+local surface_utils = require("scripts.surface_utils")
 
 -- NOTE: We deliberately do NOT require("scripts.force_utils") here because
 -- force_utils requires this module at load time — a circular require
@@ -162,9 +163,14 @@ function planet_map.hide_base_planets_for(force)
     -- (This matches Team Starts.)
     for _, base in ipairs(space_age.list_base_planets_runtime()) do
         pcall(function() force.lock_space_location(base) end)
+        -- A consumer may tie a team's own surface to a base planet (MTS Dimension
+        -- Warp's factory, mining and power floors are produstia, smeltus and
+        -- electria): that team sees it, which also re-shows it in saves where an
+        -- earlier sweep had hidden it.
         local planet = game.planets and game.planets[base]
         if planet and planet.surface and planet.surface.valid then
-            helpers.set_surface_hidden(force, planet.surface, true)
+            local own = surface_utils.get_owner(planet.surface) == force.name
+            helpers.set_surface_hidden(force, planet.surface, not own)
         end
     end
 end
