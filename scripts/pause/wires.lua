@@ -140,8 +140,14 @@ function wires.cut(force, surfaces)
     if not (force and force.valid) then return 0 end
     wires.init_storage()
 
-    local recorded = {}
+    -- Add to what an earlier cut recorded: a team cut again while paused (or a
+    -- surface added meanwhile) must keep the pairs from the first cut, which no
+    -- longer show as connections and would otherwise never be reconnected.
+    local recorded = storage.pause_wire_cuts[force.name] or {}
     local seen     = {}   -- dedupe a<->b vs b<->a
+    for _, r in ipairs(recorded) do
+        seen[(r[1] < r[2]) and (r[1] .. ":" .. r[2]) or (r[2] .. ":" .. r[1])] = true
+    end
     local cut_count = 0
     local total_poles, total_conns, samples = 0, 0, 0
 

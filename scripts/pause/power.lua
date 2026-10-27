@@ -66,7 +66,7 @@ local POWER_SOURCE_TYPES = {
 --- @param force   LuaForce
 --- @param active  boolean   desired active state (false to freeze)
 --- @return integer touched  number of entities whose active state changed
-local function set_sources_on_surface(surface, force, active, charge_store, type_counts)
+local function set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts)
     if not (surface and surface.valid and force and force.valid) then return 0 end
     local touched = 0
     -- One filtered query per surface (entity-type array filter) instead of a
@@ -90,15 +90,38 @@ local function set_sources_on_surface(surface, force, active, charge_store, type
             -- charge into the network. Zero the buffer on freeze (snapshotting it
             -- first) so a frozen base has no stored power to run on, and restore
             -- it on thaw -- no charge lost, no power leaked.
+            -- A team frozen again keeps its first snapshot (the buffer now reads 0).
             if ent.type == "accumulator" and ent.unit_number then
                 if not active then
-                    charge_store[ent.unit_number] = ent.energy
+                    if charge_store[ent.unit_number] == nil then
+                        charge_store[ent.unit_number] = ent.energy
+                    end
                     ent.energy = 0
                 else
                     local saved = charge_store[ent.unit_number]
                     if saved then
                         ent.energy = saved
                         charge_store[ent.unit_number] = nil
+                    end
+                end
+            end
+            -- Electric energy interfaces keep supplying whatever the active flag
+            -- says (measured on 2.0.77 with active=false and on 2.1.23 with
+            -- disabled_by_script). Zero what they produce and hold on freeze,
+            -- snapshotting both, and restore on thaw.
+            if ent.type == "electric-energy-interface" and ent.unit_number then
+                if not active then
+                    if eei_store[ent.unit_number] == nil then
+                        eei_store[ent.unit_number] = { production = ent.power_production, energy = ent.energy }
+                    end
+                    ent.power_production = 0
+                    ent.energy = 0
+                else
+                    local saved = eei_store[ent.unit_number]
+                    if saved then
+                        ent.power_production = saved.production
+                        ent.energy = saved.energy
+                        eei_store[ent.unit_number] = nil
                     end
                 end
             end
@@ -132,22 +155,27 @@ function power.set_active(force, surfaces, active)
     -- Per-force snapshots: populated on freeze, drained on thaw.
     storage.pause_accumulator_charge = storage.pause_accumulator_charge or {}
     storage.pause_solar_mult        = storage.pause_solar_mult        or {}
+    storage.pause_eei               = storage.pause_eei               or {}
     local charge_store = storage.pause_accumulator_charge[force.name] or {}
     local solar_store  = storage.pause_solar_mult[force.name]        or {}
+    local eei_store    = storage.pause_eei[force.name]               or {}
     storage.pause_accumulator_charge[force.name] = charge_store
     storage.pause_solar_mult[force.name]         = solar_store
+    storage.pause_eei[force.name]                = eei_store
 
     local touched = 0
     local type_counts = {}
     for _, surface in pairs(surfaces or {}) do
-        touched = touched + set_sources_on_surface(surface, force, active, charge_store, type_counts)
+        touched = touched + set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts)
         -- Solar: active=false does NOT stop a solar panel generating, and surface
         -- darkness maxes ~0.85 (night isn't enough). Zero the SURFACE's solar
         -- multiplier on freeze (snapshot first) and restore on thaw -- the only
         -- airtight way to stop solar output on a frozen surface.
         if surface and surface.valid then
             if not active then
-                solar_store[surface.index] = surface.solar_power_multiplier
+                if solar_store[surface.index] == nil then
+                    solar_store[surface.index] = surface.solar_power_multiplier
+                end
                 surface.solar_power_multiplier = 0
             else
                 local saved = solar_store[surface.index]
@@ -162,6 +190,7 @@ function power.set_active(force, surfaces, active)
     if active then
         storage.pause_accumulator_charge[force.name] = nil
         storage.pause_solar_mult[force.name]         = nil
+        storage.pause_eei[force.name]                = nil
     end
 
     if DIAG then
