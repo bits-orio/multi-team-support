@@ -113,3 +113,25 @@ for _, base_name in ipairs(space_age.list_base_planets_data()) do
         end
     end
 end
+
+-- Ambient music plays by the planet a surface is associated with, and a team's
+-- surfaces are associated with its own copy (mts-vulcanus-3), which no track
+-- named: teams heard none of their planets' music. Each track that plays on a
+-- base planet now also plays on that planet's copies (AmbientSound.planets is a
+-- list since Factorio 2.1). Runs after the copies exist and after other mods'
+-- data stages, so tracks they added for their own planets are covered too.
+for _, track in pairs(data.raw["ambient-sound"] or {}) do
+    if type(track.planets) == "table" then
+        local copies = {}
+        for _, base_name in pairs(track.planets) do
+            if data.raw.planet[base_name] and not base_name:find("^mts%-") then
+                for slot = 1, max_teams do
+                    copies[#copies + 1] = space_age.variant_name(base_name, slot)
+                end
+            end
+        end
+        for _, name in pairs(copies) do
+            if data.raw.planet[name] then table.insert(track.planets, name) end
+        end
+    end
+end
