@@ -39,7 +39,8 @@ local cleanup_gui       = require("gui.cleanup")
 -- Inject team_surfaces at parse time to break the team_surfaces -> team_slots
 -- -> remote_api require cycle (remote_api can't require it directly, and
 -- Factorio forbids require() at runtime).
-remote_api.set_deferred_deps({ team_surfaces = require("scripts.team_surfaces") })
+local team_surfaces_mod = require("scripts.team_surfaces")
+remote_api.set_deferred_deps({ team_surfaces = team_surfaces_mod })
 -- Let team_surfaces re-raise on_team_surface_created after it finishes building a
 -- surface (planet association + chunk pre-gen), without requiring remote_api.
 require("scripts.team_surfaces").set_raise_hook(remote_api.raise_team_surface_created)
@@ -223,6 +224,10 @@ script.on_configuration_changed(function()
             pause_control.unpause_team(fn, names)
         end
     end
+
+    -- Saves from before ownership ended with its surface may hold entries for
+    -- surfaces that are gone; drop them once.
+    team_surfaces_mod.forget_deleted_surfaces()
 
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}

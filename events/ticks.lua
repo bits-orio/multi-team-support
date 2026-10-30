@@ -93,9 +93,11 @@ function M.register()
     end)
 
     -- A deleted surface frees its planet for a team surface that was created
-    -- while the planet was still held (see team_surfaces.create_team_surface).
+    -- while the planet was still held (see team_surfaces.create_team_surface),
+    -- and ends the ownership registered for it.
     script.on_event(defines.events.on_surface_deleted, function()
         team_surfaces.tie_waiting_surfaces()
+        team_surfaces.forget_deleted_surfaces()
     end)
 
     script.on_event(defines.events.on_force_reset, function(event)

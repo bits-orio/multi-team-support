@@ -98,6 +98,20 @@ function control.unpause_team(force_name, surface_names, opts)
     return true
 end
 
+--- A surface joined a team that is already paused (a consumer registered it
+--- with create_team_surface mid-pause): freeze it like the rest of the team, so
+--- the resume restores it with them. Both layers keep any snapshot they already
+--- hold, so covering a surface twice is harmless. No-op when not paused.
+--- @param force_name string
+--- @param surface    LuaSurface
+function control.cover_surface(force_name, surface)
+    if not pause_state.is_paused(force_name) then return end
+    local force = game.forces[force_name]
+    if not (is_team_force(force) and surface and surface.valid) then return end
+    power.freeze(force, { surface })
+    wires.cut(force, { surface })
+end
+
 --- Forget a team whose slot is being released: the paused marker, the power
 --- snapshots and the wire record, so a recycled slot inherits none of them.
 --- The surfaces are being deleted, so nothing is restored.

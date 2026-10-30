@@ -19,6 +19,9 @@
 --       player_buffer = integer,
 --       caller_idx    = integer | nil,
 --   }
+--   storage.chunk_trim_exempt = { [surface_name] = true }
+--       surfaces a consumer registered with allow_chunk_trim = false
+--       (create_team_surface). Dropped when the surface is deleted.
 
 local helpers       = require("scripts.helpers")
 local surface_utils = require("scripts.surface_utils")
@@ -37,6 +40,7 @@ local CHUNK_SIZE            = 32
 --- are treated as un-trimmable (their foundation is tiles, not entities).
 local function trimmable_owner(surface)
     if not (surface and surface.valid) or surface.platform then return nil end
+    if (storage.chunk_trim_exempt or {})[surface.name] then return nil end
     return surface_utils.get_owner(surface)
 end
 
@@ -131,6 +135,23 @@ end
 function chunk_trim.init_storage()
     -- storage.chunk_trim_queue is created lazily by the trim command; nothing to
     -- initialize here. Kept as a no-op because control.lua calls it.
+end
+
+--- Exempt a surface from /mts-trim (true) or make it trimmable again (false).
+--- A consumer sets this through create_team_surface's allow_chunk_trim, for
+--- surfaces whose content the trim's entity buffer cannot see (rooms built by
+--- script far from any team entity).
+--- @param surface_name string
+--- @param exempt boolean
+function chunk_trim.set_exempt(surface_name, exempt)
+    storage.chunk_trim_exempt = storage.chunk_trim_exempt or {}
+    storage.chunk_trim_exempt[surface_name] = exempt or nil
+end
+
+--- Drop the exemption of a surface that no longer exists.
+--- @param surface_name string
+function chunk_trim.forget(surface_name)
+    if storage.chunk_trim_exempt then storage.chunk_trim_exempt[surface_name] = nil end
 end
 
 --- Returns true if a trim is currently in progress.

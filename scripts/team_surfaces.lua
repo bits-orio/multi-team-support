@@ -25,6 +25,8 @@
 -- requiring it, so team_surfaces -> surface_utils is a one-way edge.
 local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
+local chunk_trim    = require("scripts.chunk_trim")
+local pause_control = require("scripts.pause.control")
 
 local team_surfaces = {}
 
@@ -52,6 +54,14 @@ end
 
 local is_team_force = helpers.is_team_force
 
+--- Apply the spec's optional allow_chunk_trim: false exempts the surface from
+--- /mts-trim, true makes it trimmable again, absent leaves it as it is.
+local function apply_trim_policy(name, spec)
+    if type(spec.allow_chunk_trim) == "boolean" then
+        chunk_trim.set_exempt(name, not spec.allow_chunk_trim)
+    end
+end
+
 -- ─── Create ───────────────────────────────────────────────────────────
 
 --- Create an ephemeral, caller-seeded surface for a team.
@@ -60,6 +70,12 @@ local is_team_force = helpers.is_team_force
 ---   name              REQUIRED, must be non-variant (not mts-<planet>-N / team-N-<planet>)
 ---   planet            base planet name; used only for Space Age association
 ---   map_gen_settings  the surface's settings, including the caller's seed
+---   allow_chunk_trim  optional; false exempts the surface from /mts-trim
+---
+--- Registering a surface that already exists (the caller made it) to a team
+--- that is paused freezes it with the rest of the team. A surface created here
+--- is not frozen: the caller sets it up after this returns, and registers it
+--- again once it is ready.
 --- @return string|nil  the created surface name, or nil on failure
 function team_surfaces.create_team_surface(force_name, spec)
     if not is_team_force(force_name) then return nil end
@@ -90,6 +106,8 @@ function team_surfaces.create_team_surface(force_name, spec)
         local cur = surface_utils.get_owner(game.surfaces[name])
         if cur ~= nil and cur ~= force_name then return nil end
         storage.surface_owner_overrides[name] = force_name
+        apply_trim_policy(name, spec)
+        pause_control.cover_surface(force_name, game.surfaces[name])
         return name
     end
 
@@ -130,6 +148,8 @@ function team_surfaces.create_team_surface(force_name, spec)
         end
     end
 
+    apply_trim_policy(name, spec)
+
     -- Pre-generate the spawn area so a later clone/teleport lands on real terrain.
     surface.request_to_generate_chunks({0, 0}, 3)
     surface.force_generate_chunk_requests()
@@ -157,6 +177,23 @@ function team_surfaces.tie_waiting_surfaces()
             pcall(function() planet.associate_surface(surface) end)
             waiting[index] = nil
         end
+    end
+end
+
+--- A surface was deleted: ownership and the trim exemption end with it.
+--- Registered by name, so a surface someone else deleted would otherwise hand
+--- its old owner a later surface that reuses the name. Swept here rather than
+--- in on_pre_surface_deleted, so every mod's pre-delete handler still sees the
+--- owner. Leaves map_planet_to_force alone: consumers rely on a planet copy's
+--- mapping surviving its deletion.
+function team_surfaces.forget_deleted_surfaces()
+    for name in pairs(storage.surface_owner_overrides or {}) do
+        if not game.surfaces[name] and not deferred[name] then
+            storage.surface_owner_overrides[name] = nil
+        end
+    end
+    for name in pairs(storage.chunk_trim_exempt or {}) do
+        if not game.surfaces[name] then chunk_trim.forget(name) end
     end
 end
 
