@@ -12,11 +12,15 @@ local landing_pen = require("gui.landing_pen")
 local spectator   = require("scripts.spectator")
 local remote_api  = require("scripts.remote_api")
 local helpers     = require("scripts.helpers")
+local team_teardown = require("scripts.team_teardown")
 
 --- Disband a team entirely: every member back to the pen, slot freed, surfaces
 --- cleaned up. Reuses the normal leave flow (remove_from_team disbands + cleans
 --- up on the last member removed; return_to_pen relocates each player).
-local function disband(force_name)
+--- opts.quiet: tear down without MTS's chat lines (no per-member "has left",
+--- no leader change, no "disbanded" broadcast), for a caller that announces the
+--- reason itself, e.g. a mod whose loss condition ended the team.
+local function disband(force_name, opts)
     if type(force_name) ~= "string" or not force_name:match("^team%-%d+$") then return end
     local force = game.forces[force_name]
     if not (force and force.valid) then return end
@@ -30,6 +34,11 @@ local function disband(force_name)
     -- slot (members force-moved away) still passes and is handled below.
     local slot = helpers.team_slot(force_name)
     if (storage.team_pool or {})[slot] ~= "occupied" then return end
+
+    if opts and opts.quiet then
+        team_teardown.teardown(force_name, { silent = true, quiet_members = true })
+        return
+    end
 
     -- Restore any member currently spectating away (so they enter the members
     -- list below and are returned to the pen, not orphaned) and exit outside

@@ -1195,8 +1195,11 @@ function remote_api.register()
         -- loss condition (e.g. a critical structure destroyed). The real work
         -- lives in scripts/team_disband.lua, which injects it here -- it needs
         -- team_slots + landing_pen, which would circular-require remote_api.
-        disband_team = function(force_name)
-            if remote_api.disband_impl then remote_api.disband_impl(force_name) end
+        -- opts = {quiet = true} leaves the announcement to the caller.
+        disband_team = function(force_name, opts)
+            if remote_api.disband_impl then
+                remote_api.disband_impl(force_name, type(opts) == "table" and opts or nil)
+            end
         end,
 
         -- ── Surface create / retire (Space Age variants) ─────────────

@@ -63,6 +63,7 @@ local function evict(member, force_name, team_tag, opts)
 
     if member.connected then
         landing_pen.return_to_pen(member)
+        if opts.quiet_members then return end
         member.print(opts.inactive
             and {"mts-chat.team-disbanded-inactive"}
             or  {"mts-chat.team-disbanded-member", team_tag})
@@ -90,6 +91,8 @@ M.evict = evict
 ---                            summary instead of N separate lines)
 --- opts.inactive            - members are told the team was deemed inactive,
 ---                            with no mention of how activity is measured
+--- opts.quiet_members       - members get no message of their own (the caller
+---                            announces the reason itself)
 function M.teardown(force_name, opts)
     opts = opts or {}
     local ok, reason = M.check(force_name, opts.expected_generation)
