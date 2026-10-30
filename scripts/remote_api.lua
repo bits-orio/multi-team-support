@@ -13,13 +13,20 @@
 --
 -- ─── Subscribing as a third-party mod ─────────────────────────────────
 --
---   -- in your control.lua, AFTER on_init/on_load have run:
---   if remote.interfaces["mts-v1"] then
+--   -- Look the id up every session from on_init, on_configuration_changed
+--   -- and on_load (remote.call is legal in all three; only the control.lua
+--   -- main chunk refuses it). Never cache the id in storage: it shifts when
+--   -- the mod set changes, and a stale id can stop a save from loading.
+--   local function subscribe()
+--       if not remote.interfaces["mts-v1"] then return end
 --       local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
 --       script.on_event(id, function(event)
 --           -- event.surface_name, event.force_name
 --       end)
 --   end
+--   script.on_init(subscribe)
+--   script.on_configuration_changed(subscribe)
+--   script.on_load(subscribe)
 --
 -- ─── Querying state ───────────────────────────────────────────────────
 --

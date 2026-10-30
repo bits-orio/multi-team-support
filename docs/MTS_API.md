@@ -64,34 +64,30 @@ Event IDs are generated per session via `script.generate_event_name()` — they'
 
 **Subscribing:**
 
-`remote.call` is **not** legal during `on_load`, yet event handlers must be registered in both `on_init` and `on_load` for determinism. Bridge the gap with a one-shot `on_nth_tick(1)` — it fires on the same tick for every peer (so it stays multiplayer-deterministic), and both `remote.call` and `script.on_event` are legal inside it:
+Look the IDs up and register the handlers in `on_init`, `on_configuration_changed` **and** `on_load`, every session. `remote.call` is legal in all three, including when your mod loads before MTS; only the `control.lua` main chunk refuses it ("Attempt to remote call outside of an event"). Never keep the integer in `storage`: IDs shift when the mod set or the game version changes, and a stale ID either registers a handler a joining client does not have, or makes `on_load` throw ("Given event (N) is not a valid event") so the save will not load.
 
 ```lua
--- Resolve the event ID and register the real handler. Safe from a runtime
--- context (on_nth_tick / on_init), never from on_load.
+local function on_team_surface_created(event)
+    -- event.surface_name, event.force_name
+    local surface = game.surfaces[event.surface_name]
+    if surface then my_mod.setup_surface(surface, event.force_name) end
+end
+
+-- Same handlers on every peer, every session: the server runs on_init or
+-- on_configuration_changed, a joining client runs on_load.
 local function subscribe_mts_events()
-    if not remote.interfaces["mts-v1"] then return end
+    local mts = remote.interfaces["mts-v1"]
+    if not (mts and mts.get_event_id) then return end
     local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
-    script.on_event(id, function(event)
-        -- event.surface_name, event.force_name
-        local surface = game.surfaces[event.surface_name]
-        if surface then my_mod.setup_surface(surface, event.force_name) end
-    end)
+    if id then script.on_event(id, on_team_surface_created) end
 end
 
--- Defer to the next tick so we can remote.call for the ID even on a load path.
--- Registering on_nth_tick itself is legal in on_load (no remote.call, no
--- storage write); the deferred body runs in a normal context.
-local function defer_subscribe()
-    script.on_nth_tick(1, function()
-        script.on_nth_tick(1, nil)  -- one-shot: unregister after the first fire
-        subscribe_mts_events()
-    end)
-end
-
-script.on_init(defer_subscribe)
-script.on_load(defer_subscribe)
+script.on_init(subscribe_mts_events)
+script.on_configuration_changed(subscribe_mts_events)
+script.on_load(subscribe_mts_events)
 ```
+
+Do not defer the lookup to a one-shot `on_nth_tick`: a long-running server has already fired it while a joining client has not, so their handler sets differ when the client joins.
 
 The `on_team_surface_created` event is the most useful one for terrain/decoration mods that need to run setup exactly once per team surface (rather than reacting per-chunk). The `on_team_created` event is useful for force-level setup — granting starting research, applying buffs, etc.
 
@@ -197,8 +193,8 @@ end
 script.on_init(register_mts_ui)
 script.on_configuration_changed(register_mts_ui)
 
--- Fill the content frame each time the panel is (re)built (subscribe via the
--- deferred one-shot from §2.1).
+-- Fill the content frame each time the panel is (re)built (subscribe with the
+-- per-session lookup from §2.1).
 local function on_tab_built(event)
     if event.tab_name ~= "my-mod" then return end
     event.element.add{ type = "label", caption = "Hello from my mod" }

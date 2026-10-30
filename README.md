@@ -79,13 +79,17 @@ English, Spanish, Russian, German. Localization is per player: everyone on a ser
 Multi-Team Support exposes a public remote interface (`mts-v1`) and custom events so other mods can integrate cleanly without per-mod compatibility shims.
 
 ```lua
--- Subscribe to a custom event
-if remote.interfaces["mts-v1"] then
+-- Subscribe to a custom event: look the id up every session, never cache it
+local function subscribe()
+    if not remote.interfaces["mts-v1"] then return end
     local id = remote.call("mts-v1", "get_event_id", "on_team_surface_created")
     script.on_event(id, function(event)
         -- event.surface_name, event.force_name
     end)
 end
+script.on_init(subscribe)
+script.on_configuration_changed(subscribe)
+script.on_load(subscribe)  -- remote.call is legal here; only the main chunk refuses it
 
 -- Query state
 local owner = remote.call("mts-v1", "get_surface_owner", "team-3-nauvis")
