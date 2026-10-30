@@ -19,6 +19,7 @@ local milestones     = require("milestones.engine")
 local awards_gui     = require("gui.awards")
 local follow_cam     = require("gui.follow_cam")
 local pause_control  = require("scripts.pause.control")
+local pause_power    = require("scripts.pause.power")
 local chunk_trim     = require("scripts.chunk_trim")
 local debug_engine   = require("scripts.debug")
 local pop_text       = require("scripts.pop_text")
@@ -141,16 +142,28 @@ function M.register()
         cleanup_gui.refresh_badges_all()
     end)
 
-    -- dangOreus compat: block non-miners on ore, spill on destroyed containers.
+    -- Entity builds: a power source built on a paused team's surface is frozen
+    -- with the rest (pause/control), and dangOreus blocks non-miners on ore.
+    -- One handler per event per mod, so both run from here. Without dangOreus
+    -- only power sources need to reach Lua, so the engine filters by type.
+    local build_events = {
+        defines.events.on_built_entity,
+        defines.events.on_robot_built_entity,
+        defines.events.script_raised_built,
+        defines.events.script_raised_revive,
+        defines.events.on_space_platform_built_entity,
+    }
     if dangoreus.is_active() then
-        script.on_event({
-            defines.events.on_built_entity,
-            defines.events.on_robot_built_entity,
-            defines.events.script_raised_built,
-            defines.events.script_raised_revive,
-        }, dangoreus.on_built_entity)
+        script.on_event(build_events, function(event)
+            dangoreus.on_built_entity(event)
+            pause_control.on_entity_built(event)
+        end)
         script.on_event(defines.events.on_entity_died, dangoreus.on_entity_died)
         script.on_nth_tick(120, dangoreus.on_nth_tick)
+    else
+        local filters = {}
+        for _, t in ipairs(pause_power.SOURCE_TYPES) do filters[#filters + 1] = { filter = "type", type = t } end
+        for _, id in ipairs(build_events) do script.on_event(id, pause_control.on_entity_built, filters) end
     end
 
     -- Pending teleports and admin check run every tick.

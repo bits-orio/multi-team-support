@@ -145,7 +145,8 @@ function M.register()
                 caller.print({"mts-cmd.team-not-exists", param}); return
             end
             local was_paused = pause_state.is_paused(force_name)
-            if not pause_control.unpause_team(force_name, owned_surface_names(force_name)) then
+            -- An admin resume releases every holder (an MTS Dimension Warp dock included).
+            if not pause_control.unpause_team(force_name, owned_surface_names(force_name), { all = true }) then
                 caller.print({"mts-cmd.resume-not-team", force_name}); return
             end
             if was_paused then
@@ -173,7 +174,7 @@ function M.register()
                 caller.print({"mts-cmd.team-not-exists", param}); return
             end
             local was_paused = pause_state.is_paused(force_name)
-            if not pause_control.pause_team(force_name, owned_surface_names(force_name)) then
+            if not pause_control.pause_team(force_name, owned_surface_names(force_name), "admin") then
                 caller.print({"mts-cmd.pause-not-team", force_name}); return
             end
             if not was_paused then

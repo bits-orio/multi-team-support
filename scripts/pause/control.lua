@@ -22,9 +22,13 @@
 -- This module is the single entry point both the mts-v1 remote functions and
 -- the /mts-pause command path call, so both layers fire in the right order.
 
-local power       = require("scripts.pause.power")
-local wires       = require("scripts.pause.wires")
-local pause_state = require("scripts.pause.state")
+local power         = require("scripts.pause.power")
+local wires         = require("scripts.pause.wires")
+local pause_state   = require("scripts.pause.state")
+local surface_utils = require("scripts.surface_utils")
+
+-- Who holds a pause when the caller does not say. /mts-pause holds as "admin".
+local DEFAULT_HOLDER = "script"
 
 local control = {}
 
@@ -52,14 +56,22 @@ end
 
 -- ─── Pause ────────────────────────────────────────────────────────────
 
---- Pause a whole team. Returns true if a pause was started.
+--- Pause a whole team, held by holder (default "script"). Returns true if the
+--- team is paused afterwards. Pausing a team that is already paused adds the
+--- holder and covers any of the listed surfaces not yet frozen.
 --- @param force_name    string
 --- @param surface_names string[]   surfaces owned by the team (from list_team_surfaces)
-function control.pause_team(force_name, surface_names)
+--- @param holder        string|nil
+function control.pause_team(force_name, surface_names, holder)
     local force = game.forces[force_name]
     if not is_team_force(force) then return false end
 
     local surfaces = resolve_surfaces(surface_names)
+    pause_state.add_holder(force_name, holder or DEFAULT_HOLDER)
+    if pause_state.is_paused(force_name) then
+        for _, surface in ipairs(surfaces) do control.cover_surface(force_name, surface) end
+        return true
+    end
 
     -- 1. Airtight power cut FIRST, in this tick, so the supply dies immediately
     --    rather than over the amortized sweep's many-tick window.
@@ -76,13 +88,19 @@ end
 
 -- ─── Unpause ──────────────────────────────────────────────────────────
 
---- Resume a whole team. Returns true if a resume was started.
+--- Release a holder's pause (opts.holder, default "script"; opts.all releases
+--- every holder, which /mts-resume uses). The team thaws when no holder is left.
+--- Returns true for a team force; is_team_paused tells whether it still is.
 --- @param force_name string
 --- @param surface_names string[]
---- @param opts table  {mode, duration} reserved for v2 (timed pause / sleep-wake)
+--- @param opts table  {holder, all}; {mode, duration} reserved for v2 (timed pause / sleep-wake)
 function control.unpause_team(force_name, surface_names, opts)
     local force = game.forces[force_name]
     if not is_team_force(force) then return false end
+    if not pause_state.is_paused(force_name) then return true end
+    opts = opts or {}
+    local holder = not opts.all and (opts.holder or DEFAULT_HOLDER) or nil
+    if not pause_state.release_holder(force_name, holder) then return true end
 
     local surfaces = resolve_surfaces(surface_names)
 
@@ -119,7 +137,20 @@ end
 function control.forget_team(force_name)
     power.forget(force_name)
     wires.forget(force_name)
+    pause_state.release_holder(force_name, nil)
     pause_state.set_paused(force_name, false)
+end
+
+--- A power source appeared (built, robot-built, revived or placed by script)
+--- on a surface of a team that is paused: freeze it too, or it would run the
+--- frozen base. The resume's type sweep thaws it with the rest.
+function control.on_entity_built(event)
+    local entity = event.entity
+    if not (entity and entity.valid and power.is_source_type(entity.type)) then return end
+    local force_name = entity.force.name
+    if not pause_state.is_paused(force_name) then return end
+    if surface_utils.get_owner(entity.surface) ~= force_name then return end
+    power.freeze_entity(entity.force, entity)
 end
 
 -- ─── Tick ─────────────────────────────────────────────────────────────

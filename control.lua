@@ -8,7 +8,6 @@
 
 local admin_gui        = require("gui.admin")
 local spectator        = require("scripts.spectator")
-local pause_control    = require("scripts.pause.control")
 local pause_state      = require("scripts.pause.state")
 local pause_wires      = require("scripts.pause.wires")
 local team_settings    = require("gui.team_settings")
@@ -208,22 +207,9 @@ script.on_configuration_changed(function()
     remote_api.validate_registry("mts_welcome_tabs")
     remote_api.validate_registry("mts_hub_widgets")
 
-    -- Resume any team still marked paused across a config change, via the
-    -- power-disable pause API so both power sources and visual wires restore.
-    -- TODO(P2 docking): skip teams that are intentionally docked once docking
-    -- lands, so a mod update doesn't thaw a parked team.
-    for fn in pairs(storage.paused_forces or {}) do
-        local force = game.forces[fn]
-        if force and force.valid then
-            local names = {}
-            for _, s in pairs(game.surfaces) do
-                if s.valid and surface_utils.get_owner(s) == fn then
-                    names[#names + 1] = s.name
-                end
-            end
-            pause_control.unpause_team(fn, names)
-        end
-    end
+    -- A paused team stays paused across a mod update: the freeze (disabled
+    -- sources, zeroed solar, the snapshots and the wire record) lives in the save,
+    -- and whoever paused it (an admin, or MTS Dimension Warp's dock) resumes it.
 
     -- Saves from before ownership ended with its surface may hold entries for
     -- surfaces that are gone; drop them once.

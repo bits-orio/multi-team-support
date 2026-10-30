@@ -61,6 +61,58 @@ local POWER_SOURCE_TYPES = {
     "fusion-generator",          -- Space Age fusion (no-op pre-SA; type just won't match)
 }
 
+--- Freeze (active=false) or thaw one power source, snapshotting on freeze and
+--- restoring on thaw. Returns true if its disabled_by_script flag changed.
+local function set_source(ent, active, charge_store, eei_store)
+    local changed = false
+    -- 2.1: LuaEntity::active is read-only; disabled_by_script is the
+    -- script-owned flag (inverted sense).
+    if ent.disabled_by_script == active then
+        ent.disabled_by_script = not active
+        changed = true
+    end
+    -- Accumulators: deactivating does NOT stop them discharging stored
+    -- charge into the network. Zero the buffer on freeze (snapshotting it
+    -- first) so a frozen base has no stored power to run on, and restore
+    -- it on thaw -- no charge lost, no power leaked.
+    -- A team frozen again keeps its first snapshot (the buffer now reads 0).
+    if ent.type == "accumulator" and ent.unit_number then
+        if not active then
+            if charge_store[ent.unit_number] == nil then
+                charge_store[ent.unit_number] = ent.energy
+            end
+            ent.energy = 0
+        else
+            local saved = charge_store[ent.unit_number]
+            if saved then
+                ent.energy = saved
+                charge_store[ent.unit_number] = nil
+            end
+        end
+    end
+    -- Electric energy interfaces keep supplying whatever the active flag
+    -- says (measured on 2.0.77 with active=false and on 2.1.23 with
+    -- disabled_by_script). Zero what they produce and hold on freeze,
+    -- snapshotting both, and restore on thaw.
+    if ent.type == "electric-energy-interface" and ent.unit_number then
+        if not active then
+            if eei_store[ent.unit_number] == nil then
+                eei_store[ent.unit_number] = { production = ent.power_production, energy = ent.energy }
+            end
+            ent.power_production = 0
+            ent.energy = 0
+        else
+            local saved = eei_store[ent.unit_number]
+            if saved then
+                ent.power_production = saved.production
+                ent.energy = saved.energy
+                eei_store[ent.unit_number] = nil
+            end
+        end
+    end
+    return changed
+end
+
 --- Flip active on every power source the force owns on one surface.
 --- @param surface LuaSurface
 --- @param force   LuaForce
@@ -80,54 +132,22 @@ local function set_sources_on_surface(surface, force, active, charge_store, eei_
     for _, ent in ipairs(sources) do
         if ent.valid then
             type_counts[ent.type] = (type_counts[ent.type] or 0) + 1
-            -- 2.1: LuaEntity::active is read-only; disabled_by_script is the
-            -- script-owned flag (inverted sense).
-            if ent.disabled_by_script == active then
-                ent.disabled_by_script = not active
-                touched = touched + 1
-            end
-            -- Accumulators: deactivating does NOT stop them discharging stored
-            -- charge into the network. Zero the buffer on freeze (snapshotting it
-            -- first) so a frozen base has no stored power to run on, and restore
-            -- it on thaw -- no charge lost, no power leaked.
-            -- A team frozen again keeps its first snapshot (the buffer now reads 0).
-            if ent.type == "accumulator" and ent.unit_number then
-                if not active then
-                    if charge_store[ent.unit_number] == nil then
-                        charge_store[ent.unit_number] = ent.energy
-                    end
-                    ent.energy = 0
-                else
-                    local saved = charge_store[ent.unit_number]
-                    if saved then
-                        ent.energy = saved
-                        charge_store[ent.unit_number] = nil
-                    end
-                end
-            end
-            -- Electric energy interfaces keep supplying whatever the active flag
-            -- says (measured on 2.0.77 with active=false and on 2.1.23 with
-            -- disabled_by_script). Zero what they produce and hold on freeze,
-            -- snapshotting both, and restore on thaw.
-            if ent.type == "electric-energy-interface" and ent.unit_number then
-                if not active then
-                    if eei_store[ent.unit_number] == nil then
-                        eei_store[ent.unit_number] = { production = ent.power_production, energy = ent.energy }
-                    end
-                    ent.power_production = 0
-                    ent.energy = 0
-                else
-                    local saved = eei_store[ent.unit_number]
-                    if saved then
-                        ent.power_production = saved.production
-                        ent.energy = saved.energy
-                        eei_store[ent.unit_number] = nil
-                    end
-                end
-            end
+            if set_source(ent, active, charge_store, eei_store) then touched = touched + 1 end
         end
     end
     return touched
+end
+
+--- Per-force snapshots: populated on freeze, drained on thaw.
+--- @return table charge_store, table solar_store, table eei_store
+local function stores(force_name)
+    local out = {}
+    for i, key in ipairs({"pause_accumulator_charge", "pause_solar_mult", "pause_eei"}) do
+        storage[key] = storage[key] or {}
+        storage[key][force_name] = storage[key][force_name] or {}
+        out[i] = storage[key][force_name]
+    end
+    return out[1], out[2], out[3]
 end
 
 --- Deactivate every power source the force owns across all the
@@ -147,6 +167,22 @@ function power.thaw(force, surfaces)
     return power.set_active(force, surfaces, true)
 end
 
+--- True for an entity type the freeze covers.
+power.SOURCE_TYPES = POWER_SOURCE_TYPES
+local SOURCE_TYPE = {}
+for _, t in ipairs(POWER_SOURCE_TYPES) do SOURCE_TYPE[t] = true end
+function power.is_source_type(entity_type) return SOURCE_TYPE[entity_type] == true end
+
+--- Freeze one power source that appeared on a frozen team's surface after the
+--- pause (built, revived or placed by script), so it cannot run the base. The
+--- resume's type sweep thaws it with the rest.
+--- @param force  LuaForce
+--- @param entity LuaEntity
+function power.freeze_entity(force, entity)
+    local charge_store, _, eei_store = stores(force.name)
+    set_source(entity, false, charge_store, eei_store)
+end
+
 --- Drop a released team's snapshots, so a recycled slot starts clean: a freeze
 --- keeps the first snapshot it finds, so a stale one would be restored.
 --- @param force_name string
@@ -161,16 +197,7 @@ end
 --- cosmetic wire layer is.
 function power.set_active(force, surfaces, active)
     if not (force and force.valid) then return 0 end
-    -- Per-force snapshots: populated on freeze, drained on thaw.
-    storage.pause_accumulator_charge = storage.pause_accumulator_charge or {}
-    storage.pause_solar_mult        = storage.pause_solar_mult        or {}
-    storage.pause_eei               = storage.pause_eei               or {}
-    local charge_store = storage.pause_accumulator_charge[force.name] or {}
-    local solar_store  = storage.pause_solar_mult[force.name]        or {}
-    local eei_store    = storage.pause_eei[force.name]               or {}
-    storage.pause_accumulator_charge[force.name] = charge_store
-    storage.pause_solar_mult[force.name]         = solar_store
-    storage.pause_eei[force.name]                = eei_store
+    local charge_store, solar_store, eei_store = stores(force.name)
 
     local touched = 0
     local type_counts = {}

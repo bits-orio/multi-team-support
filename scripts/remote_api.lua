@@ -1219,10 +1219,14 @@ function remote_api.register()
         -- pause_team / unpause_team compose the airtight power-source freeze +
         -- the SA-gated visual wire layer (pause/control). They enumerate the
         -- team's surfaces via list_team_surfaces and hand the names to it.
-        pause_team = function(force_name)
+        -- opts.holder names who holds the pause (default "script"): a team
+        -- thaws only when every holder has let go, so a consumer's resume
+        -- does not lift an admin's /mts-pause.
+        pause_team = function(force_name, opts)
             local surfaces = list_team_surfaces_impl(force_name)
             local was = pause_state.is_paused(force_name)
-            local ok = pause_control.pause_team(force_name, surfaces)
+            local holder = type(opts) == "table" and opts.holder or nil
+            local ok = pause_control.pause_team(force_name, surfaces, holder)
             -- Consumers (MDW) call this unprotected from tick handlers: the
             -- notification layer must never throw out of this action, so it
             -- is pcall-contained, and fires on actual transitions only.
@@ -1235,8 +1239,8 @@ function remote_api.register()
         unpause_team = function(force_name, opts)
             local surfaces = list_team_surfaces_impl(force_name)
             local was = pause_state.is_paused(force_name)
-            local ok = pause_control.unpause_team(force_name, surfaces, opts)
-            if ok and was then
+            local ok = pause_control.unpause_team(force_name, surfaces, type(opts) == "table" and opts or nil)
+            if ok and was and not pause_state.is_paused(force_name) then
                 pcall(pause_notify.clear, force_name)
                 pcall(remote_api.raise_team_resumed, force_name, "script")
             end
