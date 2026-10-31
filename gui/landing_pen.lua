@@ -90,6 +90,19 @@ end
 
 -- ─── Return to Pen ────────────────────────────────────────────────────
 
+-- Going back to the pen kills the character. That is how a player leaves, not
+-- a death, so the engine's "was killed" line to the whole server is switched
+-- off for this one kill. The switch exists since Factorio 2.1.21; on older
+-- versions the line still shows.
+local function die_unannounced(character)
+    local readable, announce = pcall(function() return game.player_death_notifications_enabled end)
+    if not readable then character.die() return end
+    game.player_death_notifications_enabled = false
+    local ok, err = pcall(character.die)
+    game.player_death_notifications_enabled = announce
+    if not ok then error(err) end
+end
+
 function landing_pen.return_to_pen(player)
     -- Tear down any Accept/Reject dialogs this player was holding as a team
     -- member. Requests are addressed to a TEAM, so they are cancelled when the
@@ -107,7 +120,7 @@ function landing_pen.return_to_pen(player)
     storage.spawned_players = storage.spawned_players or {}
     storage.spawned_players[player.index] = nil
 
-    if player.character then player.character.die() end
+    if player.character then die_unannounced(player.character) end
 
     local surface = terrain.get_or_create_surface()
     storage.pen_slots = storage.pen_slots or {}
