@@ -63,13 +63,27 @@ local POWER_SOURCE_TYPES = {
 
 --- Freeze (active=false) or thaw one power source, snapshotting on freeze and
 --- restoring on thaw. Returns true if its disabled_by_script flag changed.
-local function set_source(ent, active, charge_store, eei_store)
+--- off_store records the sources this pause switched off, so the thaw turns on
+--- only those: one another mod had switched off before the pause stays off. It
+--- is nil for a team paused before MTS kept that record; the thaw then turns
+--- every source on, as it used to.
+local function set_source(ent, active, charge_store, eei_store, off_store)
     local changed = false
+    local unit = ent.unit_number
     -- 2.1: LuaEntity::active is read-only; disabled_by_script is the
     -- script-owned flag (inverted sense).
-    if ent.disabled_by_script == active then
-        ent.disabled_by_script = not active
-        changed = true
+    if not active then
+        if not ent.disabled_by_script then
+            ent.disabled_by_script = true
+            changed = true
+            if off_store and unit then off_store[unit] = true end
+        end
+    elseif not off_store or not unit or off_store[unit] then
+        if ent.disabled_by_script then
+            ent.disabled_by_script = false
+            changed = true
+        end
+        if off_store and unit then off_store[unit] = nil end
     end
     -- Accumulators: deactivating does NOT stop them discharging stored
     -- charge into the network. Zero the buffer on freeze (snapshotting it
@@ -118,7 +132,7 @@ end
 --- @param force   LuaForce
 --- @param active  boolean   desired active state (false to freeze)
 --- @return integer touched  number of entities whose active state changed
-local function set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts)
+local function set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts, off_store)
     if not (surface and surface.valid and force and force.valid) then return 0 end
     local touched = 0
     -- One filtered query per surface (entity-type array filter) instead of a
@@ -132,7 +146,7 @@ local function set_sources_on_surface(surface, force, active, charge_store, eei_
     for _, ent in ipairs(sources) do
         if ent.valid then
             type_counts[ent.type] = (type_counts[ent.type] or 0) + 1
-            if set_source(ent, active, charge_store, eei_store) then touched = touched + 1 end
+            if set_source(ent, active, charge_store, eei_store, off_store) then touched = touched + 1 end
         end
     end
     return touched
@@ -148,6 +162,18 @@ local function stores(force_name)
         out[i] = storage[key][force_name]
     end
     return out[1], out[2], out[3]
+end
+
+--- The sources a team's current pause switched off, or nil.
+local function off_store_of(force_name)
+    return (storage.pause_disabled or {})[force_name]
+end
+
+--- A new pause starts: from here on, record the sources it switches off.
+--- @param force_name string
+function power.begin_pause(force_name)
+    storage.pause_disabled = storage.pause_disabled or {}
+    storage.pause_disabled[force_name] = {}
 end
 
 --- Deactivate every power source the force owns across all the
@@ -180,14 +206,14 @@ function power.is_source_type(entity_type) return SOURCE_TYPE[entity_type] == tr
 --- @param entity LuaEntity
 function power.freeze_entity(force, entity)
     local charge_store, _, eei_store = stores(force.name)
-    set_source(entity, false, charge_store, eei_store)
+    set_source(entity, false, charge_store, eei_store, off_store_of(force.name))
 end
 
 --- Drop a released team's snapshots, so a recycled slot starts clean: a freeze
 --- keeps the first snapshot it finds, so a stale one would be restored.
 --- @param force_name string
 function power.forget(force_name)
-    for _, key in ipairs({"pause_accumulator_charge", "pause_solar_mult", "pause_eei"}) do
+    for _, key in ipairs({"pause_accumulator_charge", "pause_solar_mult", "pause_eei", "pause_disabled"}) do
         if storage[key] then storage[key][force_name] = nil end
     end
 end
@@ -198,11 +224,12 @@ end
 function power.set_active(force, surfaces, active)
     if not (force and force.valid) then return 0 end
     local charge_store, solar_store, eei_store = stores(force.name)
+    local off_store = off_store_of(force.name)
 
     local touched = 0
     local type_counts = {}
     for _, surface in pairs(surfaces or {}) do
-        touched = touched + set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts)
+        touched = touched + set_sources_on_surface(surface, force, active, charge_store, eei_store, type_counts, off_store)
         -- Solar: active=false does NOT stop a solar panel generating, and surface
         -- darkness maxes ~0.85 (night isn't enough). Zero the SURFACE's solar
         -- multiplier on freeze (snapshot first) and restore on thaw -- the only
@@ -227,6 +254,7 @@ function power.set_active(force, surfaces, active)
         storage.pause_accumulator_charge[force.name] = nil
         storage.pause_solar_mult[force.name]         = nil
         storage.pause_eei[force.name]                = nil
+        if storage.pause_disabled then storage.pause_disabled[force.name] = nil end
     end
 
     if DIAG then

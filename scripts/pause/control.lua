@@ -74,7 +74,9 @@ function control.pause_team(force_name, surface_names, holder)
     end
 
     -- 1. Airtight power cut FIRST, in this tick, so the supply dies immediately
-    --    rather than over the amortized sweep's many-tick window.
+    --    rather than over the amortized sweep's many-tick window. The pause
+    --    records what it switches off, so the resume turns on only that.
+    power.begin_pause(force_name)
     power.freeze(force, surfaces)
 
     -- 2. Visual wire cut (SA-gated, cosmetic, fully defensive).
