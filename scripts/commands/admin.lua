@@ -144,15 +144,15 @@ function M.register()
             if not force_name or not game.forces[force_name] then
                 caller.print({"mts-cmd.team-not-exists", param}); return
             end
-            local was_paused = pause_state.is_paused(force_name)
+            if not pause_state.is_paused(force_name) then
+                caller.print({"mts-cmd.resume-not-paused", helpers.team_tag_with_leader(force_name)}); return
+            end
             -- An admin resume releases every holder (an MTS Dimension Warp dock included).
             if not pause_control.unpause_team(force_name, owned_surface_names(force_name), { all = true }) then
                 caller.print({"mts-cmd.resume-not-team", force_name}); return
             end
-            if was_paused then
-                pause_notify.clear(force_name)
-                remote_api.raise_team_resumed(force_name, "admin")
-            end
+            pause_notify.clear(force_name)
+            remote_api.raise_team_resumed(force_name, "admin")
             caller.print({"mts-cmd.resume-started", helpers.team_tag_with_leader(force_name)})
         end)
 

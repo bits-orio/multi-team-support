@@ -210,6 +210,7 @@ return {
     "mts-cmd.rename-usage",
     "mts-cmd.resume-admin-only",
     "mts-cmd.resume-help",
+    "mts-cmd.resume-not-paused",
     "mts-cmd.resume-not-team",
     "mts-cmd.resume-started",
     "mts-cmd.resume-usage",
