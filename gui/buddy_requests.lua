@@ -15,6 +15,8 @@ local pre_start         = require("scripts.pre_start")
 local start_playing_gui = require("gui.start_playing_gui")
 local buddy_store       = require("scripts.buddy_store")
 local surface_utils     = require("scripts.surface_utils")
+local body_teleport     = require("scripts.body_teleport")
+local spectator         = require("scripts.spectator")
 
 local M = {}
 
@@ -169,6 +171,12 @@ function M.accept_buddy_request(member, requester_index)
     -- Commit: this request is now consumed; tear its frames down on all members.
     buddy_store.clear(requester_index)
 
+    -- A requester watching a team from the pen is in spectator mode. End it
+    -- BEFORE the force change below: leaving it later (Esc from the map)
+    -- restores the force it saved, which would undo the join and send them
+    -- back to the pen.
+    if spectator.is_spectating(requester) then spectator.exit(requester) end
+
     -- Anti-abuse: clear inventory if the player previously left this team.
     storage.left_teams = storage.left_teams or {}
     local is_rejoin = storage.left_teams[requester.index]
@@ -232,8 +240,9 @@ function M.accept_buddy_request(member, requester_index)
         -- base (and vanilla MTS places a water hole near the origin).
         local spawn_pos = home.find_non_colliding_position("character", origin, 32, 1)
         if spawn_pos then
-            requester.teleport(spawn_pos, home)
-            placed = true
+            -- body_teleport, never a bare teleport: a requester looking at
+            -- the map would otherwise keep their character in the pen.
+            placed = body_teleport.to(requester, spawn_pos, home)
         end
     end
     if not placed then
@@ -242,7 +251,7 @@ function M.accept_buddy_request(member, requester_index)
         -- CHARACTER (physical_*, never their remote view).
         local surf = member.physical_surface or member.surface
         local pos  = member.physical_position or member.position
-        requester.teleport(
+        body_teleport.to(requester,
             surf.find_non_colliding_position("character", pos, 10, 1) or pos, surf)
     end
     ultracube_compat.after_spawn(requester)

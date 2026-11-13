@@ -6,6 +6,7 @@
 -- Extracts common logic: surface naming, teleport queue, display names,
 -- and the setup_player_surface skeleton.
 
+local body_teleport   = require("scripts.body_teleport")
 local helpers         = require("scripts.helpers")
 local space_age       = require("scripts.space_age")
 local planet_map      = require("scripts.planet_map")
@@ -100,7 +101,9 @@ function compat_utils.process_pending_teleports()
         if player and player.valid and surface and surface.valid then
             helpers.diag("compat_utils.process_pending_teleports: TELEPORT → "
                 .. surface.name, player)
-            if player.teleport(player.force.get_spawn_position(surface), surface) then
+            -- body_teleport: a player looking at the map must still land in
+            -- person (a bare teleport would move only their camera).
+            if body_teleport.to(player, player.force.get_spawn_position(surface), surface) then
                 -- Player is now on their team surface. Run any post-teleport
                 -- setup that depends on player.surface being correct.
                 ultracube_compat.after_spawn(player)
