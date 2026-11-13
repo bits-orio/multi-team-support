@@ -1,4 +1,14 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.11
+Date: 2026-11-12
+  Bugfixes:
+    - A player accepted into a team while looking at the map lands with the team. Their
+      character stayed in the landing pen, and leaving the team to retry cost them the
+      starter kit.
+    - A player accepted into a team while watching it from the landing pen stays on the team.
+      Closing the map put them back in the pen as a spectator.
+    - Claiming a team while looking at the map lands the player on their new surface.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.10
 Date: 2026-11-12
   Changes:
