@@ -5,6 +5,7 @@ local landing_pen    = require("gui.landing_pen")
 local clone_mirror   = require("compat.clone_mirror")
 local dangoreus      = require("compat.dangoreus")
 local claustorephobic = require("compat.claustorephobic")
+local simple_seablock = require("compat.simple_seablock")
 local reassign_player_force = require("compat.reassign_player_force")
 local surface_utils  = require("scripts.surface_utils")
 local team_surfaces  = require("scripts.team_surfaces")
@@ -60,6 +61,7 @@ function M.register()
         clone_mirror.on_chunk_generated(event)
         if dangoreus.is_active() then dangoreus.on_chunk_generated(event) end
         if claustorephobic.is_active() then claustorephobic.on_chunk_generated(event) end
+        simple_seablock.on_chunk_generated(event)
         reassign_player_force.on_chunk_generated(event)
     end)
 
