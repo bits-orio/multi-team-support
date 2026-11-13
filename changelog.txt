@@ -1,4 +1,27 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.10
+Date: 2026-11-12
+  Changes:
+    - Simple Seablock: each team finds the starting rock with the planet's kit on its own
+      Vulcanus, Fulgora, Gleba and Aquilo. Teams found only the bare starting tile there.
+    - A pause remembers who holds it: an admin, or a mod. The team resumes when the last
+      holder lets go, so MTS Dimension Warp leaving its dock no longer lifts an admin's pause.
+      /mts-resume lifts every pause on the team.
+    - A team stays paused through a mod update. An update used to resume every paused team.
+    - A power source built on a paused team's surface is switched off with the rest, whether
+      placed by hand, by a robot or by a script.
+    - /mts-pause and /mts-resume describe what they do: the team's power is cut and restored.
+    - For mod authors: disband_team takes {quiet = true} for a mod that announces the reason
+      itself, create_team_surface takes allow_chunk_trim = false to keep a surface out of
+      /mts-trim, and a surface registered to a paused team is paused with it.
+  Bugfixes:
+    - A resume switches on only the power sources the pause switched off. One that another
+      mod had switched off came back on.
+    - Resuming a team that is not paused does nothing. It switched every power source on.
+    - Moving a player back to the landing pen no longer tells the server they were killed.
+    - A team's claim on a surface ends when the surface is deleted. A later surface with the
+      same name went to the old team.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.9
 Date: 2026-10-27
   Changes:
