@@ -5,7 +5,7 @@ cycle."""
 import os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKIP = {".git", ".claude", "tests", "tools", "docs"}
+SKIP = {".git", ".claude", ".run", "tests", "tools", "docs"}
 REQ = re.compile(r'require\(\s*"([\w.]+)"\s*\)')
 
 def module_name(path):

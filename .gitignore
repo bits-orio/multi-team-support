@@ -3,3 +3,6 @@
 
 # Claude Code session worktrees (machine-local; skills/ stays tracked)
 .claude/worktrees/
+
+# Local test runs (dev/run-*.sh)
+/.run/

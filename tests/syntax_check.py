@@ -8,7 +8,7 @@ import os, sys
 from lupa.lua52 import LuaRuntime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKIP = {".git", ".claude", "tests"}
+SKIP = {".git", ".claude", ".run", "tests"}
 
 def main():
     lua = LuaRuntime()

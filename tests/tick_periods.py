@@ -11,7 +11,7 @@ its own.
 import os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKIP = {".git", ".claude", "tests", "tools", "docs"}
+SKIP = {".git", ".claude", ".run", "tests", "tools", "docs"}
 CALL = re.compile(r'script\.on_nth_tick\(\s*([A-Za-z_][\w.]*|\d+)')
 REQUIRE = re.compile(r'local\s+(\w+)\s*=\s*require\("([\w.]+)"\)')
 ARITH = re.compile(r'^[\d\s*+/()-]+$')
