@@ -17,6 +17,7 @@ local force_utils = require("scripts.force_utils")
 local pop_text    = require("scripts.pop_text")
 local space_age   = require("scripts.space_age")
 local remote_api  = require("scripts.remote_api")
+local shadow_recorder = require("shadow_race.recorder")
 
 local M = {}
 
@@ -138,6 +139,7 @@ function M.on_rocket_launched(event)
     -- total is the round MARK (a step multiple), not the raw counter, so the feed
     -- reads on clean numbers.
     if force_utils.is_team_force(force.name) then
+        shadow_recorder.mark(force.name, "rocket")  -- the first one counts
         local mark = rocket_announce_mark(storage.rocket_announced[force.name] or 0, force.rockets_launched)
         if mark then
             storage.rocket_announced[force.name] = mark
@@ -194,6 +196,10 @@ function M.check_planet_landing(player, was_spawning)
 
     local pname = planet_name_of(player.surface)
     if not pname then return end
+
+    -- The team's own first arrival on each planet is a mark on its Shadow
+    -- Race run. The recorder knows the planet the run started on.
+    shadow_recorder.arrive(player.force.name, pname)
 
     M.init_storage()
     local landings = storage.global_records.first_planet_landings

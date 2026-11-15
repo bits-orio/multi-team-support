@@ -21,6 +21,8 @@ local team_modifiers = require("scripts.team_modifiers")
 local hud_clock     = require("gui.hud_clock")
 local chat_channel  = require("scripts.chat_channel")
 local cleanup_gui   = require("gui.cleanup")
+local shadow_picker = require("shadow_race.gui.picker")
+local shadow_announcer = require("shadow_race.announcer")
 
 local M = {}
 
@@ -175,6 +177,12 @@ function M.register()
                 -- every switch and chat badge from the migrated state.
                 chat_channel.on_scope_change(admin_gui.flag("individual_chat_enabled"))
                 hud_clock.update_all()
+            end
+            if changed_flag == "shadow_race_enabled" or changed_flag == "shadow_race_individual_hud" then
+                -- The button, the chip and any open picker follow the flags.
+                shadow_announcer.reset_all()
+                hud_clock.update_all()
+                shadow_picker.refresh_all()
             end
             if changed_flag == "friendship_enabled" then
                 if not admin_gui.flag("friendship_enabled") then friendship.break_all() end

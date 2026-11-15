@@ -31,6 +31,8 @@ local team_modifiers = require("scripts.team_modifiers")
 local chat_channel   = require("scripts.chat_channel")
 local chat_switch    = require("gui.chat_switch")
 local chat_tag       = require("scripts.chat_tag")
+local shadow_chip    = require("shadow_race.gui.chip")
+local shadow_splits  = require("shadow_race.gui.splits")
 
 local M = {}
 
@@ -105,6 +107,7 @@ function M.update_player(player)
         if root then root.destroy() end
         chat_switch.update_player(player, nil)
         chat_tag.update_player(player, nil)
+        shadow_splits.update_player(player, nil)
         return
     end
 
@@ -165,6 +168,9 @@ function M.update_player(player)
 
     chat_switch.update_player(player, force_name)
     chat_tag.update_player(player, force_name)
+    -- Shadow Race's button and split chip follow the same input.
+    shadow_chip.update_player(player, force_name, root, row)
+    shadow_splits.update_player(player, force_name)
 end
 
 --- One-second refresh for every connected player (60-tick handler).

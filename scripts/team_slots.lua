@@ -18,6 +18,7 @@ local pen_info_panel = require("gui.pen_info_panel")
 local starter_scope = require("scripts.starter_scope")
 local player_team_history = require("scripts.player_team_history")
 local team_incarnation = require("scripts.team_incarnation")
+local shadow_hooks = require("shadow_race.hooks")
 
 local M = {}
 
@@ -349,6 +350,10 @@ end
 function M.release_team_slot(force_name)
     local slot = helpers.team_slot(force_name)
     if not slot then return end
+
+    -- The team's run ends here and goes to its members (Shadow Race). Before
+    -- anything is wiped: the archive reads the team's name and leader.
+    shadow_hooks.on_release(force_name)
 
     -- First, while the slot still reads occupied: the force changes it makes
     -- raise on_player_left_team before on_team_released, as on every path.

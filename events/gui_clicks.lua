@@ -22,6 +22,8 @@ local pre_start         = require("scripts.pre_start")
 local start_playing_gui = require("gui.start_playing_gui")
 local buddy_store       = require("scripts.buddy_store")
 local cleanup_gui       = require("gui.cleanup")
+local shadow_picker     = require("shadow_race.gui.picker")
+local hud_clock         = require("gui.hud_clock")
 
 local M = {}
 
@@ -34,6 +36,7 @@ function M.register()
         if return_button.on_gui_click(event) then return end
         if cleanup_gui.on_gui_click(event) then return end
         if confirm_gui.on_gui_click(event) then return end
+        if shadow_picker.on_gui_click(event, hud_clock.update_all) then return end
         if follow_cam.on_gui_click(event) then teams_gui.update_all(); return end
 
         if el.name == "sb_spawn_btn" then

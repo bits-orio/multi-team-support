@@ -111,6 +111,20 @@ M.FLAGS = {
         ls_label   = {"mts-gui.flag-team-pins"},
         ls_tooltip = {"mts-tip.flag-team-pins"},
     },
+    {
+        key     = "shadow_race_enabled",
+        label   = "Shadow Race",
+        tooltip = "When enabled, teams can chase a shadow: an earlier run of their own or another team's, with a live split showing how far ahead or behind they are. Runs are recorded either way, so turning this on later loses nothing.",
+        ls_label   = {"mts-gui.flag-shadow-race"},
+        ls_tooltip = {"mts-tip.flag-shadow-race"},
+    },
+    {
+        key     = "shadow_race_individual_hud",
+        label   = "Shadow Race: Own Display",
+        tooltip = "When enabled, each player can hide and show the Shadow Race display for themselves. When disabled, everyone on a racing team sees it.",
+        ls_label   = {"mts-gui.flag-shadow-race-individual-hud"},
+        ls_tooltip = {"mts-tip.flag-shadow-race-individual-hud"},
+    },
 }
 
 local FLAG_DEFAULTS = {
@@ -125,6 +139,8 @@ local FLAG_DEFAULTS = {
     color_fix_enabled               = true,   -- auto-keep player colours readable + distinct
     team_alerts_enabled             = true,   -- persistent map alert while a team is paused
     team_pins_enabled               = true,   -- auto-pin teammates + Pin buttons in the Teams panel
+    shadow_race_enabled             = true,   -- teams can chase a recorded run; recording itself never stops
+    shadow_race_individual_hud      = true,   -- each player may hide their own Shadow Race display
     non_competitive_enabled         = false,  -- opt-in; allows per-team modifiers (private servers)
 }
 

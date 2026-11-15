@@ -17,6 +17,7 @@ local force_utils = require("scripts.force_utils")
 local buddy_store = require("scripts.buddy_store")
 local follow_cam  = require("gui.follow_cam")
 local spectator   = require("scripts.spectator")
+local shadow_hooks = require("shadow_race.hooks")
 
 local M = {}
 
@@ -86,6 +87,9 @@ function M.register()
         buddy_store.clear(idx)
 
         cleanup_player_storage(idx)
+        -- After remove_from_team above: a run archived by that release must
+        -- not stay with an index the next player can inherit.
+        shadow_hooks.on_player_removed(idx)
     end)
 end
 

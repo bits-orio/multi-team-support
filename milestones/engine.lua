@@ -16,6 +16,7 @@ local pop_text    = require("scripts.pop_text")
 local team_modifiers = require("scripts.team_modifiers")
 local remote_api  = require("scripts.remote_api")
 local external_keys = require("milestones.external_keys")
+local shadow_recorder = require("shadow_race.recorder")
 
 --- Strip Factorio rich-text tags (e.g. "[item=foo]" -> "foo") so milestone text
 --- reads cleanly in Discord, which can't render them.
@@ -106,6 +107,11 @@ local function check_milestone(tracker, item_name, force, threshold)
     if storage.milestone_reached[force.name][key][threshold] then return false end
 
     storage.milestone_reached[force.name][key][threshold] = true
+
+    -- The team's first of a science pack is a mark on its Shadow Race run.
+    if tracker.category == "science" and threshold == FIRST_THRESHOLD then
+        shadow_recorder.mark(force.name, "pack:" .. item_name)
+    end
 
     -- Record key includes threshold so "first-to-produce" and "first-to-100" are separate
     local record_key = key .. "@" .. threshold

@@ -39,6 +39,10 @@ local reaper         = require("scripts.reaper")
 local reaper_config  = require("scripts.reaper.config")
 local reaper_execute = require("scripts.reaper.execute")
 local cleanup_gui    = require("gui.cleanup")
+local shadow_recorder = require("shadow_race.recorder")
+local shadow_hooks  = require("shadow_race.hooks")
+local shadow_picker = require("shadow_race.gui.picker")
+local shadow_announcer = require("shadow_race.announcer")
 
 local DISCORD_REMINDER_TICKS = 6 * 60 * 60 * 60  -- 6 hours at 60 UPS
 
@@ -136,6 +140,11 @@ function M.register()
         gridlocked.on_team_created(e)
         reaper.on_team_changed()   -- slot pressure, dispatched not polled
     end)
+    -- Shadow Race records through the same events a consumer mod sees: a
+    -- run opens when the team's clock starts, and everyone who is ever on
+    -- the team is a member of it.
+    script.on_event(remote_api.events.on_team_clock_started, shadow_hooks.on_clock_started)
+    script.on_event(remote_api.events.on_player_joined_team, shadow_hooks.on_player_joined)
     script.on_event(remote_api.events.on_team_released, function(e)
         ultracube_compat.on_team_released(e)   -- fresh cube + victory reset
         space_is_fake.on_team_released(e)       -- clear SiF starting-area guard
@@ -246,6 +255,8 @@ function M.register()
         -- here — on_nth_tick keys one handler per period.
         hud_clock.update_all()
         teams_gui.update_clock_labels_all()
+        shadow_picker.tick()   -- splits of open Shadow Race pickers
+        shadow_announcer.tick()   -- the shadow's marks the team's clock just passed
     end)
     script.on_nth_tick(300,   function()
         if milestones.tick() then awards_gui.update_all() end
@@ -255,7 +266,12 @@ function M.register()
     -- objects of teams that have labels drawn.
     script.on_nth_tick(600,   function() spawn_labels.refresh_all() end)
     script.on_nth_tick(3600,  function() teams_gui.update_activity_labels_all() end)
-    script.on_nth_tick(18000, function() surface_utils.cleanup_charts() end)
+    script.on_nth_tick(18000, function()
+        surface_utils.cleanup_charts()
+        -- Shadow Race's periodic sample: one point per researching team every
+        -- five minutes. Finished research adds its own points from the event.
+        shadow_recorder.sample_all()
+    end)
     -- Fixed hourly wake-up; the reaper itself decides whether cycle_hours
     -- have elapsed. A constant period keeps on_load registration identical.
     script.on_nth_tick(reaper_config.HEARTBEAT_TICKS, function()

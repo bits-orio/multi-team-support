@@ -1,6 +1,7 @@
 -- Multi-Team Support - prototypes/styles.lua
 -- GUI styles for the center-top chat mode switch (gui/chat_switch.lua) and
--- the translucent top-bar team chip (gui/hud_clock.lua).
+-- the translucent top-bar team chip (gui/hud_clock.lua), and the glass
+-- panel of Shadow Race's splits window.
 --
 -- Three segment-button styles: an active GLOBAL fill (green — the encouraged
 -- default), an active TEAM fill (blue), and a shared dark inactive state that
@@ -70,6 +71,19 @@ styles["mts_hud_chip_frame"] = {
     parent = "frame",
     top_padding    = 1,
     bottom_padding = 2,
+    left_padding   = 6,
+    right_padding  = 6,
+    graphical_set  = TRANSLUCENT_PANEL,
+}
+
+-- The same glass for Shadow Race's splits window (shadow_race/gui/
+-- frames.lua): it sits over the game for a whole run, so it stays small
+-- and lets the factory show through.
+styles["mts_glass_frame"] = {
+    type   = "frame_style",
+    parent = "frame",
+    top_padding    = 2,
+    bottom_padding = 4,
     left_padding   = 6,
     right_padding  = 6,
     graphical_set  = TRANSLUCENT_PANEL,

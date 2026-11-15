@@ -7,12 +7,14 @@ local research_gui = require("gui.research")
 local teams_gui    = require("gui.teams")
 local awards_gui   = require("gui.awards")
 local remote_api   = require("scripts.remote_api")
+local shadow_recorder = require("shadow_race.recorder")
 
 local M = {}
 
 function M.register()
     script.on_event(defines.events.on_research_finished, function(event)
         local records_changed = tech_records.on_research_finished(event)
+        shadow_recorder.on_research_finished(event)
         force_utils.sync_quality_all_forces()
         research_gui.update_all()
         teams_gui.update_all()
@@ -41,7 +43,10 @@ function M.register()
     script.on_event(defines.events.on_research_queued,    on_queue_changed)
     script.on_event(defines.events.on_research_cancelled, on_queue_changed)
     script.on_event(defines.events.on_research_moved,     on_queue_changed)
-    script.on_event(defines.events.on_research_started,   on_queue_changed)
+    script.on_event(defines.events.on_research_started, function(event)
+        shadow_recorder.on_research_started(event)
+        on_queue_changed()
+    end)
 end
 
 return M
