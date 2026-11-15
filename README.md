@@ -29,6 +29,7 @@ Join the Discord: https://discord.gg/tWz4FT74pH
 ### 🏆 Records & Announcements
 - 🥇 **Tech records.** The first team to research any tech gets an announcement. Subsequent faster researches (measured from each team's clock) broadcast new speed records.
 - 📈 **Milestone engine.** Configurable production thresholds per category (science packs, landfill, space platform tiles). Edit `milestones/config.lua` to add more. Dynamic item discovery handles any mod combo.
+- 👥 **Shadow Race.** Every team's run is recorded. Chase one of your own earlier runs or another team, and the line under your team clock shows how far ahead or behind you are at the same point of the clock. A splits window lists every milestone beside the shadow's, counts down to the next ones, and exports as text. Each player keeps their last three runs plus one pinned run.
 - ⏱️ **Team clock** starts when the first member spawns and never resets, so speed comparisons stay fair no matter when a team joined.
 - 📢 **Server announcements.** New players receive a welcome with the Discord invite link; returning players get a welcome-back that includes their team name. A server-wide Discord reminder broadcasts every 6 hours. The URL is configured via Settings → Map → Discord URL (defaults to the community Discord; leave blank to disable).
 

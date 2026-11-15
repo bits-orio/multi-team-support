@@ -1,4 +1,19 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.12
+Date: 2026-11-15
+  Features:
+    - Shadow Race: chase a recorded run. Every team's run is recorded from the moment its
+      clock starts. Pick an earlier run of your own, or another team, and the line under your
+      team clock shows how far ahead or behind you are at the same point of the clock.
+    - The Shadow Race window (the clock button in the team clock chip) ranks every run you can
+      chase. Auto-chase always follows the nearest run ahead and tells you when you pass it.
+    - The splits window lists every milestone of your run beside the shadow's, counts down to
+      the next ones, and exports the list as text for a spreadsheet.
+    - Each player keeps their last three runs, and can pin one. A pinned run is kept, and every
+      new team the player starts chases it.
+    - Admin panel: "Shadow Race" hides the feature (runs are still recorded), and "Shadow
+      Race: Own Display" lets each player hide the race on their own screen.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.11
 Date: 2026-11-12
   Bugfixes:

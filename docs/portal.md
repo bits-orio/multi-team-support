@@ -34,6 +34,7 @@ In active use on public servers. Team cap is 20 with Space Age, where each team 
 
 - Follow Cam, a grid of live mini-cameras tracking individual players across planets.
 - First-to-research announcements, plus speed records measured on each team's own clock.
+- Shadow Race: chase your own earlier run or another team, with a live split at the same point of the clock and splits you can export.
 - Per-team production stats and a one-on-one research diff between any two teams.
 
 ### Worlds
