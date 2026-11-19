@@ -85,6 +85,7 @@ local locale_audit        = require("scripts.locale_audit")
 local starter_scope       = require("scripts.starter_scope")
 local player_team_history = require("scripts.player_team_history")
 local team_incarnation    = require("scripts.team_incarnation")
+local surface_planet      = require("compat.surface_planet")
 local shadow_recorder     = require("shadow_race.recorder")
 local shadow_archive      = require("shadow_race.archive")
 
@@ -257,6 +258,10 @@ script.on_configuration_changed(function()
     -- gone, and gives every claimed slot without one a key unique to this
     -- save at this tick. Needs team_pool and team_slot_generation, made above.
     team_incarnation.on_configuration_changed()
+
+    -- A terrain mod added or updated in this save learns which planet each
+    -- existing team surface stands for.
+    surface_planet.announce_all()
 
     -- Back-fill seen_players so existing players aren't greeted as new after an update.
     for _, player in pairs(game.players) do

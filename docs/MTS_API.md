@@ -30,6 +30,23 @@ Some mods don't only decorate at chunk-gen. They also have **runtime rules** tha
 
 For those, see Pattern 5 in [COMPAT.md](COMPAT.md) ("Expose runtime rules so other mods can reuse them") or the `mts-v1` event subscription below.
 
+### Per-planet settings and state: `set_surface_planet`
+
+If your mod keeps settings or state per planet, keyed by the planet's name (a cell size per planet, a palette per planet), expose this function on your own remote interface:
+
+```lua
+remote.add_interface("my-mod", {
+    -- surface_index: number, planet_name: e.g. "nauvis" or "vulcanus"
+    set_surface_planet = function(surface_index, planet_name)
+        my_mod.treat_surface_as(game.get_surface(surface_index), planet_name)
+    end,
+})
+```
+
+MTS calls `set_surface_planet` on every remote interface that has it, once for each team surface, from `on_surface_created`, before the surface's first chunk generates. It calls it again for every existing team surface in `on_configuration_changed`, so a mod added to a running save catches up. Your mod never names MTS, and any other team mod can make the same call.
+
+Implementation: [`compat/surface_planet.lua`](../compat/surface_planet.lua).
+
 ---
 
 ## 2. The `mts-v1` remote interface

@@ -8,6 +8,7 @@ local claustorephobic = require("compat.claustorephobic")
 local simple_seablock = require("compat.simple_seablock")
 local reassign_player_force = require("compat.reassign_player_force")
 local surface_utils  = require("scripts.surface_utils")
+local surface_planet = require("compat.surface_planet")
 local team_surfaces  = require("scripts.team_surfaces")
 local spawn_labels   = require("scripts.spawn_labels")
 local remote_api     = require("scripts.remote_api")
@@ -76,6 +77,9 @@ function M.register()
         -- generates, so every team's copy of a planet generates identical
         -- terrain natively (outer planets aren't cloned).
         surface_utils.normalize_variant_seed(surface)
+        -- Tell planet-keyed terrain mods which planet this team surface
+        -- stands for, also before any chunk generates.
+        surface_planet.announce(surface)
         surface_utils.on_surface_created(surface)
         local owner = surface_utils.get_owner(surface)
         if owner then

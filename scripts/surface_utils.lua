@@ -18,6 +18,7 @@ local function variant_base_planet(name)
     if type(name) ~= "string" then return nil end
     return name:match("^mts%-(.+)%-%d+$") or name:match("^team%-%d+%-(.+)$")
 end
+surface_utils.variant_base_planet = variant_base_planet
 
 -- Deterministic seed per base planet, so every team's variant of that planet
 -- generates identical terrain reflecting the host's chosen map seed.
