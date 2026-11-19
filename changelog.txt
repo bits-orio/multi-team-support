@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.15
+Date: 2026-11-19
+  Changes:
+    - A team surface made for a planet that already holds another surface, such as a Dimension
+      Warp world, gets the planet's pressure, gravity, solar power, day length and pollutant at
+      once. Buildings, recipes, solar panels and robots go by the planet from the start. The
+      surface is tied to the planet when the holder is deleted; freezing and lightning start
+      then. Surfaces already waiting in a save get the same on update, with their day length
+      left as it is.
+  Bugfixes:
+    - A planet tie that the game refuses is tried again when the next surface is deleted. It
+      was tried once and then given up.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.14
 Date: 2026-11-18
   Features:
