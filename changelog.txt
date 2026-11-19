@@ -1,4 +1,17 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.13
+Date: 2026-11-18
+  Changes:
+    - For mod authors: a mod that keeps settings or state per planet can expose
+      set_surface_planet(surface_index, planet_name) on its remote interface. MTS calls it for
+      every team surface, so the mod treats a team's copy of a planet like the planet itself.
+      See docs/MTS_API.md.
+    - Nomad: every team starts on its own mothership above its own Nauvis. Needs a Nomad
+      release with its remote calls for mods that run several forces.
+  Bugfixes:
+    - A disbanded team's space platforms are deleted at once. They stayed for five minutes,
+      and the next team in the slot could keep them.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.12
 Date: 2026-11-15
   Features:
