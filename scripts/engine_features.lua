@@ -19,6 +19,10 @@ end
 --- Sprites and sprite buttons can be faded (LuaGuiElement.opacity, 2.1.25).
 M.GUI_OPACITY = at_least("2.1.25")
 
+--- A surface's pollutant can be overridden (LuaSurface.override_pollution_type:
+--- added in 2.1.7, desyncs before 2.1.12).
+M.POLLUTANT_OVERRIDE = at_least("2.1.12")
+
 --- Fade the icon of a sprite or sprite button: 1 is solid, 0.5 looks like
 --- the game's own ghost items. Only the icon fades; a button's frame and
 --- number stay solid. Does nothing on a game without the property.

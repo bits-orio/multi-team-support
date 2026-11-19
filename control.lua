@@ -220,6 +220,9 @@ script.on_configuration_changed(function()
     -- Saves from before ownership ended with its surface may hold entries for
     -- surfaces that are gone; drop them once.
     team_surfaces_mod.forget_deleted_surfaces()
+    -- A surface that waits for its planet gets the planet's properties, also
+    -- one that has waited since before waiting surfaces got them.
+    team_surfaces_mod.refresh_waiting_surfaces()
 
     storage.spawned_players          = storage.spawned_players          or {}
     storage.player_clock_start       = storage.player_clock_start       or {}

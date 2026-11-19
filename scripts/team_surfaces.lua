@@ -27,6 +27,7 @@ local surface_utils = require("scripts.surface_utils")
 local helpers       = require("scripts.helpers")
 local chunk_trim    = require("scripts.chunk_trim")
 local pause_control = require("scripts.pause.control")
+local engine_features = require("scripts.engine_features")
 
 local team_surfaces = {}
 
@@ -63,36 +64,141 @@ local function apply_trim_policy(name, spec)
 end
 
 -- ─── Planet association ───────────────────────────────────────────────
+--
+-- A planet holds one surface at a time. A team surface made for a planet that
+-- is held (by the game's own surface for it, or by the surface the team is
+-- about to leave) cannot be tied to it yet. Until it can, it stands in for the
+-- planet: it gets the planet's surface properties and pollutant, which is what
+-- buildings, recipes, solar panels, robots and the day length go by. Whatever
+-- the game runs only on a planet's own surface (freezing, lightning) starts
+-- with the tie, which tie_waiting_surfaces makes once a surface deletion has
+-- freed the planet. Measured on Factorio 2.1.23 and 2.1.25.
 
 local LOG = "[multi-team-support:team_surfaces] "
+
+local function quoted(kind, object) return kind .. " '" .. object.name .. "'" end
 
 --- "surface 'gleba'" for the surface a planet holds, for a log line.
 local function holder_text(planet)
     local holder = planet.surface
-    if holder and holder.valid then return "surface '" .. holder.name .. "'" end
+    if holder and holder.valid then return quoted("surface", holder) end
     return "no surface"
 end
 
---- Tie a surface to its planet, so Space Age planet mechanics (pressure,
---- gravity, freezing) apply to it. The engine refuses when the planet already
---- holds a surface; the surface then keeps Nauvis properties, which nothing in
---- the game shows, so the refusal goes to the log. Returns true when tied.
-local function associate(planet, surface)
-    local ok, err = pcall(function() planet.associate_surface(surface) end)
-    if ok then return true end
-    log(LOG .. "surface '" .. surface.name .. "' is not tied to planet '" .. planet.name
-        .. "' and keeps Nauvis properties: " .. tostring(err)
-        .. " The planet is held by " .. holder_text(planet) .. ".")
-    return false
+-- The surface property that carries the day length: writing it sets
+-- ticks_per_day as well.
+local DAY_LENGTH = "day-night-cycle"
+
+--- Write the planet's surface properties (pressure, gravity, magnetic field,
+--- solar power, robot energy, day length) to a surface that is not tied to it.
+--- A written value stays for good: the game cannot unset one, and a later tie
+--- does not replace it. It is the planet's own value, so the surface reads the
+--- same after the tie. With keep_day the day length is not written: a tie
+--- sets it on a surface whose day length no script has set, and leaves one
+--- that a script did set.
+local function copy_properties(planet, surface, keep_day)
+    for name, value in pairs(planet.prototype.surface_properties or {}) do
+        if not (keep_day and name == DAY_LENGTH) then surface.set_property(name, value) end
+    end
 end
 
---- Leave a surface waiting for a planet that another surface still holds.
-local function wait_for_planet(planet, surface)
+--- Make the planet's pollutant the surface's (spores for Gleba, none for
+--- Vulcanus); a surface without a planet has Nauvis pollution. An override
+--- that is already set is someone else's and stays.
+local function copy_pollutant(planet, surface)
+    if not engine_features.POLLUTANT_OVERRIDE then return end
+    if surface.override_pollution_type then return end
+    surface.override_pollution_type = { pollutant = planet.prototype.pollutant_type }
+end
+
+--- The tie gives the surface the planet's pollutant, so the override written
+--- by copy_pollutant goes. One for another pollutant is someone else's.
+local function drop_copied_pollutant(planet, surface)
+    if not engine_features.POLLUTANT_OVERRIDE then return end
+    local override = surface.override_pollution_type
+    if not override then return end
+    local copied, own = override.pollutant, planet.prototype.pollutant_type
+    if (copied and copied.name) == (own and own.name) then surface.override_pollution_type = nil end
+end
+
+--- Have a surface stand in for a planet it is not tied to.
+local function stand_in(planet, surface, keep_day)
+    copy_properties(planet, surface, keep_day)
+    copy_pollutant(planet, surface)
+end
+
+--- What a surface standing in for a planet has and lacks, for a log line.
+local function stand_in_text(planet, keep_day)
+    local text = "It has the planet's surface properties"
+        .. (engine_features.POLLUTANT_OVERRIDE and " and pollutant" or " but Nauvis pollution") .. " until it is tied."
+    if keep_day then text = text .. " Its day length is left as it was." end
+    if planet.prototype.entities_require_heating then
+        text = text .. " Nothing freezes on it until then."
+    end
+    return text .. " What the game runs only on a planet's own surface, such as lightning, starts with the tie."
+end
+
+--- Ask the engine to tie a surface to a planet, so the planet's own mechanics
+--- apply to it. Returns true, or false and the engine's refusal.
+local function try_tie(planet, surface)
+    return pcall(planet.associate_surface, surface)
+end
+
+--- The surfaces waiting for a planet (surface index -> planet name) and the
+--- refusal last logged for each (surface index -> the engine's text).
+local function waiting_lists()
     storage.surfaces_waiting_for_planet = storage.surfaces_waiting_for_planet or {}
-    storage.surfaces_waiting_for_planet[surface.index] = planet.name
-    log(LOG .. "surface '" .. surface.name .. "' waits for planet '" .. planet.name
-        .. "' and keeps Nauvis properties until then: the planet is held by "
-        .. holder_text(planet) .. ".")
+    storage.planet_tie_refusals = storage.planet_tie_refusals or {}
+    return storage.surfaces_waiting_for_planet, storage.planet_tie_refusals
+end
+
+local function stop_waiting(index)
+    local waiting, refusals = waiting_lists()
+    waiting[index], refusals[index] = nil, nil
+end
+
+--- Remember the engine's refusal for a surface. Returns true when it is not
+--- the one remembered already: the tie is tried again on every surface
+--- deletion, and logging the same refusal each time would fill the log.
+local function note_refusal(surface, refusal)
+    local _, refusals = waiting_lists()
+    if refusals[surface.index] == refusal then return false end
+    refusals[surface.index] = refusal
+    return true
+end
+
+--- "The planet is held by ...", after the engine's own words when it refused.
+local function held_text(planet, refusal)
+    return (refusal and (refusal .. " ") or "") .. "The planet is held by " .. holder_text(planet) .. "."
+end
+
+--- Tie a new surface to its planet. When the planet is held, or the engine
+--- refuses, the surface stands in for the planet and waits for the tie.
+local function tie_or_wait(planet, surface)
+    local refusal
+    if not planet.surface then
+        local tied, err = try_tie(planet, surface)
+        if tied then return end
+        refusal = tostring(err)
+        note_refusal(surface, refusal)
+    end
+    stand_in(planet, surface)
+    waiting_lists()[surface.index] = planet.name
+    log(LOG .. quoted("surface", surface) .. " waits for " .. quoted("planet", planet) .. ". "
+        .. held_text(planet, refusal) .. " " .. stand_in_text(planet))
+end
+
+--- Tie a waiting surface whose planet reads free. A refusal leaves it waiting.
+local function tie_waiting(planet, surface)
+    local tied, err = try_tie(planet, surface)
+    if tied then
+        stop_waiting(surface.index)
+        drop_copied_pollutant(planet, surface)
+        log(LOG .. quoted("surface", surface) .. " is tied to " .. quoted("planet", planet) .. " now.")
+    elseif note_refusal(surface, tostring(err)) then
+        log(LOG .. quoted("surface", surface) .. " is still not tied to " .. quoted("planet", planet) .. ": "
+            .. held_text(planet, tostring(err)) .. " The tie is tried again when a surface is deleted.")
+    end
 end
 
 -- ─── Create ───────────────────────────────────────────────────────────
@@ -164,20 +270,14 @@ function team_surfaces.create_team_surface(force_name, spec)
         return nil
     end
 
-    -- Associate to the planet (non-nauvis) so Space Age planet mechanics apply.
-    -- A planet holds ONE surface at a time. A consumer that replaces a surface
-    -- with a new one on the same planet (MTS Dimension Warp warping twice in a
-    -- row to the same world) creates the new one while the old one still holds
-    -- the planet; associating then fails and the new surface runs on Nauvis
-    -- pressure and gravity with no planet mechanics. So the tie waits until the
-    -- holder is deleted (tie_waiting_surfaces, on on_surface_deleted).
+    -- Tie to the planet (non-nauvis) so Space Age planet mechanics apply. A
+    -- consumer that replaces a surface with a new one on the same planet (MTS
+    -- Dimension Warp warping twice in a row to the same world) creates the new
+    -- one while the old one still holds the planet; the new one then stands in
+    -- for the planet until the old one is deleted (see "Planet association").
     local planet = game.planets and game.planets[base]
     if planet and planet.valid and base ~= "nauvis" then
-        if planet.surface then
-            wait_for_planet(planet, surface)
-        else
-            associate(planet, surface)
-        end
+        tie_or_wait(planet, surface)
     end
 
     apply_trim_policy(name, spec)
@@ -194,20 +294,38 @@ function team_surfaces.create_team_surface(force_name, spec)
     return surface.name
 end
 
---- A surface was deleted, which may have freed a planet: associate every team
---- surface that create_team_surface left waiting for that planet. Entries whose
---- surface is gone are dropped; ones whose planet is still held keep waiting.
+--- A surface was deleted, which may have freed a planet: tie every surface
+--- that waits for a planet that is free now. Entries whose surface is gone, or
+--- was tied by someone else, are dropped. Ones whose planet is still held, or
+--- whose tie the engine refused, keep waiting for the next deletion.
 function team_surfaces.tie_waiting_surfaces()
     local waiting = storage.surfaces_waiting_for_planet
     if not waiting then return end
     for index, base in pairs(waiting) do
-        local surface = game.surfaces[index]
-        local planet = game.planets[base]
+        local surface, planet = game.surfaces[index], game.planets[base]
         if not (surface and surface.valid and planet and planet.valid) then
-            waiting[index] = nil
+            stop_waiting(index)
+        elseif surface.planet then
+            stop_waiting(index)
+            drop_copied_pollutant(planet, surface)
         elseif not planet.surface then
-            associate(planet, surface)
-            waiting[index] = nil
+            tie_waiting(planet, surface)
+        end
+    end
+end
+
+--- Have every waiting surface stand in for its planet again, on
+--- on_configuration_changed: a save made before waiting surfaces stood in has
+--- them on Nauvis properties, and a mod update can change a planet's values.
+--- The day length stays as it is. These surfaces are in use, and the mod that
+--- made one may have set its own (MTS Dimension Warp does).
+function team_surfaces.refresh_waiting_surfaces()
+    for index, base in pairs(storage.surfaces_waiting_for_planet or {}) do
+        local surface, planet = game.surfaces[index], game.planets[base]
+        if surface and surface.valid and planet and planet.valid and not surface.planet then
+            stand_in(planet, surface, true)
+            log(LOG .. quoted("surface", surface) .. " still waits for " .. quoted("planet", planet) .. ". "
+                .. held_text(planet) .. " " .. stand_in_text(planet, true))
         end
     end
 end
