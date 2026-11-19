@@ -15,6 +15,7 @@ local remote_api     = require("scripts.remote_api")
 local teams_gui      = require("gui.teams")
 local planet_map     = require("scripts.planet_map")
 local ultracube_compat = require("compat.ultracube")
+local nomad_compat = require("compat.nomad")
 local space_is_fake  = require("compat.space_is_fake")
 local gridlocked     = require("compat.gridlocked")
 local milestones     = require("milestones.engine")
@@ -151,6 +152,7 @@ function M.register()
     script.on_event(remote_api.events.on_player_joined_team, shadow_hooks.on_player_joined)
     script.on_event(remote_api.events.on_team_released, function(e)
         ultracube_compat.on_team_released(e)   -- fresh cube + victory reset
+        nomad_compat.on_team_released(e)       -- forget the ship and the progress
         space_is_fake.on_team_released(e)       -- clear SiF starting-area guard
         gridlocked.on_team_released(e)          -- reset chunk-point balance
         reaper.on_team_released(e)              -- drop the slot's banked production
