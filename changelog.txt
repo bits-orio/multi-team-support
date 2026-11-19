@@ -1,4 +1,15 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.14
+Date: 2026-11-18
+  Features:
+    - Shadow Race: the chase icon of a recorded run is half faded, like a ghost item, and a team
+      that is playing keeps a solid icon, so a recording and a live rival are easy to tell apart.
+      Shows on Factorio 2.1.25 and newer.
+  Changes:
+    - For mod authors: when a surface made with create_team_surface cannot be tied to its planet
+      because the planet already holds another surface, the log names the surface, the planet
+      and the surface that holds it.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.13
 Date: 2026-11-18
   Changes:
