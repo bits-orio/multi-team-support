@@ -453,7 +453,11 @@ function M.cleanup_force_surfaces(force_name)
         for _, platform in pairs(force.platforms) do
             if platform.valid then
                 deleted[#deleted + 1] = platform.name
-                platform.destroy()
+                -- Without a tick count the engine only schedules the deletion
+                -- five minutes ahead (measured 2.1.23): the next team in this
+                -- slot would find the old platform in its list and could cancel
+                -- the deletion and keep it.
+                platform.destroy(0)
             end
         end
     end
