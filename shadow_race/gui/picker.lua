@@ -49,15 +49,21 @@ local function pace_caption(force_name)
     return {"mts-gui.shadow-pace", numbers[1], numbers[2], numbers[3], numbers[4]}
 end
 
---- One row, one line: the chase button (pressed in for the team's
---- shadow, where a click stops the chase), the run, its split, and the pin
---- button for the player's own recent runs.
-local function add_row(tbl, row)
+--- The chase button of a row: pressed in for the team's shadow, where a
+--- click stops the chase.
+local function add_chase_button(tbl, row)
     if row.current then
-        frames.icon(tbl, "utility/play", "stop", {"mts-tip.shadow-stop"}, true)
-    else
-        frames.icon(tbl, "utility/play", "chase", {"mts-tip.shadow-chase"}, false, {choice = row.choice})
+        return frames.icon(tbl, "utility/play", "stop", {"mts-tip.shadow-stop"}, true)
     end
+    return frames.icon(tbl, "utility/play", "chase", {"mts-tip.shadow-chase"}, false, {choice = row.choice})
+end
+
+--- One row, one line: the chase button, the run, its split, and the pin
+--- button for the player's own recent runs. A recorded run's chase icon is
+--- a ghost, a team that is playing now has a solid one.
+local function add_row(tbl, row)
+    local chase = add_chase_button(tbl, row)
+    if row.recorded then frames.ghost(chase) end
     local name = tbl.add{type = "label", caption = row.label}
     name.style.minimal_width = 150
     if row.own then name.style.font = "default-semibold" end

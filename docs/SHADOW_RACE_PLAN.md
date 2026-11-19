@@ -161,7 +161,9 @@ The window is the standings and the picker in one list:
 - Every other team playing now, every kept run of the team's members, and
   the nearest runs of teams that have left (8 ahead, 4 behind), ranked by
   their split against the team right now. Each has a Chase button; a
-  player's own last 3 runs have a Pin button.
+  player's own last 3 runs have a Pin button. The Chase icon of a recorded
+  run is half faded, like the game's ghost items, and solid for a team
+  playing now (Factorio 2.1.25 and newer; `scripts/engine_features.lua`).
 
 A run the team has gone beyond is ranked below the team. Its split is the
 time the team took to its last score against the time it took, and is shown

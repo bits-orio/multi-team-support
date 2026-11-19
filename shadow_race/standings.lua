@@ -115,10 +115,11 @@ function M.retarget(force_name)
 end
 
 --- The picker's rows for a player, ranked, with the team's own place:
----   rows = { { choice, label, gap, final, current, own, run_id, pinned, pinnable }, ... }
+---   rows = { { choice, label, gap, final, current, own, recorded, run_id, pinned, pinnable }, ... }
 ---   place, total   the team's rank among every comparable run, and how
 ---                  many runs that is counting the team itself
---- `own` marks a run of one of the team's members; run_id, pinned and
+--- `own` marks a run of one of the team's members, `recorded` an archived
+--- run as against a team that is playing now; run_id, pinned and
 --- pinnable speak of the asking player's kept runs.
 function M.rows(force_name, player_index)
     local s = storage.shadow_race
@@ -172,6 +173,7 @@ function M.rows(force_name, player_index)
             rows[#rows + 1] = {
                 choice = c.choice, label = rivals.label(c.run, c.live), gap = c.gap, final = c.final,
                 current = rivals.same(c.choice, target), own = id ~= nil and own_ids[id] == true,
+                recorded = not c.live,
                 run_id = id, pinned = id ~= nil and asker.pinned == id,
                 pinnable = id ~= nil and recent[id] == true,
             }

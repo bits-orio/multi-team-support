@@ -239,12 +239,15 @@ do
     eq("standings: second behind it", place, 2)
     eq("standings: of two", total, 2)
     check("standings: it is marked as the team's shadow", rows[1].current == true)
+    check("standings: a team playing now is not a recording", rows[1].recorded == false)
 
     -- Ann leaves: Bob's shadow becomes her archived run without a gap.
     team_slots.remove_from_team(ann)
     local choice = rivals.choice_of(bob_team)
     eq("rivals: a released team's chasers follow its archived run", choice and choice.kind, "run")
     eq("rivals: still the same split", rivals.standing(bob_team).gap, -300)
+    check("standings: an archived run is a recording",
+        standings.rows(bob_team, bob.index)[1].recorded == true)
 
     -- Auto-chase picks the nearest run ahead, and lets go once it is passed.
     check("auto: can be chosen", rivals.set(bob_team, { kind = "auto" }))

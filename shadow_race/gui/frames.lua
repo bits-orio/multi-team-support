@@ -7,6 +7,7 @@
 
 local helpers   = require("scripts.helpers")
 local spectator = require("scripts.spectator")
+local engine    = require("scripts.engine_features")
 
 local M = {}
 
@@ -34,6 +35,17 @@ function M.icon(parent, sprite, action, tooltip, on, extra)
         button.style.padding = 2
     end
     button.toggled = on == true
+    return button
+end
+
+-- How solid the icon of a recorded run is: the look of the game's ghost items.
+local GHOST_OPACITY = 0.5
+
+--- Give a button the ghost look: its icon half faded, the way the game
+--- draws something that is not there now. Marks a recorded run beside the
+--- solid icon of a team that is playing. Returns the button.
+function M.ghost(button)
+    engine.set_opacity(button, GHOST_OPACITY)
     return button
 end
 
