@@ -132,6 +132,10 @@ harness_config() { # <run dir> [graphics]
     if [ "${2:-}" = graphics ]; then
       printf '[graphics]\nfull-screen=false\ngraphics-quality=medium\nvideo-memory-usage=low\n'
       printf 'texture-compression-level=low-quality\n'
+      # HARNESS_MP_LATENCY=<ticks> makes a joining client behave as on a
+      # server that far away (30 ticks is half a second).
+      [ -z "${HARNESS_MP_LATENCY:-}" ] ||
+        printf '[other]\nminimum-latency-in-multiplayer=%s\n' "$HARNESS_MP_LATENCY"
     fi
   } > "$1/config.ini"
 }

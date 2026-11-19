@@ -8,6 +8,7 @@
 # within 3 minutes, a join refused as "mod event handlers are not identical",
 # a desync or a script error fails the run.
 #   usage: dev/run-mp.sh [join-after-seconds] [stay-seconds] [base|space-age]
+#   HARNESS_MP_LATENCY=<ticks>  the client plays as on a server that far away
 #   HARNESS_PORT=<port>   server port (default: a free port the game picks;
 #                         MP_PORT in harness.conf on engines before 2.1.25)
 set -uo pipefail

@@ -1,0 +1,94 @@
+== aquilo
+HP aquilo prototype entities_require_heating=true
+HP before-any planet.surface=nil surface.planet=nil props: -
+HP pre-assoc (surface hp_team) planet.surface=nil surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP plain props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100 plain.planet=nil
+HP associate_surface(hp_team -> aquilo) ok=true err=
+HP post-assoc planet.surface=hp_team surface.planet=aquilo props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+HP assoc placed assembling-machine-2 ok=true
+HP assoc placed inserter ok=true
+HP assoc placed pipe ok=true
+HP assoc placed wooden-chest ok=true
+HP assoc placed small-electric-pole ok=true
+HP plain placed assembling-machine-2 ok=true
+HP plain placed inserter ok=true
+HP plain placed pipe ok=true
+HP plain placed wooden-chest ok=true
+HP plain placed small-electric-pole ok=true
+HP tick 6 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 6 plain frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 100 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 100 plain frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 300 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 300 plain frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 500 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 500 plain frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP DONE
+== vulcanus
+HP vulcanus prototype entities_require_heating=false
+HP before-any planet.surface=nil surface.planet=nil props: -
+HP pre-assoc (surface hp_team) planet.surface=nil surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP plain props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100 plain.planet=nil
+HP associate_surface(hp_team -> vulcanus) ok=true err=
+HP post-assoc planet.surface=hp_team surface.planet=vulcanus props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+HP assoc placed assembling-machine-2 ok=true
+HP assoc placed inserter ok=true
+HP assoc placed pipe ok=true
+HP assoc placed wooden-chest ok=true
+HP assoc placed small-electric-pole ok=true
+HP tick 6 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 100 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 300 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 500 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP DONE
+== built-first
+HP pre placed assembling-machine-2 ok=true
+HP pre placed inserter ok=true
+HP pre placed pipe ok=true
+HP pre placed wooden-chest ok=true
+HP pre placed small-electric-pole ok=true
+HP before-assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP associate_surface(hp_team -> aquilo) ok=true err=
+HP same-tick-after-assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 6 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 100 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 300 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 500 assoc frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP DONE
+== planet-has-surface
+HP own surface created: aquilo idx=2
+HP before planet.surface=aquilo surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP associate_surface(hp_team -> aquilo) ok=false err=Planet must not already be associated with a surface.
+HP after-failed? planet.surface=aquilo surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP own.planet=aquilo own.valid=true team.planet=nil
+HP teamsurf placed assembling-machine-2 ok=true
+HP teamsurf placed inserter ok=true
+HP teamsurf placed pipe ok=true
+HP teamsurf placed wooden-chest ok=true
+HP teamsurf placed small-electric-pole ok=true
+HP own placed assembling-machine-2 ok=true
+HP own placed inserter ok=true
+HP own placed pipe ok=true
+HP own placed wooden-chest ok=true
+HP own placed small-electric-pole ok=true
+HP tick 6 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 6 plain frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 100 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 100 plain frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 300 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 300 plain frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP tick 500 assoc frozen: assembling-machine-2=false inserter=false pipe=false wooden-chest=false small-electric-pole=false
+HP tick 500 plain frozen: assembling-machine-2=true inserter=true pipe=true wooden-chest=false small-electric-pole=false
+HP DONE
+== two-surfaces
+HP associate_surface(hp_a -> aquilo) ok=true err=
+HP after A planet.surface=hp_a surface.planet=aquilo props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+HP associate_surface(hp_b -> aquilo) ok=false err=Planet must not already be associated with a surface.
+HP after B (second) planet.surface=hp_a surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP a.planet=aquilo b.planet=nil planet.surface=hp_a
+HP deleted a: valid=true planet.surface=hp_a b.planet=nil
+HP associate_surface(hp_b -> aquilo) ok=false err=Planet must not already be associated with a surface.
+HP after retry B planet.surface=hp_a surface.planet=nil props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+HP associate_surface(hp_b -> vulcanus) ok=true err=
+HP b.planet=vulcanus vulcanus.surface=hp_b
+HP DONE

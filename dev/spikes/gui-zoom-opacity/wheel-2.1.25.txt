@@ -1,0 +1,21 @@
+# Wheel over the camera elements, Factorio 2.1.25, client at 1920x1080 (2026-11-18).
+# Session 1: frame centred, pointer at window 808,450 (camera with limits) and 1112,450 (camera without).
+STATE initial: lim zoom=1 nolim zoom=1 player.zoom=1
+STATE lim: 5 wheel-in over lim: lim zoom=1 nolim zoom=1 player.zoom=1.640670711987
+STATE lim: +30 wheel-in: lim zoom=1 nolim zoom=1 player.zoom=3
+STATE lim: 60 wheel-out: lim zoom=1 nolim zoom=1 player.zoom=0.3
+STATE nolim: 5 wheel-in over nolim: lim zoom=1 nolim zoom=1 player.zoom=0.50000000001209
+STATE nolim: +30 wheel-in: lim zoom=1 nolim zoom=1 player.zoom=3
+STATE nolim: 80 wheel-out: lim zoom=1 nolim zoom=1 player.zoom=0.3
+STATE scripted lim zoom=5: lim zoom=5 nolim zoom=1 player.zoom=0.3
+STATE lim: after scripted 5, 3 wheel-out: lim zoom=5 nolim zoom=1 player.zoom=0.3
+STATE scripted lim zoom=1: lim zoom=1 nolim zoom=1 player.zoom=0.3
+STATE lim: 1 wheel-in: lim zoom=1 nolim zoom=1 player.zoom=0.33647504817087
+# Session 2: frame at 100,100, pointer at 260,290 and 560,290.
+STATE start: lim zoom=1 nolim zoom=1 player.zoom=1
+mouse: x:263 y:292 screen:0 window:2097204
+STATE wheel-in x5 at 260,290: lim zoom=1 nolim zoom=1 player.zoom=1.640670711987
+STATE wheel-out x5 at 260,290: lim zoom=1 nolim zoom=1 player.zoom=1
+mouse: x:563 y:292 screen:0 window:2097204
+STATE wheel-in x5 at 560,290: lim zoom=1 nolim zoom=1 player.zoom=1.640670711987
+STATE wheel-out x5 at 560,290: lim zoom=1 nolim zoom=1 player.zoom=1

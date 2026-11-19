@@ -1,0 +1,82 @@
+GZO cam.zoom default -> OK 0.75
+GZO cam.zoom_limits default -> OK {}
+GZO spr.opacity default -> OK 1
+GZO btn.opacity default -> OK 1
+GZO write spr.opacity=0.5 -> OK nil
+GZO read spr.opacity -> OK 0.5
+GZO write btn.opacity=0.25 -> OK nil
+GZO read btn.opacity -> OK 0.25
+GZO opacity=2 -> OK 1
+GZO opacity=-1 -> OK 0
+GZO opacity=nil -> ERR 'opacity': real number expected got nil.
+GZO opacity='x' -> ERR 'opacity': real number expected got string.
+GZO opacity=0.3 string-number '0.3' -> OK 0.30000001192093
+GZO opacity 0 -> OK 0
+GZO add sprite opacity=0.5 -> OK 0.5
+GZO add sprite-button opacity=0.5 -> OK 0.5
+GZO add sprite opacity=3 -> OK 1
+GZO opacity read on button -> ERR Expected sprite or sprite-button.
+GZO opacity write on button -> ERR Expected sprite or sprite-button.
+GZO add button with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on label -> ERR Expected sprite or sprite-button.
+GZO opacity write on label -> ERR Expected sprite or sprite-button.
+GZO add label with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on frame -> ERR Expected sprite or sprite-button.
+GZO opacity write on frame -> ERR Expected sprite or sprite-button.
+GZO add frame with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on camera -> ERR Expected sprite or sprite-button.
+GZO opacity write on camera -> ERR Expected sprite or sprite-button.
+GZO add camera with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on empty-widget -> ERR Expected sprite or sprite-button.
+GZO opacity write on empty-widget -> ERR Expected sprite or sprite-button.
+GZO add empty-widget with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on progressbar -> ERR Expected sprite or sprite-button.
+GZO opacity write on progressbar -> ERR Expected sprite or sprite-button.
+GZO add progressbar with opacity -> ERR Expected sprite or sprite-button.
+GZO opacity read on flow -> ERR Expected sprite or sprite-button.
+GZO opacity write on flow -> ERR Expected sprite or sprite-button.
+GZO add flow with opacity -> ERR Expected sprite or sprite-button.
+GZO zl on sprite read -> ERR Only callable on camera.
+GZO zl on sprite write -> ERR Only callable on camera.
+GZO zl write closest.zoom=10 -> OK nil
+GZO zl read -> OK {closest = {zoom = 10}}
+GZO zl write furthest.zoom=0.5 -> OK nil
+GZO zl read after furthest only -> OK {furthest = {zoom = 0.5}}
+GZO zl write both -> OK nil
+GZO zl read both -> OK {closest = {zoom = 4}, furthest = {zoom = 0.5}}
+GZO zl write {} -> OK nil
+GZO zl read after {} -> OK {}
+GZO zl write both again -> OK nil
+GZO zl write nil -> ERR value for required parameter 1 (zoom_limits) is missing
+GZO zl read after nil -> OK {closest = {zoom = 4}, furthest = {zoom = 0.5}}
+GZO zl write bad: number -> ERR 'zoom_limits': table expected, got number
+GZO zl write bad: closest number -> ERR 'closest': table expected, got number
+GZO zl write bad: closest={} -> ERR Invalid ZoomSpecification. At least one mutually exclusive field must be defined.
+GZO zl write bad: inverted -> OK nil
+GZO zl read after inverted -> OK {closest = {zoom = 0.2}, furthest = {zoom = 2}}
+GZO zl write negative -> ERR Zoom must be positive. -1 was given.
+GZO zl write zero -> ERR Zoom must be positive. 0 was given.
+GZO zl at add -> OK {}
+GZO zl furthest_game_view -> OK {furthest_game_view = {zoom = 0.3}}
+GZO zl distance spec -> OK {closest = {distance = 50, max_distance = 500}}
+GZO zl zoom+distance -> ERR Invalid ZoomSpecification. Only one mutually exclusive field can be defined.
+GZO zl read-modify-write partial keeps? -> OK {furthest = {zoom = 0.5}}
+GZO limits 0.5..4, set zoom=1 -> OK 1
+GZO limits 0.5..4, set zoom=3 -> OK 3
+GZO limits 0.5..4, set zoom=4 -> OK 4
+GZO limits 0.5..4, set zoom=5 -> OK 5
+GZO limits 0.5..4, set zoom=10 -> OK 10
+GZO limits 0.5..4, set zoom=0.5 -> OK 0.5
+GZO limits 0.5..4, set zoom=0.4 -> OK 0.4
+GZO limits 0.5..4, set zoom=0.1 -> OK 0.1
+GZO limits 0.5..4, set zoom=100 -> OK 100
+GZO no limits, set zoom=1 -> OK 1
+GZO no limits, set zoom=3 -> OK 3
+GZO no limits, set zoom=4 -> OK 4
+GZO no limits, set zoom=5 -> OK 5
+GZO no limits, set zoom=10 -> OK 10
+GZO no limits, set zoom=0.1 -> OK 0.1
+GZO no limits, set zoom=0.01 -> OK 0.01
+GZO limits closest=1 while zoom=3 -> zoom -> OK 3
+GZO limits furthest=2 while zoom=1 -> zoom -> OK 1
+GZO DONE

@@ -1,0 +1,8 @@
+{
+  "name": "gzo",
+  "version": "1.0.0",
+  "title": "Spike: camera zoom_limits and sprite opacity",
+  "author": "multi-team-support dev",
+  "factorio_version": "2.1",
+  "dependencies": ["base"]
+}

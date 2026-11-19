@@ -72,7 +72,8 @@ end
 -- buildings, recipes, solar panels, robots and the day length go by. Whatever
 -- the game runs only on a planet's own surface (freezing, lightning) starts
 -- with the tie, which tie_waiting_surfaces makes once a surface deletion has
--- freed the planet. Measured on Factorio 2.1.23 and 2.1.25.
+-- freed the planet. Measured on Factorio 2.1.25, the copy and the tie also on
+-- 2.1.23 (dev/spikes/surface-props).
 
 local LOG = "[multi-team-support:team_surfaces] "
 

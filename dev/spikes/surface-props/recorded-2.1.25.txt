@@ -1,0 +1,336 @@
+== props
+SP on_init ARG=props
+SP property day-night-cycle default=300 is_time=true unit=surface-property-unit.day-night-cycle
+SP property gravity default=10 is_time=false unit=surface-property-unit.gravity
+SP property magnetic-field default=90 is_time=false unit=surface-property-unit.magnetic-field
+SP property pressure default=1000 is_time=false unit=surface-property-unit.pressure
+SP property robot-energy-usage default=1 is_time=false unit=surface-property-unit.robot-energy-usage
+SP property solar-power default=100 is_time=false unit=surface-property-unit.solar-power
+SP planet nauvis surface_properties={["day-night-cycle"] = 25200} entities_require_heating=false pollutant_type=pollution player_effects=nil ticks_between_player_effects=0 solar_power_in_space=300
+SP planet nauvis prototype.lightning_properties readable=no
+SP planet nauvis prototype.surface_render_parameters readable=no
+SP planet nauvis prototype.persistent_ambient_sounds readable=no
+SP planet vulcanus surface_properties={["day-night-cycle"] = 5400, gravity = 40, ["magnetic-field"] = 25, pressure = 4000, ["solar-power"] = 400} entities_require_heating=false pollutant_type=nil player_effects=nil ticks_between_player_effects=0 solar_power_in_space=600
+SP planet vulcanus prototype.lightning_properties readable=no
+SP planet vulcanus prototype.surface_render_parameters readable=no
+SP planet vulcanus prototype.persistent_ambient_sounds readable=no
+SP planet gleba surface_properties={["day-night-cycle"] = 36000, gravity = 20, ["magnetic-field"] = 25, pressure = 2000, ["solar-power"] = 50} entities_require_heating=false pollutant_type=spores player_effects=1 ticks_between_player_effects=1 solar_power_in_space=200
+SP planet gleba prototype.lightning_properties readable=no
+SP planet gleba prototype.surface_render_parameters readable=no
+SP planet gleba prototype.persistent_ambient_sounds readable=no
+SP planet fulgora surface_properties={["day-night-cycle"] = 10800, gravity = 8, ["magnetic-field"] = 99, pressure = 800, ["solar-power"] = 20} entities_require_heating=false pollutant_type=nil player_effects=nil ticks_between_player_effects=0 solar_power_in_space=120
+SP planet fulgora prototype.lightning_properties readable=no
+SP planet fulgora prototype.surface_render_parameters readable=no
+SP planet fulgora prototype.persistent_ambient_sounds readable=no
+SP planet aquilo surface_properties={["day-night-cycle"] = 72000, gravity = 15, ["magnetic-field"] = 10, pressure = 300, ["robot-energy-usage"] = 5, ["solar-power"] = 1} entities_require_heating=true pollutant_type=nil player_effects=1 ticks_between_player_effects=2 solar_power_in_space=60
+SP planet aquilo prototype.lightning_properties readable=no
+SP planet aquilo prototype.surface_render_parameters readable=no
+SP planet aquilo prototype.persistent_ambient_sounds readable=no
+SP plain [sp-plain] props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP plain [sp-plain] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP nauvis [nauvis] props: day-night-cycle=25200 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP nauvis [nauvis] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nauvis
+SP set_property(unknown) ok=false err=Unknown surface-property name: no-such-property
+SP set_property(pressure,-5) ok=true reads -5 err=nil
+SP copy vulcanus [sp-copy-vulcanus] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+SP copy vulcanus [sp-copy-vulcanus] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real vulcanus [vulcanus] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+SP real vulcanus [vulcanus] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=vulcanus
+SP compare vulcanus props MATCH
+SP associate_surface(sp-copy-vulcanus -> vulcanus) ok=false err=Planet must not already be associated with a surface.
+SP copy gleba [sp-copy-gleba] props: day-night-cycle=36000 gravity=20 magnetic-field=25 pressure=2000 robot-energy-usage=1 solar-power=50
+SP copy gleba [sp-copy-gleba] attrs: ticks_per_day=36000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real gleba [gleba] props: day-night-cycle=36000 gravity=20 magnetic-field=25 pressure=2000 robot-energy-usage=1 solar-power=50
+SP real gleba [gleba] attrs: ticks_per_day=36000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=spores override_pollution_type=unset global_effect=nil planet=gleba
+SP compare gleba props MATCH
+SP associate_surface(sp-copy-gleba -> gleba) ok=false err=Planet must not already be associated with a surface.
+SP copy fulgora [sp-copy-fulgora] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=800 robot-energy-usage=1 solar-power=20
+SP copy fulgora [sp-copy-fulgora] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real fulgora [fulgora] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=800 robot-energy-usage=1 solar-power=20
+SP real fulgora [fulgora] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=fulgora
+SP compare fulgora props MATCH
+SP associate_surface(sp-copy-fulgora -> fulgora) ok=false err=Planet must not already be associated with a surface.
+SP copy aquilo [sp-copy-aquilo] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP copy aquilo [sp-copy-aquilo] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real aquilo [aquilo] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP real aquilo [aquilo] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=aquilo
+SP compare aquilo props MATCH
+SP associate_surface(sp-copy-aquilo -> aquilo) ok=false err=Planet must not already be associated with a surface.
+SP after load vulcanus props MATCH
+SP after load copy vulcanus [sp-copy-vulcanus] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+SP after load copy vulcanus [sp-copy-vulcanus] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP after load gleba props MATCH
+SP after load copy gleba [sp-copy-gleba] props: day-night-cycle=36000 gravity=20 magnetic-field=25 pressure=2000 robot-energy-usage=1 solar-power=50
+SP after load copy gleba [sp-copy-gleba] attrs: ticks_per_day=36000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP after load fulgora props MATCH
+SP after load copy fulgora [sp-copy-fulgora] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=800 robot-energy-usage=1 solar-power=20
+SP after load copy fulgora [sp-copy-fulgora] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP after load aquilo props MATCH
+SP after load copy aquilo [sp-copy-aquilo] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP after load copy aquilo [sp-copy-aquilo] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP DONE
+== tie
+SP on_init ARG=tie
+SP A copied+wrong [sp-a] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=7 solar-power=400
+SP A copied+wrong [sp-a] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP B override_pollution_type write ok=true err=nil
+SP B all wrong [sp-b] props: day-night-cycle=3 gravity=3 magnetic-field=3 pressure=3 robot-energy-usage=3 solar-power=3
+SP B all wrong [sp-b] attrs: ticks_per_day=12345 solar_power_multiplier=3 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=pollution global_effect=nil planet=nil
+SP A after load [sp-a] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=7 solar-power=400
+SP A after load [sp-a] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP B after load [sp-b] props: day-night-cycle=3 gravity=3 magnetic-field=3 pressure=3 robot-energy-usage=3 solar-power=3
+SP B after load [sp-b] attrs: ticks_per_day=12345 solar_power_multiplier=3 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=pollution global_effect=nil planet=nil
+SP C before tie frozen: machine=false pipe=false inserter=false
+SP deleting vulcanus deletable=true
+SP same tick after delete_surface: valid=true planet.surface=vulcanus
+SP deleting gleba deletable=true
+SP same tick after delete_surface: valid=true planet.surface=gleba
+SP deleting aquilo deletable=true
+SP same tick after delete_surface: valid=true planet.surface=aquilo
+SP on_pre_surface_deleted (vulcanus planet=vulcanus) index=2 planet holders: vulcanus=vulcanus gleba=gleba fulgora=nil aquilo=aquilo
+SP on_pre_surface_deleted (gleba planet=gleba) index=4 planet holders: vulcanus=vulcanus gleba=gleba fulgora=nil aquilo=aquilo
+SP on_pre_surface_deleted (aquilo planet=aquilo) index=6 planet holders: vulcanus=vulcanus gleba=gleba fulgora=nil aquilo=aquilo
+SP on_surface_deleted index=2 planet holders: vulcanus=nil gleba=nil fulgora=nil aquilo=nil
+SP associate_surface(sp-a -> vulcanus) ok=true err=
+SP tied in on_surface_deleted [sp-a] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=7 solar-power=400
+SP tied in on_surface_deleted [sp-a] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=vulcanus
+SP associate_surface(sp-b -> gleba) ok=true err=
+SP tied in on_surface_deleted [sp-b] props: day-night-cycle=3 gravity=3 magnetic-field=3 pressure=3 robot-energy-usage=3 solar-power=3
+SP tied in on_surface_deleted [sp-b] attrs: ticks_per_day=12345 solar_power_multiplier=3 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=pollution global_effect=nil planet=gleba
+SP associate_surface(sp-c -> aquilo) ok=true err=
+SP tied in on_surface_deleted [sp-c] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP tied in on_surface_deleted [sp-c] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=aquilo
+SP on_surface_deleted index=4 planet holders: vulcanus=sp-a gleba=sp-b fulgora=nil aquilo=sp-c
+SP on_surface_deleted index=6 planet holders: vulcanus=sp-a gleba=sp-b fulgora=nil aquilo=sp-c
+SP A 4 ticks after tie [sp-a] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=7 solar-power=400
+SP A 4 ticks after tie [sp-a] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=vulcanus
+SP B 4 ticks after tie [sp-b] props: day-night-cycle=3 gravity=3 magnetic-field=3 pressure=3 robot-energy-usage=3 solar-power=3
+SP B 4 ticks after tie [sp-b] attrs: ticks_per_day=12345 solar_power_multiplier=3 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=pollution global_effect=nil planet=gleba
+SP C after tie frozen: machine=true pipe=true inserter=true
+SP B override_pollution_type = nil ok=true err=nil
+SP B after clearing script writes [sp-b] props: day-night-cycle=3 gravity=3 magnetic-field=3 pressure=3 robot-energy-usage=3 solar-power=3
+SP B after clearing script writes [sp-b] attrs: ticks_per_day=25000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=spores override_pollution_type=unset global_effect=nil planet=gleba
+SP A tied, set_property(pressure,555) reads 555
+SP A 6 ticks after the write on a tied surface [sp-a] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=555 robot-energy-usage=7 solar-power=400
+SP A 6 ticks after the write on a tied surface [sp-a] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=vulcanus
+SP DONE
+== misc
+SP on_init ARG=misc
+SP set_property(pressure, nil) ok=false err=value for required parameter 2 (value) is missing reads 1000
+SP associate_surface(sp-d -> fulgora) ok=true err=
+SP D one property written, then tied to fulgora [sp-d] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=1234 robot-energy-usage=1 solar-power=20
+SP D one property written, then tied to fulgora [sp-d] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=fulgora
+SP E untouched: pollutant_type=pollution override=unset | pollute ok=true err= get_pollution=100
+SP E write {} (disabled) ok=true err=nil
+SP E {} (disabled): pollutant_type=nil override=disabled | pollute ok=true err= get_pollution=0
+SP E write {pollutant='spores'} ok=true err=nil
+SP E {pollutant='spores'}: pollutant_type=spores override=spores | pollute ok=true err= get_pollution=100
+SP E write {pollutant=<gleba prototype's LuaAirbornePollutantPrototype>} ok=true err=nil
+SP E {pollutant=<gleba prototype's LuaAirbornePollutantPrototype>}: pollutant_type=spores override=spores | pollute ok=true err= get_pollution=100
+SP E write {pollutant=<vulcanus prototype's nil>} ok=true err=nil
+SP E {pollutant=<vulcanus prototype's nil>}: pollutant_type=nil override=disabled | pollute ok=true err= get_pollution=0
+SP E write nil (unset) ok=true err=nil
+SP E nil (unset): pollutant_type=pollution override=unset | pollute ok=true err= get_pollution=100
+SP DONE-INIT
+SP DONE
+== day
+SP on_init ARG=day
+SP F fresh [sp-f]: ticks_per_day=25200 day-night-cycle=300 planet=nil
+SP F after ticks_per_day=7777 [sp-f]: ticks_per_day=7777 day-night-cycle=300 planet=nil
+SP associate_surface(sp-f -> fulgora) ok=true err=
+SP F after a tie to fulgora [sp-f]: ticks_per_day=7777 day-night-cycle=10800 planet=fulgora
+SP associate_surface(sp-g -> gleba) ok=true err=
+SP G tied to gleba [sp-g]: ticks_per_day=36000 day-night-cycle=36000 planet=gleba
+SP G after ticks_per_day=7777 [sp-g]: ticks_per_day=7777 day-night-cycle=36000 planet=gleba
+SP H after set_property(day-night-cycle,5400) [sp-h]: ticks_per_day=5400 day-night-cycle=5400 planet=nil
+SP H after ticks_per_day=7777 [sp-h]: ticks_per_day=7777 day-night-cycle=5400 planet=nil
+SP associate_surface(sp-h -> vulcanus) ok=true err=
+SP H after a tie to vulcanus [sp-h]: ticks_per_day=7777 day-night-cycle=5400 planet=vulcanus
+SP I solar_power_multiplier=0 leaves solar-power=100
+SP I set_property(solar-power,400) leaves solar_power_multiplier=0
+SP DONE
+== robots
+SP on_init ARG=robots
+SP plain robot left the roboport at t=3 energy=3000000 (robot-energy-usage=1 port frozen=false)
+SP copy robot left the roboport at t=3 energy=3000000 (robot-energy-usage=5 port frozen=false)
+SP real robot left the roboport at t=7 energy=3000000 (robot-energy-usage=5 port frozen=false)
+SP plain wall built at t=684: robot used 228771 J in 681 ticks (energy now 2771229)
+SP copy wall built at t=684: robot used 1143857 J in 681 ticks (energy now 1856143)
+SP real wall built at t=689: robot used 1144107 J in 682 ticks (energy now 1855893)
+SP DONE
+== fx-vulcanus
+SP on_init ARG=fx-vulcanus
+SP recipe foundry conditions={{max = 4000, min = 4000, property = "pressure"}}
+SP biolab conditions={{max = 1000, min = 1000, property = "pressure"}}
+SP plain [sp-plain] props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP plain [sp-plain] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP copy [sp-copy] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+SP copy [sp-copy] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real [vulcanus] props: day-night-cycle=5400 gravity=40 magnetic-field=25 pressure=4000 robot-energy-usage=1 solar-power=400
+SP real [vulcanus] attrs: ticks_per_day=5400 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=vulcanus
+SP plain set_recipe(foundry) ok=true err= get_recipe=foundry
+SP plain can_place_entity(biolab, manual)=true
+SP plain player on sp-plain: can_build_from_cursor(biolab)=true built=1 ghosts=0
+SP plain copy_settings(by player) ok=true err= target recipe=nil
+SP plain blueprint ghost recipe=nil, revived machine recipe=nil
+SP copy set_recipe(foundry) ok=true err= get_recipe=foundry
+SP copy can_place_entity(biolab, manual)=false
+SP copy player on sp-copy: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP copy copy_settings(by player) ok=true err= target recipe=foundry
+SP copy blueprint ghost recipe=foundry, revived machine recipe=foundry
+SP real set_recipe(foundry) ok=true err= get_recipe=foundry
+SP real can_place_entity(biolab, manual)=false
+SP real player on vulcanus: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP real copy_settings(by player) ok=true err= target recipe=foundry
+SP real blueprint ghost recipe=foundry, revived machine recipe=foundry
+SP plain t=60 machine status=working recipe=foundry crafting_progress=0.119 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP copy t=60 machine status=working recipe=foundry crafting_progress=0.119 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP real t=60 machine status=working recipe=foundry crafting_progress=0.119 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP plain daytime moved 0.003968 in 100 ticks: 25200 ticks per day (ticks_per_day=25200 day-night-cycle=300)
+SP copy daytime moved 0.018519 in 100 ticks: 5400 ticks per day (ticks_per_day=5400 day-night-cycle=5400)
+SP real daytime moved 0.018519 in 100 ticks: 5400 ticks per day (ticks_per_day=5400 day-night-cycle=5400)
+SP plain solar at noon: accumulator gained 60000 J in 60 ticks = 60.00 kW (solar-power=100 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP copy solar at noon: accumulator gained 240000 J in 60 ticks = 240.00 kW (solar-power=400 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP real solar at noon: accumulator gained 240000 J in 60 ticks = 240.00 kW (solar-power=400 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP plain t=1300 machine status=item_ingredient_shortage recipe=foundry crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP plain lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP plain execute_lightning ok=false err=Used surface sp-plain (index 3) does not have a lightning generator. lightning entities 0 -> 0
+SP copy t=1300 machine status=item_ingredient_shortage recipe=foundry crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP copy lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP copy execute_lightning ok=false err=Used surface sp-copy (index 4) does not have a lightning generator. lightning entities 0 -> 0
+SP real t=1300 machine status=item_ingredient_shortage recipe=foundry crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP real lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP real execute_lightning ok=false err=Used surface vulcanus (index 2) does not have a lightning generator. lightning entities 0 -> 0
+SP DONE
+== fx-gleba
+SP on_init ARG=fx-gleba
+SP recipe biochamber conditions={{max = 2000, min = 2000, property = "pressure"}}
+SP biolab conditions={{max = 1000, min = 1000, property = "pressure"}}
+SP plain [sp-plain] props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP plain [sp-plain] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP copy [sp-copy] props: day-night-cycle=36000 gravity=20 magnetic-field=25 pressure=2000 robot-energy-usage=1 solar-power=50
+SP copy [sp-copy] attrs: ticks_per_day=36000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real [gleba] props: day-night-cycle=36000 gravity=20 magnetic-field=25 pressure=2000 robot-energy-usage=1 solar-power=50
+SP real [gleba] attrs: ticks_per_day=36000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=spores override_pollution_type=unset global_effect=nil planet=gleba
+SP plain set_recipe(biochamber) ok=true err= get_recipe=biochamber
+SP plain can_place_entity(biolab, manual)=true
+SP plain player on sp-plain: can_build_from_cursor(biolab)=true built=1 ghosts=0
+SP plain copy_settings(by player) ok=true err= target recipe=nil
+SP plain blueprint ghost recipe=nil, revived machine recipe=nil
+SP copy set_recipe(biochamber) ok=true err= get_recipe=biochamber
+SP copy can_place_entity(biolab, manual)=false
+SP copy player on sp-copy: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP copy copy_settings(by player) ok=true err= target recipe=biochamber
+SP copy blueprint ghost recipe=biochamber, revived machine recipe=biochamber
+SP real set_recipe(biochamber) ok=true err= get_recipe=biochamber
+SP real can_place_entity(biolab, manual)=false
+SP real player on gleba: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP real copy_settings(by player) ok=true err= target recipe=biochamber
+SP real blueprint ghost recipe=biochamber, revived machine recipe=biochamber
+SP plain t=60 machine status=working recipe=biochamber crafting_progress=0.059 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP copy t=60 machine status=working recipe=biochamber crafting_progress=0.059 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP real t=60 machine status=working recipe=biochamber crafting_progress=0.059 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP plain daytime moved 0.003968 in 100 ticks: 25200 ticks per day (ticks_per_day=25200 day-night-cycle=300)
+SP copy daytime moved 0.002778 in 100 ticks: 36000 ticks per day (ticks_per_day=36000 day-night-cycle=36000)
+SP real daytime moved 0.002778 in 100 ticks: 36000 ticks per day (ticks_per_day=36000 day-night-cycle=36000)
+SP plain solar at noon: accumulator gained 60000 J in 60 ticks = 60.00 kW (solar-power=100 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP copy solar at noon: accumulator gained 30000 J in 60 ticks = 30.00 kW (solar-power=50 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP real solar at noon: accumulator gained 30000 J in 60 ticks = 30.00 kW (solar-power=50 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP plain t=1300 machine status=item_ingredient_shortage recipe=biochamber crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP plain lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP plain execute_lightning ok=false err=Used surface sp-plain (index 3) does not have a lightning generator. lightning entities 0 -> 0
+SP copy t=1300 machine status=item_ingredient_shortage recipe=biochamber crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP copy lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP copy execute_lightning ok=false err=Used surface sp-copy (index 4) does not have a lightning generator. lightning entities 0 -> 0
+SP real t=1300 machine status=item_ingredient_shortage recipe=biochamber crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP real lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP real execute_lightning ok=false err=Used surface gleba (index 2) does not have a lightning generator. lightning entities 0 -> 0
+SP DONE
+== fx-fulgora
+SP on_init ARG=fx-fulgora
+SP recipe lightning-rod conditions={{max = 99, min = 99, property = "magnetic-field"}}
+SP biolab conditions={{max = 1000, min = 1000, property = "pressure"}}
+SP plain [sp-plain] props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP plain [sp-plain] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP copy [sp-copy] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=800 robot-energy-usage=1 solar-power=20
+SP copy [sp-copy] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real [fulgora] props: day-night-cycle=10800 gravity=8 magnetic-field=99 pressure=800 robot-energy-usage=1 solar-power=20
+SP real [fulgora] attrs: ticks_per_day=10800 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=fulgora
+SP plain set_recipe(lightning-rod) ok=true err= get_recipe=lightning-rod
+SP plain can_place_entity(biolab, manual)=true
+SP plain player on sp-plain: can_build_from_cursor(biolab)=true built=1 ghosts=0
+SP plain copy_settings(by player) ok=true err= target recipe=nil
+SP plain blueprint ghost recipe=nil, revived machine recipe=nil
+SP copy set_recipe(lightning-rod) ok=true err= get_recipe=lightning-rod
+SP copy can_place_entity(biolab, manual)=false
+SP copy player on sp-copy: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP copy copy_settings(by player) ok=true err= target recipe=lightning-rod
+SP copy blueprint ghost recipe=lightning-rod, revived machine recipe=lightning-rod
+SP real set_recipe(lightning-rod) ok=true err= get_recipe=lightning-rod
+SP real can_place_entity(biolab, manual)=false
+SP real player on fulgora: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP real copy_settings(by player) ok=true err= target recipe=lightning-rod
+SP real blueprint ghost recipe=lightning-rod, revived machine recipe=lightning-rod
+SP plain t=60 machine status=working recipe=lightning-rod crafting_progress=0.238 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP copy t=60 machine status=working recipe=lightning-rod crafting_progress=0.238 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP real t=60 machine status=working recipe=lightning-rod crafting_progress=0.238 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP plain daytime moved 0.003968 in 100 ticks: 25200 ticks per day (ticks_per_day=25200 day-night-cycle=300)
+SP copy daytime moved 0.009259 in 100 ticks: 10800 ticks per day (ticks_per_day=10800 day-night-cycle=10800)
+SP real daytime moved 0.009259 in 100 ticks: 10800 ticks per day (ticks_per_day=10800 day-night-cycle=10800)
+SP plain solar at noon: accumulator gained 60000 J in 60 ticks = 60.00 kW (solar-power=100 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP copy solar at noon: accumulator gained 12000 J in 60 ticks = 12.00 kW (solar-power=20 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP real solar at noon: accumulator gained 12000 J in 60 ticks = 12.00 kW (solar-power=20 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP plain t=1300 machine status=item_ingredient_shortage recipe=lightning-rod crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP plain lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP plain execute_lightning ok=false err=Used surface sp-plain (index 3) does not have a lightning generator. lightning entities 0 -> 0
+SP copy t=1300 machine status=item_ingredient_shortage recipe=lightning-rod crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP copy lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP copy execute_lightning ok=false err=Used surface sp-copy (index 4) does not have a lightning generator. lightning entities 0 -> 0
+SP real t=1300 machine status=item_ingredient_shortage recipe=lightning-rod crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP real lightning entity-ticks seen in 1130 night ticks: 6665 (daytime=0.50)
+SP real execute_lightning ok=true err= lightning entities 6 -> 7
+SP DONE
+== fx-aquilo
+SP on_init ARG=fx-aquilo
+SP recipe cryogenic-plant conditions={{max = 600, min = 100, property = "pressure"}}
+SP biolab conditions={{max = 1000, min = 1000, property = "pressure"}}
+SP plain [sp-plain] props: day-night-cycle=300 gravity=10 magnetic-field=90 pressure=1000 robot-energy-usage=1 solar-power=100
+SP plain [sp-plain] attrs: ticks_per_day=25200 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP copy [sp-copy] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP copy [sp-copy] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=pollution override_pollution_type=unset global_effect=nil planet=nil
+SP real [aquilo] props: day-night-cycle=72000 gravity=15 magnetic-field=10 pressure=300 robot-energy-usage=5 solar-power=1
+SP real [aquilo] attrs: ticks_per_day=72000 solar_power_multiplier=1 (day shape and flags as on a new surface) pollutant_type=nil override_pollution_type=unset global_effect=nil planet=aquilo
+SP plain set_recipe(cryogenic-plant) ok=true err= get_recipe=cryogenic-plant
+SP plain can_place_entity(biolab, manual)=true
+SP plain player on sp-plain: can_build_from_cursor(biolab)=true built=1 ghosts=0
+SP plain copy_settings(by player) ok=true err= target recipe=nil
+SP plain blueprint ghost recipe=nil, revived machine recipe=nil
+SP copy set_recipe(cryogenic-plant) ok=true err= get_recipe=cryogenic-plant
+SP copy can_place_entity(biolab, manual)=false
+SP copy player on sp-copy: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP copy copy_settings(by player) ok=true err= target recipe=cryogenic-plant
+SP copy blueprint ghost recipe=cryogenic-plant, revived machine recipe=cryogenic-plant
+SP real set_recipe(cryogenic-plant) ok=true err= get_recipe=cryogenic-plant
+SP real can_place_entity(biolab, manual)=false
+SP real player on aquilo: can_build_from_cursor(biolab)=false built=0 ghosts=0
+SP real copy_settings(by player) ok=true err= target recipe=cryogenic-plant
+SP real blueprint ghost recipe=cryogenic-plant, revived machine recipe=cryogenic-plant
+SP plain t=60 machine status=working recipe=cryogenic-plant crafting_progress=0.119 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP copy t=60 machine status=working recipe=cryogenic-plant crafting_progress=0.119 products_finished=0 output=0 frozen=false | pipe frozen=false inserter frozen=false
+SP real t=60 machine status=frozen recipe=cryogenic-plant crafting_progress=0.000 products_finished=0 output=0 frozen=true | pipe frozen=true inserter frozen=true
+SP plain daytime moved 0.003968 in 100 ticks: 25200 ticks per day (ticks_per_day=25200 day-night-cycle=300)
+SP copy daytime moved 0.001389 in 100 ticks: 72000 ticks per day (ticks_per_day=72000 day-night-cycle=72000)
+SP real daytime moved 0.001389 in 100 ticks: 72000 ticks per day (ticks_per_day=72000 day-night-cycle=72000)
+SP plain solar at noon: accumulator gained 60000 J in 60 ticks = 60.00 kW (solar-power=100 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP copy solar at noon: accumulator gained 600 J in 60 ticks = 0.60 kW (solar-power=1 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP real solar at noon: accumulator gained 600 J in 60 ticks = 0.60 kW (solar-power=1 solar_power_multiplier=1 panel frozen=false acc frozen=false)
+SP plain t=1300 machine status=item_ingredient_shortage recipe=cryogenic-plant crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP plain lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP plain execute_lightning ok=false err=Used surface sp-plain (index 3) does not have a lightning generator. lightning entities 0 -> 0
+SP copy t=1300 machine status=item_ingredient_shortage recipe=cryogenic-plant crafting_progress=0.000 products_finished=1 output=1 frozen=false | pipe frozen=false inserter frozen=false
+SP copy lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP copy execute_lightning ok=false err=Used surface sp-copy (index 4) does not have a lightning generator. lightning entities 0 -> 0
+SP real t=1300 machine status=frozen recipe=cryogenic-plant crafting_progress=0.000 products_finished=0 output=0 frozen=true | pipe frozen=true inserter frozen=true
+SP real lightning entity-ticks seen in 1130 night ticks: 0 (daytime=0.50)
+SP real execute_lightning ok=false err=Used surface aquilo (index 2) does not have a lightning generator. lightning entities 0 -> 0
+SP DONE
