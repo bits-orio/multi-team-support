@@ -9,9 +9,8 @@ One release line: `master`, versions 0.7.x, `factorio_version 2.1`. The Factorio
 3. Push master, then `./tools/release.sh`. It checks the clean tree, the changelog entry, the locale keys and that HEAD is on origin, then pushes the tag. GitHub Actions builds the zip, publishes the GitHub release with the changelog entries since the previous release, posts to Discord, uploads to the portal and syncs the portal page.
 4. Confirm: `python3 tools/portal_check.py`, or `curl -s https://mods.factorio.com/api/mods/multi-team-support/full` and look for the new version with `"factorio_version": "2.1"`.
 
-## Cadence and exceptions
+## Order of releases
 
-- One release per week at most, per the house release discipline; same-day patches only for crash fixes.
 - Companion mods (brave-new-mts, mts-dimension-warp, open-discord-bridge) declare the MTS version they need; a release they depend on goes out first.
 
 ## What the workflow does per tag, and what to check when it fails
