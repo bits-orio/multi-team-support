@@ -15,7 +15,7 @@
 #   calibrate  join, screenshot, quit (to find the pen button)
 #
 #   usage: dev/run-scenarios.sh [main update dangoreus platform]   (default: all four)
-#   HARNESS_PORT=<port>   server port (default MP_PORT in harness.conf)
+#   HARNESS_PORT=<port>   server port (default: a free port the game picks)
 #
 # Exit status is non-zero on any MTS_TEST FAIL, a missing MTS_TEST DONE, a Lua
 # or engine error, a desync or a failed step. Everything it started (client,
@@ -29,7 +29,7 @@ DEV="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$DEV/vdisplay.sh"
 # shellcheck source=scenario-lib.sh
 . "$DEV/scenario-lib.sh"
-PORT="${HARNESS_PORT:-${MP_PORT:?set MP_PORT in dev/harness.conf}}"
+PORT=""   # set by scen_server_start
 TEST_MOD_DIR="$DEV/mods/mts-scenario-test"
 OLD_MTS="4d58890"                                   # the release before pause holders
 DANGOREUS_ZIP="${DANGOREUS_ZIP:-$HOME/.factorio/mods/dangOreus_2.0.6.zip}"

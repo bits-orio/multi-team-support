@@ -8,7 +8,8 @@
 # within 3 minutes, a join refused as "mod event handlers are not identical",
 # a desync or a script error fails the run.
 #   usage: dev/run-mp.sh [join-after-seconds] [stay-seconds] [base|space-age]
-#   HARNESS_PORT=<port>   server port (default: MP_PORT in harness.conf)
+#   HARNESS_PORT=<port>   server port (default: a free port the game picks;
+#                         MP_PORT in harness.conf on engines before 2.1.25)
 set -uo pipefail
 DEV="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=harness-lib.sh
@@ -19,7 +20,7 @@ RUN="$REPO/.run/mp"
 JOIN_AFTER="${1:-20}"
 STAY="${2:-30}"
 SET="${3:-${SETS[0]}}"
-PORT="${HARNESS_PORT:-${MP_PORT:?set MP_PORT in dev/harness.conf}}"
+PORT_REQUEST="$(harness_port_request)" || exit 1
 [ -d "$RUN" ] && vdisplay_stop "$RUN"
 rm -rf "$RUN"; mkdir -p "$RUN/server" "$RUN/client"
 harness_config "$RUN/server"
@@ -33,8 +34,9 @@ JSON
 "$FACTORIO" --config "$RUN/server/config.ini" --create "$RUN/world.zip" --mod-directory "$RUN/mods" \
   --map-gen-seed 1 > "$RUN/create.log" 2>&1 || { tail -20 "$RUN/create.log"; exit 1; }
 "$FACTORIO" --config "$RUN/server/config.ini" --mod-directory "$RUN/mods" --start-server "$RUN/world.zip" \
-  --port "$PORT" --server-settings "$RUN/server-settings.json" > "$RUN/server.log" 2>&1 &
+  --port "$PORT_REQUEST" --server-settings "$RUN/server-settings.json" > "$RUN/server.log" 2>&1 &
 SERVER=$!
+PORT="$(harness_bound_port "$RUN/server.log")" || { echo "server never hosted"; tail -20 "$RUN/server.log"; kill $SERVER 2>/dev/null; exit 1; }
 echo "server pid=$SERVER port=$PORT, client joins in ${JOIN_AFTER}s"
 timeout "$JOIN_AFTER" tail -f /dev/null
 vdisplay_start "$RUN" 1280x720 || { kill $SERVER; exit 1; }

@@ -10,8 +10,9 @@
 # through gui-drive.sh. A member leaving or rejoining is the client stopping
 # or starting again; the server keeps running.
 #
-# The caller sets RUN (this session's folder), SCEN_MODS (its mod folder) and
-# PORT, and calls scen_cleanup on exit.
+# The caller sets RUN (this session's folder) and SCEN_MODS (its mod folder),
+# and calls scen_cleanup on exit. scen_server_start sets PORT to the port the
+# server bound (a free one the game picks on 2.1.25 and newer).
 
 SCEN_GUI="$REPO/.run/gui"
 SCEN_NAME="tester"
@@ -28,7 +29,8 @@ scen_preflight() {
   if [ -n "$clients" ]; then echo "a Factorio client is already running:"; echo "$clients"; return 1; fi
   avail=$(free -m | awk '/^Mem:/ {print $7}')
   [ "$avail" -ge 3000 ] || { echo "only ${avail} MB of memory available, need 3000"; return 1; }
-  if ss -lun 2>/dev/null | grep -q ":$PORT "; then echo "UDP port $PORT is in use"; return 1; fi
+  local port; port="$(harness_port_request)" || return 1
+  if [ "$port" != 0 ] && ss -lun 2>/dev/null | grep -q ":$port "; then echo "UDP port $port is in use"; return 1; fi
 }
 
 scen_server_settings() { # <file>
@@ -55,9 +57,10 @@ scen_server_start() { # <save>
   exec 7<> "$RUN/server.in"   # held open, so the server never reads EOF on stdin
   MARK=$( [ -f "$SERVER_LOG" ] && wc -l < "$SERVER_LOG" || echo 0)
   "$FACTORIO" --config "$RUN/server/config.ini" --mod-directory "$SCEN_MODS" --start-server "$1" \
-    --port "$PORT" --server-settings "$RUN/server-settings.json" \
+    --port "$(harness_port_request)" --server-settings "$RUN/server-settings.json" \
     < "$RUN/server.in" >> "$SERVER_LOG" 2>&1 7>&- &
   SERVER_PID=$!
+  PORT="$(harness_bound_port "$SERVER_LOG" "$MARK")" || { echo "  server never hosted"; return 1; }
   echo "  server pid=$SERVER_PID port=$PORT ($(basename "$1"))"
   scen_wait "changing state from\(CreatingGame\) to\(InGame\)" 120
 }

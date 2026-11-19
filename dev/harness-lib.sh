@@ -4,7 +4,8 @@
 # live in dev/harness.conf.
 #
 # Sets REPO, DEV_DIR, MOD (info.json's name), MOD_FV (its factorio_version),
-# FACTORIO and ENGINE_VERSION, and loads harness.conf.
+# FACTORIO, ENGINE_VERSION ("2.1") and ENGINE_FULL ("2.1.25"), and loads
+# harness.conf.
 
 DEV_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$DEV_DIR/.." && pwd)"
@@ -12,11 +13,11 @@ REPO="$(cd "$DEV_DIR/.." && pwd)"
 # Defaults; harness.conf overrides them.
 ABBR=""        # test mod log prefix: <ABBR>_TEST PASS|FAIL|DONE, <ABBR>_MP
 SETS=(base)    # mod sets run-tests.sh runs: base, space-age
-TICKS=600      # --benchmark length
+TICKS=600      # tick limit of a run-tests.sh run
 TEST_MOD=""    # dev/mods/<name> that run-tests.sh loads, if any
 GUI_WORLD=""   # dev/mods/<name> that run-gui.sh loads, if any
 MP_WORLD=""    # dev/mods/<name> that run-mp.sh loads, if any
-MP_PORT=""     # run-mp.sh's server port, one per repo
+MP_PORT=""     # server port on engines before 2.1.25 (newer ones pick a free port)
 DEPS=()        # "name source [git-branch]" for each mod this one needs
 PRE_TESTS=()   # commands run-tests.sh runs first, from the repo root
 harness_stage_hook() { :; }  # called with the mods dir after staging
@@ -31,8 +32,37 @@ MOD="$(harness_json "$REPO/info.json" name)"
 MOD_FV="$(harness_json "$REPO/info.json" factorio_version)"
 FACTORIO="${FACTORIO:-$HOME/factorio-$MOD_FV/bin/x64/factorio}"
 [ -x "$FACTORIO" ] || { echo "no Factorio binary at $FACTORIO (set FACTORIO=)" >&2; exit 1; }
-# "2.1" from "Version: 2.1.23 (build ...)".
-ENGINE_VERSION="$("$FACTORIO" --version 2>/dev/null | sed -nE 's/^Version: ([0-9]+\.[0-9]+)\..*/\1/p' | head -n 1)"
+# "2.1.25" and "2.1" from "Version: 2.1.25 (build ...)".
+ENGINE_FULL="$("$FACTORIO" --version 2>/dev/null | sed -nE 's/^Version: ([0-9]+\.[0-9]+\.[0-9]+) .*/\1/p' | head -n 1)"
+ENGINE_VERSION="${ENGINE_FULL%.*}"
+
+harness_engine_at_least() { # <x.y.z>; true when the binary is that version or newer
+  [ -n "$ENGINE_FULL" ] && [ "$(printf '%s\n%s\n' "$1" "$ENGINE_FULL" | sort -V | head -n 1)" = "$1" ]
+}
+
+# The port a server is started with. From 2.1.25 on, port 0 makes the game
+# pick a free one, so servers of parallel or leftover runs never collide;
+# older engines get the repo's MP_PORT. HARNESS_PORT overrides both.
+harness_port_request() {
+  if [ -n "${HARNESS_PORT:-}" ]; then echo "$HARNESS_PORT"
+  elif harness_engine_at_least 2.1.25; then echo 0
+  else echo "${MP_PORT:?set MP_PORT in dev/harness.conf}"
+  fi
+}
+
+# The port the server really bound, read from its "Hosting game at" log line
+# (waits up to 60 s for it). Prints nothing and fails if the server never
+# hosted. With a line count, only the log after that many lines is read, for
+# a log that several server starts append to.
+harness_bound_port() { # <server log> [lines to skip]
+  local port
+  for _ in $(seq 1 120); do
+    port="$(tail -n +$(( ${2:-0} + 1 )) "$1" 2>/dev/null | sed -nE 's/.*Hosting game at IP ADDR:\(\{[^}]*:([0-9]+)\}\).*/\1/p' | tail -n 1)"
+    [ -n "$port" ] && { echo "$port"; return 0; }
+    sleep 0.5
+  done
+  return 1
+}
 
 harness_patch_version() { # <mod dir>
   sed -i -E "s/(\"factorio_version\": *\")[^\"]+\"/\1$ENGINE_VERSION\"/" "$1/info.json"
