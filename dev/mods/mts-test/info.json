@@ -1,0 +1,2 @@
+{ "name": "mts-test", "version": "0.0.1", "title": "Multi-Team Support test (dev only)", "author": "bits-orio",
+  "factorio_version": "2.1", "dependencies": ["base", "multi-team-support"] }

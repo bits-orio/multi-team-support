@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS = ("tests.test_reaper", "tests.test_agent_records", "tests.test_agent_manifest",
          "tests.test_agent_bytes", "tests.test_player_teams", "tests.test_chat_scope",
          "tests.test_team_release", "tests.test_simple_seablock",
-         "tests.test_shadow_race")
+         "tests.test_shadow_race", "tests.test_team_surfaces")
 
 def run_one(module):
     lua = LuaRuntime(unpack_returned_tuples=True)

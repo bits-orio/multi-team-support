@@ -62,6 +62,39 @@ local function apply_trim_policy(name, spec)
     end
 end
 
+-- ─── Planet association ───────────────────────────────────────────────
+
+local LOG = "[multi-team-support:team_surfaces] "
+
+--- "surface 'gleba'" for the surface a planet holds, for a log line.
+local function holder_text(planet)
+    local holder = planet.surface
+    if holder and holder.valid then return "surface '" .. holder.name .. "'" end
+    return "no surface"
+end
+
+--- Tie a surface to its planet, so Space Age planet mechanics (pressure,
+--- gravity, freezing) apply to it. The engine refuses when the planet already
+--- holds a surface; the surface then keeps Nauvis properties, which nothing in
+--- the game shows, so the refusal goes to the log. Returns true when tied.
+local function associate(planet, surface)
+    local ok, err = pcall(function() planet.associate_surface(surface) end)
+    if ok then return true end
+    log(LOG .. "surface '" .. surface.name .. "' is not tied to planet '" .. planet.name
+        .. "' and keeps Nauvis properties: " .. tostring(err)
+        .. " The planet is held by " .. holder_text(planet) .. ".")
+    return false
+end
+
+--- Leave a surface waiting for a planet that another surface still holds.
+local function wait_for_planet(planet, surface)
+    storage.surfaces_waiting_for_planet = storage.surfaces_waiting_for_planet or {}
+    storage.surfaces_waiting_for_planet[surface.index] = planet.name
+    log(LOG .. "surface '" .. surface.name .. "' waits for planet '" .. planet.name
+        .. "' and keeps Nauvis properties until then: the planet is held by "
+        .. holder_text(planet) .. ".")
+end
+
 -- ─── Create ───────────────────────────────────────────────────────────
 
 --- Create an ephemeral, caller-seeded surface for a team.
@@ -141,10 +174,9 @@ function team_surfaces.create_team_surface(force_name, spec)
     local planet = game.planets and game.planets[base]
     if planet and planet.valid and base ~= "nauvis" then
         if planet.surface then
-            storage.surfaces_waiting_for_planet = storage.surfaces_waiting_for_planet or {}
-            storage.surfaces_waiting_for_planet[surface.index] = base
+            wait_for_planet(planet, surface)
         else
-            pcall(function() planet.associate_surface(surface) end)
+            associate(planet, surface)
         end
     end
 
@@ -174,7 +206,7 @@ function team_surfaces.tie_waiting_surfaces()
         if not (surface and surface.valid and planet and planet.valid) then
             waiting[index] = nil
         elseif not planet.surface then
-            pcall(function() planet.associate_surface(surface) end)
+            associate(planet, surface)
             waiting[index] = nil
         end
     end
