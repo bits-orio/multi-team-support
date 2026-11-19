@@ -132,10 +132,6 @@ harness_config() { # <run dir> [graphics]
     if [ "${2:-}" = graphics ]; then
       printf '[graphics]\nfull-screen=false\ngraphics-quality=medium\nvideo-memory-usage=low\n'
       printf 'texture-compression-level=low-quality\n'
-      # HARNESS_MP_LATENCY=<ticks> makes a joining client behave as on a
-      # server that far away (30 ticks is half a second).
-      [ -z "${HARNESS_MP_LATENCY:-}" ] ||
-        printf '[other]\nminimum-latency-in-multiplayer=%s\n' "$HARNESS_MP_LATENCY"
     fi
   } > "$1/config.ini"
 }
@@ -143,7 +139,8 @@ harness_config() { # <run dir> [graphics]
 # Engine and script errors, but not the test mod's own lines (a FAIL detail
 # may contain the word "error").
 harness_errors() { # <log files...>
-  grep -h -v "_TEST " "$@" | grep -E "Error|error while|stack traceback|Failed to load mods" || true
+  grep -h -v -e "_TEST " -e "Got EOF on stdin" "$@" |
+    grep -E "Error|error while|stack traceback|Failed to load mods" || true
 }
 
 # A dev-only mod for GUI runs: every surface at noon with no clouds, no
