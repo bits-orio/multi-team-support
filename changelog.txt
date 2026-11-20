@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.16
+Date: 2026-11-19
+  Changes:
+    - Shadow Race: the splits window no longer opens by itself when a team's clock starts. Open
+      it with the list button on the Shadow Race window; it then stays open across runs and
+      teams until you close it. On update it starts closed for everyone.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.15
 Date: 2026-11-19
   Changes:
