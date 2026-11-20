@@ -10,7 +10,7 @@
 --
 -- Storage:
 --   storage.shadow_race.rival[force_name] = choice
---   storage.shadow_race.pref[player_index] = { last = choice, hidden = true, splits_closed = true }
+--   storage.shadow_race.pref[player_index] = { last = choice, hidden = true, splits_open = true }
 --   storage.shadow_race.last_shadow[force_name] = choice
 --       the run the team's splits were last shown against. It outlives
 --       an auto-chase that has passed every run, so the splits window
@@ -255,14 +255,15 @@ function M.set_hidden(player_index, hidden)
     pref_of(state(), player_index).hidden = hidden and true or nil
 end
 
---- Whether the player keeps the splits window open. It is open until
---- they close it, and their choice holds from then on.
+--- Whether the player keeps the splits window open. It is closed until
+--- they open it from the Shadow Race window, and their choice holds from
+--- then on.
 function M.wants_splits(player_index)
-    return (state().pref[player_index] or {}).splits_closed ~= true
+    return (state().pref[player_index] or {}).splits_open == true
 end
 
 function M.set_splits(player_index, wanted)
-    pref_of(state(), player_index).splits_closed = (not wanted) and true or nil
+    pref_of(state(), player_index).splits_open = wanted and true or nil
 end
 
 M.pin   = archive.pin

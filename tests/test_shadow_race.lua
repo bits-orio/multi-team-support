@@ -300,6 +300,14 @@ do
     rivals.set_hidden(bob.index, true)
     check("hud: hidden for the player who asked", rivals.is_hidden(bob.index))
     check("hud: and only for them", not rivals.is_hidden(ann.index))
+
+    -- The splits window is the player's to open.
+    check("splits window: closed by default", not rivals.wants_splits(bob.index))
+    rivals.set_splits(bob.index, true)
+    check("splits window: open for the player who opened it", rivals.wants_splits(bob.index))
+    check("splits window: and only for them", not rivals.wants_splits(ann.index))
+    rivals.set_splits(bob.index, false)
+    check("splits window: closed again on request", not rivals.wants_splits(bob.index))
 end
 
 -- ─── splits: the two runs' marks as one list ──────────────────────────

@@ -10,11 +10,11 @@
 -- The list shows about five rows and scrolls; whenever the race moves on
 -- it scrolls itself to the first milestone still open.
 --
--- It is there from the moment the team's clock starts, which is when a
--- team plans what to hit, and it stays until the player closes it
--- (pref.splits_closed); the Shadow Race window brings it back. It never
--- goes away on its own: a team that has passed every run keeps the splits
--- against the last one, and a team chasing nothing sees its own times.
+-- The player opens it from the Shadow Race window (pref.splits_open) and
+-- it stays, across runs and teams, until they close it. It never goes
+-- away on its own while the team's clock runs: a team that has passed
+-- every run keeps the splits against the last one, and a team chasing
+-- nothing sees its own times.
 -- Driven by gui/hud_clock.lua's one-second pass. That pass rewrites only
 -- the countdowns; the rows are rebuilt when the frame's signature changes:
 -- another shadow, a new mark in either run, or a countdown reaching zero.
@@ -166,7 +166,7 @@ local function build(player, mine, rival, live)
 end
 
 --- Bring one player's window in line with their team: there while the
---- team's clock runs and the player has not closed it.
+--- team's clock runs and the player has opened it.
 function M.update_player(player, force_name)
     local frame = player.gui.screen[FRAME]
     local wanted = force_name and rivals.enabled() and rivals.wants_splits(player.index)
