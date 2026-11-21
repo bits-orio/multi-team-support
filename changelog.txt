@@ -1,4 +1,16 @@
 ---------------------------------------------------------------------------------------------------
+Version: 0.7.17
+Date: 2026-11-20
+  Changes:
+    - Nomad (1.0.8 or newer): a player accepted into a team arrives on the ship the team
+      already has. They were placed on the team's Nauvis.
+  Bugfixes:
+    - A new team can travel to its own copy of every planet its starting research has
+      discovered. With a mod that starts the game with planets discovered, such as Nomad,
+      those copies stayed locked.
+    - A player who dies with the space platform they are riding respawns on their team's
+      home surface. They respawned on the shared Nauvis, which no team owns.
+---------------------------------------------------------------------------------------------------
 Version: 0.7.16
 Date: 2026-11-19
   Changes:

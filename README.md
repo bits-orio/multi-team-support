@@ -64,6 +64,7 @@ English, Spanish, Russian, German. Localization is per player: everyone on a ser
 - Requires **Factorio 2.1** (`base >= 2.1`, releases 0.7.x). The last release for Factorio 2.0 is 0.6.11
 - **Space Age** is optional. When it is present, MTS detects it automatically and enables per-team planets plus space connections
 - Compatible with [Platformer](https://mods.factorio.com/mod/platformer)
+- Compatible with [Nomad](https://mods.factorio.com/mod/nomad) 1.0.8 or newer (needs Space Age): every team starts on its own mothership above its own Nauvis
 - **Companion modes** *(optional; built on the `mts-v1` API, so each plays out independently per team)*:
   - [**Diggy**](https://mods.factorio.com/mod/diggy): the world is solid rock, so dig out your factory, brace the ceilings, and survive cave-ins. MTS integration is first class, and every team races an identically-seeded dig world.
   - **MTS Expanse** brings tiny-island Expanse gameplay: feed hungry chests, unlock land, race teams, and survive invasions.

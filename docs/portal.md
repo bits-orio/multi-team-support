@@ -44,7 +44,7 @@ In active use on public servers. Team cap is 20 with Space Age, where each team 
 
 ## Compatibility
 
-Requires Factorio 2.1 (releases 0.7.x); on Factorio 2.0 the in-game mod browser offers 0.6.11. Space Age is optional and auto-detected. Verified against dangOreus, VoidBlock, Alien Biomes, [Periodic Madness](https://mods.factorio.com/mod/periodic-madness), [Krastorio 2](https://mods.factorio.com/mod/Krastorio2) and [Platformer](https://mods.factorio.com/mod/platformer).
+Requires Factorio 2.1 (releases 0.7.x); on Factorio 2.0 the in-game mod browser offers 0.6.11. Space Age is optional and auto-detected. Verified against dangOreus, VoidBlock, Alien Biomes, [Periodic Madness](https://mods.factorio.com/mod/periodic-madness), [Krastorio 2](https://mods.factorio.com/mod/Krastorio2) and [Platformer](https://mods.factorio.com/mod/platformer). With [Nomad](https://mods.factorio.com/mod/nomad) 1.0.8 or newer, every team starts on its own mothership above its own Nauvis.
 
 Mod authors: Multi-Team Support exposes a versioned `mts-v1` remote interface and custom events, so you can integrate without a per-mod compatibility shim. See the [remote API contract](https://github.com/bits-orio/multi-team-support/blob/master/scripts/remote_api.lua) and the [compatibility strategy notes](https://github.com/bits-orio/multi-team-support/blob/master/docs/COMPAT.md). The [full command reference](https://github.com/bits-orio/multi-team-support/blob/master/README.md) lives in the repo.
 
