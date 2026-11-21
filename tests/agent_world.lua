@@ -103,7 +103,7 @@ local function install_stubs()
     -- well, so this file is the same on both branches.
     stub("scripts.pause.notify", {show = noop, clear = noop})
     stub("scripts.team_pins", {on_team_left = noop, on_team_joined = noop})
-    stub("scripts.planet_map", {apply_force_locks = noop})
+    stub("scripts.planet_map", {apply_force_locks = noop, reapply_discovery_unlocks = noop})
     stub("gui.friendship", {break_all_for = noop})
     stub("scripts.team_modifiers", {
         on_release = noop,

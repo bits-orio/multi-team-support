@@ -251,6 +251,11 @@ function M.claim_team_slot(player, opts)
     end
 
     planet_map.apply_force_locks(force)
+    -- The research copied from the player force above may hold planet
+    -- discoveries (a mod that starts the game with planets discovered, like
+    -- Nomad). apply_force_locks closed every variant but home, so open the
+    -- team's variant of each planet its research has discovered.
+    planet_map.reapply_discovery_unlocks(force)
     log("[multi-team-support] " .. player.name .. " claimed slot " .. slot
         .. " (" .. force_name .. ")")
     -- The restart counter (player_teams). Kept outside the slot's state on
@@ -384,6 +389,7 @@ function M.release_team_slot(force_name)
         reset_force_state(force)
         copy_force_state(game.forces.player, force)
         planet_map.apply_force_locks(force)
+        planet_map.reapply_discovery_unlocks(force)
     end
 
     log("[multi-team-support] released team slot: " .. force_name)
