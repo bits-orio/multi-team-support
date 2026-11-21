@@ -8,6 +8,7 @@ local force_utils   = require("scripts.force_utils")
 local admin_gui     = require("gui.admin")
 local pop_text      = require("scripts.pop_text")
 local hud_clock     = require("gui.hud_clock")
+local respawn_home  = require("scripts.respawn_home")
 
 local M = {}
 
@@ -57,6 +58,9 @@ function M.register()
             pop_text.rip(player, pos)
         end
     end)
+
+    -- A rider of a destroyed space platform respawns on the shared Nauvis.
+    script.on_event(defines.events.on_player_respawned, respawn_home.on_player_respawned)
 end
 
 return M

@@ -458,6 +458,7 @@ function M.install_engine(opts)
         on_player_promoted      = "on_player_promoted",
         on_player_demoted       = "on_player_demoted",
         on_player_died          = "on_player_died",
+        on_player_respawned     = "on_player_respawned",
         on_pre_player_removed   = "on_pre_player_removed",
     }}
     local next_id = 1000
