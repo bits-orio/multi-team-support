@@ -8,6 +8,7 @@
 local admin_gui         = require("gui.admin")
 local helpers           = require("scripts.helpers")
 local ultracube_compat  = require("compat.ultracube")
+local nomad_compat      = require("compat.nomad")
 local pen_gui           = require("gui.pen_gui")
 local pen_ops           = require("gui.pen_ops")
 local team_clock        = require("scripts.team_clock")
@@ -255,6 +256,10 @@ function M.accept_buddy_request(member, requester_index)
             surf.find_non_colliding_position("character", pos, 10, 1) or pos, surf)
     end
     ultracube_compat.after_spawn(requester)
+    -- Nomad: the new member goes to the ship the team already has. Only when
+    -- they stand on the team's own surface; after the fallback above they are
+    -- wherever the accepting member is.
+    if placed then nomad_compat.after_spawn(requester) end
 
     storage.player_clock_start = storage.player_clock_start or {}
     if not storage.player_clock_start[requester.index] then
